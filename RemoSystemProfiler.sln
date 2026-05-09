@@ -1,0 +1,26 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36408.4
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RemoSystemProfiler", "RemoSystemProfiler.csproj", "{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Debug|x64.ActiveCfg = Debug|x64
+		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Debug|x64.Build.0 = Debug|x64
+		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Debug|x64.Deploy.0 = Debug|x64
+		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Release|x64.ActiveCfg = Release|x64
+		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Release|x64.Build.0 = Release|x64
+		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Release|x64.Deploy.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8EFEF1E1-2D63-4CF5-98A9-90A2395E550B}
+	EndGlobalSection
+EndGlobal

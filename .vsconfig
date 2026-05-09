@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "components": [
+    "Microsoft.VisualStudio.Workload.Universal",
+    "Microsoft.VisualStudio.Component.WindowsAppSdkSupport.CSharp",
+    "Microsoft.VisualStudio.ComponentGroup.WindowsAppSDK.Cs",
+    "Microsoft.VisualStudio.ComponentGroup.UWP.BuildTools"
+  ]
+}
+
