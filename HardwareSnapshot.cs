@@ -79,7 +79,7 @@ public sealed record MemoryDeviceReading(
 
     public string TemperatureText => TemperatureSensors.Count == 0
         ? string.Empty
-        : MetricFormatter.FormatTemperature(TemperatureSensors.Max(sensor => sensor.Value));
+        : MetricFormatter.FormatTemperature(TemperatureSensors.Average(sensor => sensor.Value));
 
     public string CapacityText => DataSensors.Count == 0 ? "--" : string.Join(" / ", DataSensors.Take(2).Select(sensor => sensor.ValueText));
 
@@ -93,13 +93,25 @@ public sealed record GpuDeviceReading(
     IReadOnlyList<MetricReading> TemperatureSensors,
     IReadOnlyList<MetricReading> MemorySensors)
 {
-    public string LoadText => LoadSensors.FirstOrDefault()?.ValueText ?? "--";
+    public string LoadText => PrimaryLoad?.ValueText ?? "--";
 
-    public string PowerText => PowerSensors.Count == 0 ? "--" : MetricFormatter.FormatPower(PowerSensors.Sum(sensor => sensor.Value));
+    public string PowerText
+    {
+        get
+        {
+            if (PowerSensors.Count == 0)
+            {
+                return "--";
+            }
 
-    public string TemperatureText => TemperatureSensors.Count == 0
-        ? "--"
-        : MetricFormatter.FormatTemperature(TemperatureSensors.Max(sensor => sensor.Value));
+            MetricReading? integratedGpuSoc = IsIntegratedGpuName(Name)
+                ? PowerSensors.FirstOrDefault(sensor => sensor.Name.Equals("GPU SoC", StringComparison.OrdinalIgnoreCase))
+                : null;
+            return integratedGpuSoc?.ValueText ?? MetricFormatter.FormatPower(PowerSensors.Sum(sensor => sensor.Value));
+        }
+    }
+
+    public string TemperatureText => PrimaryTemperature?.ValueText ?? "--";
 
     public string MemoryText => MemorySensors.FirstOrDefault(sensor =>
             sensor.Name.Contains("Used", StringComparison.OrdinalIgnoreCase)
@@ -109,7 +121,55 @@ public sealed record GpuDeviceReading(
 
     public string SensorCountText => $"{LoadSensors.Count + PowerSensors.Count + TemperatureSensors.Count + MemorySensors.Count} sensors";
 
-    public double LoadGauge => LoadSensors.FirstOrDefault()?.GaugeValue ?? 0;
+    public double LoadGauge => PrimaryLoad?.GaugeValue ?? 0;
+
+    private MetricReading? PrimaryLoad => LoadSensors.FirstOrDefault(IsD3D3DLoad)
+        ?? LoadSensors.FirstOrDefault(sensor => sensor.Name.Contains("3D", StringComparison.OrdinalIgnoreCase)
+            && sensor.Name.Contains("D3D", StringComparison.OrdinalIgnoreCase))
+        ?? LoadSensors.FirstOrDefault(sensor => sensor.Name.Equals("GPU Core", StringComparison.OrdinalIgnoreCase))
+        ?? LoadSensors.FirstOrDefault(sensor => sensor.Name.Equals("Core", StringComparison.OrdinalIgnoreCase))
+        ?? LoadSensors.FirstOrDefault();
+
+    private MetricReading? PrimaryTemperature
+    {
+        get
+        {
+            if (TemperatureSensors.Count == 0)
+            {
+                return null;
+            }
+
+            return IsIntegratedGpuName(Name)
+                ? TemperatureSensors.FirstOrDefault(sensor => sensor.Name.Equals("GPU VR SoC", StringComparison.OrdinalIgnoreCase))
+                    ?? TemperatureSensors.FirstOrDefault(IsGpuCoreTemperature)
+                    ?? TemperatureSensors.FirstOrDefault()
+                : TemperatureSensors.FirstOrDefault(IsGpuCoreTemperature)
+                    ?? TemperatureSensors.FirstOrDefault(sensor => sensor.Name.Equals("GPU Temperature", StringComparison.OrdinalIgnoreCase))
+                    ?? TemperatureSensors.FirstOrDefault();
+        }
+    }
+
+    private static bool IsGpuCoreTemperature(MetricReading sensor)
+    {
+        return sensor.Name.Equals("GPU Core", StringComparison.OrdinalIgnoreCase)
+            || sensor.Name.Equals("Core", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsD3D3DLoad(MetricReading sensor)
+    {
+        return sensor.Name.Equals("D3D 3D", StringComparison.OrdinalIgnoreCase)
+            || sensor.Name.Equals("D3D 3D Engine", StringComparison.OrdinalIgnoreCase)
+            || sensor.Name.Equals("3D", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsIntegratedGpuName(string name)
+    {
+        return name.Contains("Radeon(TM) Graphics", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Integrated", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("iGPU", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("UHD Graphics", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Iris", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed record StorageDeviceReading(
@@ -138,6 +198,21 @@ public sealed record StorageDeviceReading(
     public string SensorCountText => $"{Metrics.Count} sensors";
 
     public double UsageGauge => UsageSensors.FirstOrDefault()?.GaugeValue ?? 0;
+
+    public double ActivityGauge
+    {
+        get
+        {
+            if (ThroughputSensors.Count == 0)
+            {
+                return 0;
+            }
+
+            double bytesPerSecond = ThroughputSensors.Sum(sensor => Math.Max(0, sensor.Value));
+            const double busyScaleBytesPerSecond = 512d * 1024d * 1024d;
+            return Math.Clamp(bytesPerSecond / busyScaleBytesPerSecond * 100d, 0, 100);
+        }
+    }
 }
 
 public sealed record MetricReading(

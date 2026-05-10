@@ -75,6 +75,12 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
 {
     private string _title = string.Empty;
     private string _statusText = "--";
+    private string _summaryOneLabel = "--";
+    private string _summaryOneText = "--";
+    private string _summaryTwoLabel = "--";
+    private string _summaryTwoText = "--";
+    private string _summaryThreeLabel = "--";
+    private string _summaryThreeText = "--";
     private bool _isExpanded;
 
     public SensorGroupViewModel(SensorGroupReading reading)
@@ -100,6 +106,42 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
         private set => SetProperty(ref _statusText, value);
     }
 
+    public string SummaryOneLabel
+    {
+        get => _summaryOneLabel;
+        private set => SetProperty(ref _summaryOneLabel, value);
+    }
+
+    public string SummaryOneText
+    {
+        get => _summaryOneText;
+        private set => SetProperty(ref _summaryOneText, value);
+    }
+
+    public string SummaryTwoLabel
+    {
+        get => _summaryTwoLabel;
+        private set => SetProperty(ref _summaryTwoLabel, value);
+    }
+
+    public string SummaryTwoText
+    {
+        get => _summaryTwoText;
+        private set => SetProperty(ref _summaryTwoText, value);
+    }
+
+    public string SummaryThreeLabel
+    {
+        get => _summaryThreeLabel;
+        private set => SetProperty(ref _summaryThreeLabel, value);
+    }
+
+    public string SummaryThreeText
+    {
+        get => _summaryThreeText;
+        private set => SetProperty(ref _summaryThreeText, value);
+    }
+
     public bool IsExpanded
     {
         get => _isExpanded;
@@ -110,6 +152,7 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
     {
         Title = reading.Title;
         StatusText = DashboardStatus.SensorGroupStatus(reading.Metrics);
+        ApplySummary(reading);
         DashboardCollection.Sync(
             Metrics,
             reading.Metrics,
@@ -118,6 +161,94 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
             metric => new MetricItemViewModel(metric),
             (item, metric) => item.Update(metric));
     }
+
+    private void ApplySummary(SensorGroupReading reading)
+    {
+        MetricReading[] metrics = reading.Metrics.ToArray();
+        if (metrics.Length == 0)
+        {
+            SetSummary("--", "--", "--", "--", "Sensors", "0");
+            return;
+        }
+
+        switch (reading.Key)
+        {
+            case "temperature":
+                SetSummary(
+                    "Peak",
+                    MetricFormatter.FormatTemperature(metrics.Max(metric => metric.Value)),
+                    "Avg",
+                    MetricFormatter.FormatTemperature(metrics.Average(metric => metric.Value)),
+                    "Sensors",
+                    metrics.Length.ToString());
+                break;
+            case "power":
+                MetricReading? package = metrics.FirstOrDefault(metric => metric.Name.Contains("Package", StringComparison.OrdinalIgnoreCase))
+                    ?? metrics.FirstOrDefault(metric => metric.Name.Contains("Total", StringComparison.OrdinalIgnoreCase));
+                SetSummary(
+                    package is null ? "Total" : "Package",
+                    package?.ValueText ?? MetricFormatter.FormatPower(metrics.Sum(metric => metric.Value)),
+                    "Peak rail",
+                    MetricFormatter.FormatPower(metrics.Max(metric => metric.Value)),
+                    "Sensors",
+                    metrics.Length.ToString());
+                break;
+            case "clock":
+                SetSummary(
+                    "Avg",
+                    FormatClock(metrics.Average(metric => metric.Value)),
+                    "Max",
+                    FormatClock(metrics.Max(metric => metric.Value)),
+                    "Sensors",
+                    metrics.Length.ToString());
+                break;
+            case "voltage":
+                SetSummary(
+                    "Max",
+                    FormatVoltage(metrics.Max(metric => metric.Value)),
+                    "Avg",
+                    FormatVoltage(metrics.Average(metric => metric.Value)),
+                    "Sensors",
+                    metrics.Length.ToString());
+                break;
+            case "current":
+                SetSummary(
+                    "Total",
+                    FormatCurrent(metrics.Sum(metric => metric.Value)),
+                    "Peak rail",
+                    FormatCurrent(metrics.Max(metric => metric.Value)),
+                    "Sensors",
+                    metrics.Length.ToString());
+                break;
+            default:
+                SetSummary("Primary", metrics[0].ValueText, "Sensors", metrics.Length.ToString(), "--", "--");
+                break;
+        }
+    }
+
+    private void SetSummary(
+        string oneLabel,
+        string oneText,
+        string twoLabel,
+        string twoText,
+        string threeLabel,
+        string threeText)
+    {
+        SummaryOneLabel = oneLabel;
+        SummaryOneText = oneText;
+        SummaryTwoLabel = twoLabel;
+        SummaryTwoText = twoText;
+        SummaryThreeLabel = threeLabel;
+        SummaryThreeText = threeText;
+    }
+
+    private static string FormatClock(double valueMHz) => valueMHz >= 1000
+        ? $"{valueMHz / 1000d:0.00} GHz"
+        : $"{valueMHz:0} MHz";
+
+    private static string FormatVoltage(double value) => $"{value:0.###} V";
+
+    private static string FormatCurrent(double value) => $"{value:0.##} A";
 }
 
 internal static class DashboardStatus
@@ -403,6 +534,7 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
     private string _temperatureText = "--";
     private string _powerText = "--";
     private string _statusText = "--";
+    private bool _isExpanded;
 
     public GpuDeviceViewModel(GpuDeviceReading reading)
     {
@@ -454,6 +586,12 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
         private set => SetProperty(ref _statusText, value);
     }
 
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetProperty(ref _isExpanded, value);
+    }
+
     public void Update(GpuDeviceReading reading)
     {
         Name = reading.Name;
@@ -493,9 +631,11 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem
 {
     private string _name = string.Empty;
     private string _sensorCountText = "--";
+    private string _usageText = "--";
     private string _temperatureText = "--";
     private string _readWriteText = "--";
     private string _statusText = "--";
+    private bool _isExpanded;
 
     public StorageDeviceViewModel(StorageDeviceReading reading)
     {
@@ -519,6 +659,12 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem
         private set => SetProperty(ref _sensorCountText, value);
     }
 
+    public string UsageText
+    {
+        get => _usageText;
+        private set => SetProperty(ref _usageText, value);
+    }
+
     public string TemperatureText
     {
         get => _temperatureText;
@@ -537,10 +683,17 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem
         private set => SetProperty(ref _statusText, value);
     }
 
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetProperty(ref _isExpanded, value);
+    }
+
     public void Update(StorageDeviceReading reading)
     {
         Name = reading.Name;
         SensorCountText = reading.SensorCountText;
+        UsageText = reading.UsageText;
         TemperatureText = reading.TemperatureText;
         ReadWriteText = reading.ReadWriteText;
         StatusText = DashboardStatus.DeviceStatus(

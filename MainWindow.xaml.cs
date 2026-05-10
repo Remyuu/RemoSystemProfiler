@@ -299,7 +299,7 @@ public sealed partial class MainWindow : Window
         for (int i = 0; i < snapshot.StorageDevices.Count; i++)
         {
             StorageDeviceReading storage = snapshot.StorageDevices[i];
-            readings.Add(new($"storage:{storage.Name}", $"Disk {i}", storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.UsageGauge, ResourceBrush("AmberBrush")));
+            readings.Add(new($"storage:{storage.Name}", $"Disk {i}", storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, ResourceBrush("AmberBrush")));
         }
 
         SyncOverviewCollection(readings);
@@ -377,8 +377,8 @@ public sealed partial class MainWindow : Window
 
     private static IEnumerable<SensorGroupReading> BuildCpuSensorGroups(CpuDeviceReading? cpu)
     {
-        yield return new SensorGroupReading("temperature", "Temperature", cpu?.TemperatureSensors ?? Array.Empty<MetricReading>(), true);
-        yield return new SensorGroupReading("power", "Power", cpu?.PowerSensors ?? Array.Empty<MetricReading>(), true);
+        yield return new SensorGroupReading("temperature", "Temperature", cpu?.TemperatureSensors ?? Array.Empty<MetricReading>(), false);
+        yield return new SensorGroupReading("power", "Power", cpu?.PowerSensors ?? Array.Empty<MetricReading>(), false);
         yield return new SensorGroupReading("clock", "Clock", cpu?.ClockSensors ?? Array.Empty<MetricReading>(), false);
         yield return new SensorGroupReading("voltage", "Voltage", cpu?.VoltageSensors ?? Array.Empty<MetricReading>(), false);
         yield return new SensorGroupReading("current", "Current", cpu?.CurrentSensors ?? Array.Empty<MetricReading>(), false);

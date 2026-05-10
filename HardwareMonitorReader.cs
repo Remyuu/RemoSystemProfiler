@@ -172,7 +172,7 @@ public sealed class HardwareMonitorReader : IDisposable
         IReadOnlyList<IHardware> hardwareTree,
         IReadOnlyList<ISensor> memorySensors)
     {
-        MetricReading[] directReadings = BuildMetricReadings(memorySensors, SensorType.Temperature).ToArray();
+        MetricReading[] directReadings = BuildMetricReadings(memorySensors, SensorType.Temperature, IsMemoryModuleTemperatureSensor).ToArray();
         if (directReadings.Length > 0)
         {
             return directReadings;
@@ -390,11 +390,34 @@ public sealed class HardwareMonitorReader : IDisposable
             return false;
         }
 
+        if (!IsMemoryModuleTemperatureSensor(sensor))
+        {
+            return false;
+        }
+
         return hardware.HardwareType == HardwareType.Memory
             || name.Contains("DIMM", StringComparison.OrdinalIgnoreCase)
             || name.Contains("DRAM", StringComparison.OrdinalIgnoreCase)
             || name.Contains("DDR", StringComparison.OrdinalIgnoreCase)
             || name.Contains("SPD", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMemoryModuleTemperatureSensor(ISensor sensor)
+    {
+        string name = sensor.Name;
+        if (name.Contains("Resolution", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Limit", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Critical", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Threshold", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return name.Contains("DIMM", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("DRAM", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("DDR", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("SPD", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Module", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsPrimaryStorageTemperatureName(ISensor sensor)
