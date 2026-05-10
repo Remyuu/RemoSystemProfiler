@@ -3,6 +3,7 @@ obj/
 .vs/
 .dotnet/
 .nuget/
+.tmp/
 third_party/
 Native/
 Backup/

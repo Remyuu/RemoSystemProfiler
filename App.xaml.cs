@@ -5,7 +5,6 @@ namespace RemoSystemProfiler;
 public partial class App : Application
 {
     private Window? _window;
-    private bool _isShuttingDown;
 
     public App()
     {
@@ -14,23 +13,11 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
-        _window.Activate();
+        MainWindow mainWindow = new();
+        _window = mainWindow;
+        mainWindow.Activate();
+        mainWindow.InitializeAfterActivation();
     }
 
-    internal void ShutdownFromMainWindow()
-    {
-        if (_isShuttingDown)
-        {
-            return;
-        }
-
-        _isShuttingDown = true;
-        _window = null;
-        Exit();
-
-        // WinUI/Windows App SDK shutdown can leave native or sensor-library threads
-        // alive under the Visual Studio debugger. Main window close is app exit here.
-        Environment.Exit(0);
-    }
+    internal void ClearMainWindow(Window window) => _window = ReferenceEquals(_window, window) ? null : _window;
 }

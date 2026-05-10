@@ -3,132 +3,361 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:RemoSystemProfiler"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Title="Remo System Profiler">
 
     <Grid
         x:Name="Root"
-        MinWidth="960"
-        MinHeight="680">
+        MinWidth="980"
+        MinHeight="640"
+        Background="{ThemeResource AppBackgroundBrush}">
         <Grid.Resources>
-            <SolidColorBrush x:Key="PanelBrush" Color="#F7FAFC" />
-            <SolidColorBrush x:Key="PanelStrongBrush" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="PanelStrokeBrush" Color="#22101823" />
-            <SolidColorBrush x:Key="AccentTextBrush" Color="#101823" />
-            <SolidColorBrush x:Key="MutedTextBrush" Color="#667085" />
-            <SolidColorBrush x:Key="BlueBrush" Color="#2563EB" />
-            <SolidColorBrush x:Key="RedBrush" Color="#D92D20" />
-            <SolidColorBrush x:Key="GreenBrush" Color="#079455" />
-            <SolidColorBrush x:Key="AmberBrush" Color="#D18B00" />
+            <Style x:Key="PanelBorderStyle" TargetType="Border">
+                <Setter Property="Padding" Value="10" />
+                <Setter Property="Background" Value="{ThemeResource PanelBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource PanelStrokeBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="5" />
+            </Style>
+
+            <Style x:Key="LabelTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{ThemeResource MutedTextBrush}" />
+            </Style>
+
+            <Style x:Key="ValueTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="18" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentTextBrush}" />
+            </Style>
 
             <DataTemplate x:Key="MetricRowTemplate">
                 <Border
-                    MinHeight="34"
-                    Padding="10,7"
-                    Background="#F4F7FA"
-                    BorderBrush="#12101823"
+                    MinHeight="28"
+                    Padding="8,4"
+                    Background="{ThemeResource PanelSoftBrush}"
+                    BorderBrush="{ThemeResource PanelStrokeBrush}"
                     BorderThickness="1"
-                    CornerRadius="6">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    CornerRadius="4">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <TextBlock
-                            VerticalAlignment="Center"
-                            FontSize="12"
-                            Foreground="{StaticResource MutedTextBrush}"
+                            Style="{StaticResource LabelTextStyle}"
                             Text="{Binding Label}"
                             TextTrimming="CharacterEllipsis" />
                         <TextBlock
                             Grid.Column="1"
-                            VerticalAlignment="Center"
-                            FontSize="13"
+                            FontSize="12"
                             FontWeight="SemiBold"
-                            Foreground="{StaticResource AccentTextBrush}"
+                            Foreground="{ThemeResource AccentTextBrush}"
                             Text="{Binding ValueText}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <DataTemplate x:Key="HardwareOverviewTemplate">
+                <Border
+                    MinHeight="68"
+                    Padding="9,7"
+                    Background="{ThemeResource PanelBrush}"
+                    BorderBrush="{Binding AccentBrush}"
+                    BorderThickness="2,1,1,1"
+                    CornerRadius="5">
+                    <Grid ColumnDefinitions="66,*" ColumnSpacing="9">
+                        <Border
+                            Width="62"
+                            Height="38"
+                            Background="{ThemeResource ChartBackgroundBrush}"
+                            BorderBrush="{ThemeResource PanelStrokeBrush}"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <Grid Margin="4">
+                                <Line
+                                    X1="0"
+                                    X2="54"
+                                    Y1="27"
+                                    Y2="27"
+                                    Stroke="{ThemeResource PanelStrokeBrush}" />
+                                <Polyline
+                                    Points="{Binding SparklinePoints}"
+                                    Stroke="{Binding AccentBrush}"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="1">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding Title}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding PrimaryText}" />
+                            </Grid>
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource MutedTextBrush}"
+                                Text="{Binding SecondaryText}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                FontSize="11"
+                                Foreground="{ThemeResource SubtleTextBrush}"
+                                Text="{Binding DetailText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <DataTemplate x:Key="CoreTemplate">
+                <Border
+                    MinWidth="34"
+                    MinHeight="34"
+                    Margin="0"
+                    Padding="0"
+                    Background="{ThemeResource ChartBackgroundBrush}"
+                    BorderBrush="{ThemeResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                    <Grid>
+                        <Viewbox Stretch="Fill">
+                            <Canvas Width="120" Height="56">
+                                <Rectangle
+                                    Width="120"
+                                    Height="56"
+                                    Fill="{ThemeResource ChartBackgroundBrush}"
+                                    RadiusX="2"
+                                    RadiusY="2" />
+                                <Line
+                                    X1="0"
+                                    X2="120"
+                                    Y1="42"
+                                    Y2="42"
+                                    Stroke="{ThemeResource PanelStrokeBrush}" />
+                                <Polyline
+                                    Points="{Binding SparklinePoints}"
+                                    Stroke="{StaticResource BlueBrush}"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2.2" />
+                            </Canvas>
+                        </Viewbox>
+                        <Border
+                            Margin="6,4,0,0"
+                            Padding="4,1"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource PanelStrongBrush}"
+                            BorderBrush="{ThemeResource PanelStrokeBrush}"
+                            BorderThickness="1"
+                            CornerRadius="2">
+                            <TextBlock
+                                FontSize="14"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource AccentTextBrush}"
+                                Text="{Binding LoadText}" />
+                        </Border>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <DataTemplate x:Key="SensorGroupTemplate">
+                <Expander
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                    <Expander.Header>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBlock
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource AccentTextBrush}"
+                                Text="{Binding Title}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                FontSize="12"
+                                Foreground="{StaticResource AmberBrush}"
+                                Text="{Binding StatusText}" />
+                        </Grid>
+                    </Expander.Header>
+                    <ItemsControl
+                        ItemTemplate="{StaticResource MetricRowTemplate}"
+                        ItemsSource="{Binding Metrics}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </Expander>
+            </DataTemplate>
+
+            <DataTemplate x:Key="GpuTemplate">
+                <Border
+                    Padding="8,6"
+                    Background="{ThemeResource PanelSoftBrush}"
+                    BorderBrush="{ThemeResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <StackPanel Spacing="1">
+                                <TextBlock
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding Name}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    FontSize="11"
+                                    Foreground="{ThemeResource SubtleTextBrush}"
+                                    Text="{Binding SensorCountText}" />
+                            </StackPanel>
+                            <Border
+                                Grid.Column="1"
+                                Padding="6,2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Background="{ThemeResource PanelStrongBrush}"
+                                BorderBrush="{ThemeResource PanelStrokeBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="{StaticResource AmberBrush}"
+                                    Text="{Binding StatusText}" />
+                            </Border>
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelTextStyle}" Text="Load" />
+                                <TextBlock
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding LoadText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Style="{StaticResource LabelTextStyle}" Text="Temp" />
+                                <TextBlock
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="{StaticResource RedBrush}"
+                                    Text="{Binding TemperatureText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource LabelTextStyle}" Text="Power" />
+                                <TextBlock
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding PowerText}" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsControl
+                            Grid.Row="2"
+                            ItemTemplate="{StaticResource MetricRowTemplate}"
+                            ItemsSource="{Binding MemorySensors}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <DataTemplate x:Key="StorageTemplate">
+                <Border
+                    Padding="8,6"
+                    Background="{ThemeResource PanelSoftBrush}"
+                    BorderBrush="{ThemeResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <StackPanel Spacing="1">
+                                <TextBlock
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding Name}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    FontSize="11"
+                                    Foreground="{ThemeResource SubtleTextBrush}"
+                                    Text="{Binding SensorCountText}" />
+                            </StackPanel>
+                            <Border
+                                Grid.Column="1"
+                                Padding="6,2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Background="{ThemeResource PanelStrongBrush}"
+                                BorderBrush="{ThemeResource PanelStrokeBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="{StaticResource AmberBrush}"
+                                    Text="{Binding StatusText}" />
+                            </Border>
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource LabelTextStyle}" Text="Temp" />
+                                <TextBlock
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="{StaticResource RedBrush}"
+                                    Text="{Binding TemperatureText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Style="{StaticResource LabelTextStyle}" Text="I/O" />
+                                <TextBlock
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Text="{Binding ReadWriteText}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsControl
+                            Grid.Row="2"
+                            ItemTemplate="{StaticResource MetricRowTemplate}"
+                            ItemsSource="{Binding Metrics}" />
                     </Grid>
                 </Border>
             </DataTemplate>
         </Grid.Resources>
 
-        <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#F6F8FB" Offset="0" />
-                <GradientStop Color="#EEF4F7" Offset="0.45" />
-                <GradientStop Color="#F7F1EA" Offset="1" />
-            </LinearGradientBrush>
-        </Grid.Background>
-
-        <ScrollViewer
-            HorizontalScrollBarVisibility="Disabled"
-            VerticalScrollBarVisibility="Auto">
-            <Grid
-                Margin="20"
-                RowSpacing="14">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <Border
-                    Padding="16,14"
-                    Background="#F3FFFFFF"
-                    BorderBrush="{StaticResource PanelStrokeBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                        <StackPanel Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <Border
-                                    Width="34"
-                                    Height="34"
-                                    Background="#101823"
-                                    CornerRadius="7">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontSize="13"
-                                        FontWeight="SemiBold"
-                                        Foreground="White"
-                                        Text="RSP" />
-                                </Border>
-                                <StackPanel VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock
-                                        FontSize="20"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="Remo System Profiler" />
-                                    <TextBlock
-                                        x:Name="HardwareSummaryText"
-                                        FontSize="12"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Waiting for hardware sensors" />
-                                </StackPanel>
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse
-                                    x:Name="StatusDot"
-                                    Width="8"
-                                    Height="8"
-                                    VerticalAlignment="Center"
-                                    Fill="Orange" />
-                                <TextBlock
-                                    x:Name="StatusText"
-                                    MaxWidth="650"
-                                    Foreground="{StaticResource MutedTextBrush}"
-                                    Text="Waiting for sensors"
-                                    TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
+        <Grid ColumnDefinitions="260,*">
+            <Border
+                Background="{ThemeResource SidebarBrush}"
+                BorderBrush="{ThemeResource PanelStrokeBrush}"
+                BorderThickness="0,0,1,0">
+                <Grid Padding="12,10" RowDefinitions="Auto,Auto,*" RowSpacing="9">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <StackPanel Spacing="1">
+                            <TextBlock
+                                FontSize="18"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource AccentTextBrush}"
+                                Text="Performance" />
+                            <TextBlock
+                                x:Name="HardwareSummaryText"
+                                FontSize="12"
+                                Foreground="{ThemeResource SubtleTextBrush}"
+                                Text="Waiting for hardware sensors"
+                                TextTrimming="CharacterEllipsis" />
                         </StackPanel>
-
-                        <StackPanel
-                            Grid.Column="1"
-                            HorizontalAlignment="Right"
-                            Spacing="8">
+                        <StackPanel Grid.Column="1" Spacing="5">
                             <ComboBox
                                 x:Name="ThemePicker"
-                                Width="116"
-                                HorizontalAlignment="Right"
+                                Width="96"
                                 SelectionChanged="ThemePicker_SelectionChanged">
                                 <ComboBoxItem Content="System" />
                                 <ComboBoxItem Content="Light" />
@@ -137,620 +366,308 @@
                             <TextBlock
                                 x:Name="UpdatedText"
                                 HorizontalAlignment="Right"
-                                FontSize="12"
-                                Foreground="{StaticResource MutedTextBrush}"
+                                FontSize="11"
+                                Foreground="{ThemeResource SubtleTextBrush}"
                                 Text="--:--:--" />
                         </StackPanel>
+                    </Grid>
+
+                    <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <Ellipse
+                                x:Name="StatusDot"
+                                Width="8"
+                                Height="8"
+                                Margin="0,2,0,0"
+                                VerticalAlignment="Top"
+                                Fill="Orange" />
+                            <TextBlock
+                                x:Name="StatusText"
+                                Grid.Column="1"
+                                FontSize="12"
+                                Foreground="{ThemeResource MutedTextBrush}"
+                                Text="Waiting for sensors"
+                                TextWrapping="WrapWholeWords"
+                                MaxLines="2" />
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer
+                        Grid.Row="2"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <ItemsControl
+                            x:Name="HardwareOverviewList"
+                            ItemTemplate="{StaticResource HardwareOverviewTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="7" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Grid
+                Grid.Column="1"
+                Padding="14,8,14,10"
+                RowDefinitions="Auto,2*,3*"
+                RowSpacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                    <StackPanel Spacing="0">
+                        <TextBlock
+                            FontSize="34"
+                            FontWeight="SemiLight"
+                            Foreground="{ThemeResource AccentTextBrush}"
+                            Text="CPU" />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{ThemeResource SubtleTextBrush}"
+                            Text="10s live utilization history and package sensors" />
+                    </StackPanel>
+                    <TextBlock
+                        x:Name="CpuNameText"
+                        Grid.Column="1"
+                        MaxWidth="430"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        FontSize="19"
+                        Foreground="{ThemeResource AccentTextBrush}"
+                        Text="--"
+                        TextAlignment="Right"
+                        TextTrimming="CharacterEllipsis" />
+                </Grid>
+
+                <Border
+                    Grid.Row="1"
+                    MinHeight="148"
+                    Style="{StaticResource PanelBorderStyle}">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="7">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock
+                                Style="{StaticResource LabelTextStyle}"
+                                Text="Logical processors" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Style="{StaticResource LabelTextStyle}"
+                                Text="100%" />
+                        </Grid>
+                        <ItemsControl
+                            x:Name="CpuCoreList"
+                            Grid.Row="1"
+                            ItemTemplate="{StaticResource CoreTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <local:CoreTopologyPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
                     </Grid>
                 </Border>
 
                 <Grid
-                    Grid.Row="1"
-                    ColumnDefinitions="*,*,*,*"
-                    ColumnSpacing="12">
-                    <Border
-                        Padding="14"
-                        Background="{StaticResource PanelStrongBrush}"
-                        BorderBrush="{StaticResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8">
-                        <StackPanel Spacing="8">
-                            <TextBlock
-                                FontSize="12"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource BlueBrush}"
-                                Text="CPU PACKAGE" />
-                            <TextBlock
-                                x:Name="CpuPackagePowerText"
-                                FontSize="26"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource AccentTextBrush}"
-                                Text="--" />
-                            <Grid ColumnDefinitions="*,*">
-                                <StackPanel>
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Peak temp" />
-                                    <TextBlock
-                                        x:Name="CpuPeakTempText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource RedBrush}"
-                                        Text="--" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Load" />
-                                    <TextBlock
-                                        x:Name="CpuLoadSummaryText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="--" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Border
-                        Grid.Column="1"
-                        Padding="14"
-                        Background="{StaticResource PanelStrongBrush}"
-                        BorderBrush="{StaticResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8">
-                        <StackPanel Spacing="8">
-                            <TextBlock
-                                FontSize="12"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource GreenBrush}"
-                                Text="MEMORY" />
-                            <TextBlock
-                                x:Name="MemoryUsageText"
-                                FontSize="26"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource AccentTextBrush}"
-                                Text="--" />
-                            <Grid ColumnDefinitions="*,*">
-                                <StackPanel>
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Temperature" />
-                                    <TextBlock
-                                        x:Name="MemoryTempText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource RedBrush}"
-                                        Text="--" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Data" />
-                                    <TextBlock
-                                        x:Name="MemoryCapacityText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="--"
-                                        TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Border
-                        Grid.Column="2"
-                        Padding="14"
-                        Background="{StaticResource PanelStrongBrush}"
-                        BorderBrush="{StaticResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8">
-                        <StackPanel Spacing="8">
-                            <TextBlock
-                                FontSize="12"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource AmberBrush}"
-                                Text="GPU" />
-                            <TextBlock
-                                x:Name="GpuCountText"
-                                FontSize="26"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource AccentTextBrush}"
-                                Text="--" />
-                            <Grid ColumnDefinitions="*,*">
-                                <StackPanel>
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Peak temp" />
-                                    <TextBlock
-                                        x:Name="GpuPeakTempText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource RedBrush}"
-                                        Text="--" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Power" />
-                                    <TextBlock
-                                        x:Name="GpuPowerText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="--" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Border
-                        Grid.Column="3"
-                        Padding="14"
-                        Background="{StaticResource PanelStrongBrush}"
-                        BorderBrush="{StaticResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8">
-                        <StackPanel Spacing="8">
-                            <TextBlock
-                                FontSize="12"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource BlueBrush}"
-                                Text="STORAGE" />
-                            <TextBlock
-                                x:Name="StorageCountText"
-                                FontSize="26"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource AccentTextBrush}"
-                                Text="--" />
-                            <Grid ColumnDefinitions="*,*">
-                                <StackPanel>
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Peak temp" />
-                                    <TextBlock
-                                        x:Name="StoragePeakTempText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource RedBrush}"
-                                        Text="--" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock
-                                        FontSize="11"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Read / write" />
-                                    <TextBlock
-                                        x:Name="StorageIoText"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="--"
-                                        TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <Grid
                     Grid.Row="2"
-                    ColumnDefinitions="1.16*,0.84*"
-                    ColumnSpacing="14">
-                    <StackPanel Spacing="14">
-                        <Border
-                            Padding="14"
-                            Background="{StaticResource PanelStrongBrush}"
-                            BorderBrush="{StaticResource PanelStrokeBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid RowSpacing="12">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock
-                                            FontSize="16"
-                                            FontWeight="SemiBold"
-                                            Foreground="{StaticResource AccentTextBrush}"
-                                            Text="CPU" />
-                                        <TextBlock
-                                            x:Name="CpuNameText"
-                                            FontSize="12"
-                                            Foreground="{StaticResource MutedTextBrush}"
-                                            Text="--"
-                                            TextTrimming="CharacterEllipsis" />
+                    MinHeight="260"
+                    ColumnDefinitions="28*,42*,30*"
+                    ColumnSpacing="9">
+                    <ScrollViewer
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="7">
+                            <Border Style="{StaticResource PanelBorderStyle}">
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Utilization" />
+                                        <TextBlock x:Name="CpuLoadSummaryText" Style="{StaticResource ValueTextStyle}" Text="--" />
                                     </StackPanel>
-                                    <StackPanel
-                                        Grid.Column="1"
-                                        Orientation="Horizontal"
-                                        Spacing="12">
-                                        <StackPanel>
-                                            <TextBlock
-                                                FontSize="11"
-                                                Foreground="{StaticResource MutedTextBrush}"
-                                                Text="Cores" />
-                                            <TextBlock
-                                                x:Name="CoreCountText"
-                                                HorizontalAlignment="Right"
-                                                FontWeight="SemiBold"
-                                                Text="--" />
-                                        </StackPanel>
-                                        <StackPanel>
-                                            <TextBlock
-                                                FontSize="11"
-                                                Foreground="{StaticResource MutedTextBrush}"
-                                                Text="Clock" />
-                                            <TextBlock
-                                                x:Name="ClockText"
-                                                HorizontalAlignment="Right"
-                                                FontWeight="SemiBold"
-                                                Text="--" />
-                                        </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Speed" />
+                                        <TextBlock x:Name="ClockText" Style="{StaticResource ValueTextStyle}" Text="--" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1">
+                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Package power" />
+                                        <TextBlock x:Name="CpuPackagePowerText" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="--" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Grid.Column="1">
+                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Peak temp" />
+                                        <TextBlock x:Name="CpuPeakTempText" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource RedBrush}" Text="--" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="2">
+                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Logical processors" />
+                                        <TextBlock x:Name="CoreCountText" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="--" />
                                     </StackPanel>
                                 </Grid>
+                            </Border>
 
-                                <Grid
-                                    Grid.Row="1"
-                                    ColumnDefinitions="*,*"
-                                    ColumnSpacing="10">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock
-                                            FontSize="12"
-                                            FontWeight="SemiBold"
-                                            Foreground="{StaticResource MutedTextBrush}"
-                                            Text="Temperature sensors" />
-                                        <ItemsControl
-                                            x:Name="CpuTemperatureList"
-                                            ItemTemplate="{StaticResource MetricRowTemplate}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Spacing="6" />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                        </ItemsControl>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Spacing="8">
-                                        <TextBlock
-                                            FontSize="12"
-                                            FontWeight="SemiBold"
-                                            Foreground="{StaticResource MutedTextBrush}"
-                                            Text="Power sensors" />
-                                        <ItemsControl
-                                            x:Name="CpuPowerList"
-                                            ItemTemplate="{StaticResource MetricRowTemplate}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Spacing="6" />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                        </ItemsControl>
+                            <Border Style="{StaticResource PanelBorderStyle}">
+                                <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="Memory" />
+                                        <TextBlock x:Name="MemoryUsageText" Grid.Column="1" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="--" />
+                                    </Grid>
+                                    <StackPanel Grid.Row="1" Spacing="5">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock x:Name="MemoryCapacityText" Style="{StaticResource LabelTextStyle}" Text="--" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock x:Name="MemoryTempText" Grid.Column="1" FontSize="12" Foreground="{StaticResource RedBrush}" Text="--" />
+                                        </Grid>
+                                        <ScrollViewer
+                                            MaxHeight="132"
+                                            HorizontalScrollBarVisibility="Disabled"
+                                            VerticalScrollBarVisibility="Hidden">
+                                            <ItemsControl x:Name="MemoryMetricList" ItemTemplate="{StaticResource MetricRowTemplate}" />
+                                        </ScrollViewer>
                                     </StackPanel>
                                 </Grid>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
 
-                                <StackPanel Grid.Row="2" Spacing="8">
-                                    <TextBlock
-                                        FontSize="12"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Per-core load, temperature, and power" />
-                                    <ListView
-                                        x:Name="CpuCoreList"
-                                        MaxHeight="310"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        IsItemClickEnabled="False"
-                                        SelectionMode="None"
-                                        ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                        <ListView.ItemContainerStyle>
-                                            <Style TargetType="ListViewItem">
-                                                <Setter Property="Padding" Value="0" />
-                                                <Setter Property="Margin" Value="0,0,0,6" />
-                                                <Setter Property="MinHeight" Value="48" />
-                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                            </Style>
-                                        </ListView.ItemContainerStyle>
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border
-                                                    MinHeight="48"
-                                                    Padding="10,7"
-                                                    Background="#F4F7FA"
-                                                    BorderBrush="#12101823"
-                                                    BorderThickness="1"
-                                                    CornerRadius="6">
-                                                    <Grid
-                                                        ColumnDefinitions="82,*,76,72"
-                                                        ColumnSpacing="10">
-                                                        <TextBlock
-                                                            VerticalAlignment="Center"
-                                                            FontWeight="SemiBold"
-                                                            Foreground="{StaticResource AccentTextBrush}"
-                                                            Text="{Binding Name}" />
-                                                        <ProgressBar
-                                                            Grid.Column="1"
-                                                            Height="7"
-                                                            Maximum="100"
-                                                            Value="{Binding LoadPercent}"
-                                                            VerticalAlignment="Center"
-                                                            Foreground="{StaticResource BlueBrush}" />
-                                                        <TextBlock
-                                                            Grid.Column="2"
-                                                            HorizontalAlignment="Right"
-                                                            VerticalAlignment="Center"
-                                                            FontWeight="SemiBold"
-                                                            Foreground="{StaticResource RedBrush}"
-                                                            Text="{Binding TemperatureText}" />
-                                                        <StackPanel
-                                                            Grid.Column="3"
-                                                            HorizontalAlignment="Right"
-                                                            VerticalAlignment="Center"
-                                                            Spacing="1">
-                                                            <TextBlock
-                                                                HorizontalAlignment="Right"
-                                                                FontSize="12"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="{Binding LoadText}" />
-                                                            <TextBlock
-                                                                HorizontalAlignment="Right"
-                                                                FontSize="12"
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource AccentTextBrush}"
-                                                                Text="{Binding PowerText}" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <Border
-                            Padding="14"
-                            Background="{StaticResource PanelStrongBrush}"
-                            BorderBrush="{StaticResource PanelStrokeBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid RowSpacing="10">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <StackPanel Spacing="2">
-                                    <TextBlock
-                                        FontSize="16"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="Memory" />
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Usage, capacity, and DIMM temperature sensors when exposed" />
-                                </StackPanel>
+                    <Border Grid.Column="1" Style="{StaticResource PanelBorderStyle}">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="CPU sensors" />
+                            <ScrollViewer
+                                Grid.Row="1"
+                                HorizontalScrollBarVisibility="Disabled"
+                                VerticalScrollBarVisibility="Hidden">
                                 <ItemsControl
-                                    x:Name="MemoryMetricList"
-                                    Grid.Row="1"
-                                    ItemTemplate="{StaticResource MetricRowTemplate}">
+                                    x:Name="CpuSensorGroupList"
+                                    ItemTemplate="{StaticResource SensorGroupTemplate}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Spacing="6" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                 </ItemsControl>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
 
-                    <StackPanel Grid.Column="1" Spacing="14">
-                        <Border
-                            Padding="14"
-                            Background="{StaticResource PanelStrongBrush}"
-                            BorderBrush="{StaticResource PanelStrokeBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid RowSpacing="10">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <StackPanel Spacing="2">
-                                    <TextBlock
-                                        FontSize="16"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="GPU Devices" />
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Power, temperature, VRAM usage, and VRAM temperature" />
-                                </StackPanel>
-
+                    <Grid Grid.Column="2" RowDefinitions="1*,1*" RowSpacing="7">
+                        <Border Style="{StaticResource PanelBorderStyle}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                                <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="GPU devices" />
                                 <ListView
                                     x:Name="GpuList"
                                     Grid.Row="1"
-                                    MaxHeight="360"
                                     Background="Transparent"
                                     BorderThickness="0"
-                                    IsItemClickEnabled="False"
+                                    ItemTemplate="{StaticResource GpuTemplate}"
                                     SelectionMode="None"
-                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Hidden">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
                                             <Setter Property="Padding" Value="0" />
-                                            <Setter Property="Margin" Value="0,0,0,8" />
+                                            <Setter Property="Margin" Value="0,0,0,6" />
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            <Setter Property="VerticalContentAlignment" Value="Stretch" />
                                         </Style>
                                     </ListView.ItemContainerStyle>
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border
-                                                Padding="12"
-                                                Background="#F4F7FA"
-                                                BorderBrush="#12101823"
-                                                BorderThickness="1"
-                                                CornerRadius="6">
-                                                <StackPanel Spacing="10">
-                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                        <StackPanel Spacing="2">
-                                                            <TextBlock
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource AccentTextBrush}"
-                                                                Text="{Binding Name}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="{Binding SensorCountText}" />
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                            <TextBlock
-                                                                HorizontalAlignment="Right"
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource RedBrush}"
-                                                                Text="{Binding TemperatureText}" />
-                                                            <TextBlock
-                                                                HorizontalAlignment="Right"
-                                                                FontSize="12"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="{Binding PowerText}" />
-                                                        </StackPanel>
-                                                    </Grid>
-
-                                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                                        <StackPanel Spacing="6">
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="POWER" />
-                                                            <ItemsControl
-                                                                ItemsSource="{Binding PowerSensors}"
-                                                                ItemTemplate="{StaticResource MetricRowTemplate}" />
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" Spacing="6">
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="TEMP" />
-                                                            <ItemsControl
-                                                                ItemsSource="{Binding TemperatureSensors}"
-                                                                ItemTemplate="{StaticResource MetricRowTemplate}" />
-                                                        </StackPanel>
-                                                    </Grid>
-
-                                                    <StackPanel Spacing="6">
-                                                        <TextBlock
-                                                            FontSize="11"
-                                                            FontWeight="SemiBold"
-                                                            Foreground="{StaticResource MutedTextBrush}"
-                                                            Text="VRAM" />
-                                                        <ItemsControl
-                                                            ItemsSource="{Binding MemorySensors}"
-                                                            ItemTemplate="{StaticResource MetricRowTemplate}" />
-                                                    </StackPanel>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
                                 </ListView>
                             </Grid>
                         </Border>
-
-                        <Border
-                            Padding="14"
-                            Background="{StaticResource PanelStrongBrush}"
-                            BorderBrush="{StaticResource PanelStrokeBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid RowSpacing="10">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <StackPanel Spacing="2">
-                                    <TextBlock
-                                        FontSize="16"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AccentTextBrush}"
-                                        Text="Storage Devices" />
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{StaticResource MutedTextBrush}"
-                                        Text="Every exposed disk with usage, temperature, and read/write throughput" />
-                                </StackPanel>
-
+                        <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                                <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="Storage devices" />
                                 <ListView
                                     x:Name="StorageList"
                                     Grid.Row="1"
-                                    MaxHeight="360"
                                     Background="Transparent"
                                     BorderThickness="0"
-                                    IsItemClickEnabled="False"
+                                    ItemTemplate="{StaticResource StorageTemplate}"
                                     SelectionMode="None"
-                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Hidden">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
                                             <Setter Property="Padding" Value="0" />
-                                            <Setter Property="Margin" Value="0,0,0,8" />
+                                            <Setter Property="Margin" Value="0,0,0,6" />
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            <Setter Property="VerticalContentAlignment" Value="Stretch" />
                                         </Style>
                                     </ListView.ItemContainerStyle>
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border
-                                                Padding="12"
-                                                Background="#F4F7FA"
-                                                BorderBrush="#12101823"
-                                                BorderThickness="1"
-                                                CornerRadius="6">
-                                                <StackPanel Spacing="10">
-                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                                        <StackPanel Spacing="2">
-                                                            <TextBlock
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource AccentTextBrush}"
-                                                                Text="{Binding Name}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="{Binding SensorCountText}" />
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                            <TextBlock
-                                                                HorizontalAlignment="Right"
-                                                                FontWeight="SemiBold"
-                                                                Foreground="{StaticResource RedBrush}"
-                                                                Text="{Binding TemperatureText}" />
-                                                            <TextBlock
-                                                                HorizontalAlignment="Right"
-                                                                FontSize="12"
-                                                                Foreground="{StaticResource MutedTextBrush}"
-                                                                Text="{Binding ReadWriteText}" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <ItemsControl
-                                                        ItemsSource="{Binding Metrics}"
-                                                        ItemTemplate="{StaticResource MetricRowTemplate}" />
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
                                 </ListView>
                             </Grid>
                         </Border>
-                    </StackPanel>
+                    </Grid>
                 </Grid>
             </Grid>
-        </ScrollViewer>
+        </Grid>
+
+        <Border
+            x:Name="StartupOverlay"
+            Canvas.ZIndex="10"
+            Background="#E6111214">
+            <Grid Padding="28">
+                <StackPanel
+                    Width="560"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="16">
+                    <Grid
+                        Width="108"
+                        Height="108"
+                        HorizontalAlignment="Center">
+                        <Ellipse
+                            Fill="#3326282D"
+                            Stroke="{ThemeResource PanelStrokeBrush}"
+                            StrokeThickness="1" />
+                        <ProgressRing
+                            Width="68"
+                            Height="68"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{StaticResource BlueBrush}"
+                            IsActive="True" />
+                    </Grid>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="28"
+                            FontWeight="SemiLight"
+                            Foreground="{ThemeResource AccentTextBrush}"
+                            MaxWidth="560"
+                            Text="Connecting to hardware backend"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="13"
+                            Foreground="{ThemeResource MutedTextBrush}"
+                            MaxWidth="520"
+                            Text="Initializing LibreHardwareMonitor and enumerating devices"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
+                    </StackPanel>
+
+                    <Border
+                        Width="440"
+                        HorizontalAlignment="Center"
+                        Padding="12,9"
+                        Background="{ThemeResource PanelBrush}"
+                        BorderBrush="{ThemeResource PanelStrokeBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+                            <Ellipse
+                                Width="8"
+                                Height="8"
+                                Margin="0,2,0,0"
+                                VerticalAlignment="Top"
+                                Fill="{StaticResource AmberBrush}" />
+                            <TextBlock
+                                x:Name="StartupStatusText"
+                                Grid.Column="1"
+                                FontSize="12"
+                                Foreground="{ThemeResource MutedTextBrush}"
+                                Text="Opening sensor backend"
+                                TextWrapping="WrapWholeWords" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 
 namespace RemoSystemProfiler;
 
@@ -63,13 +65,254 @@ public sealed class MetricItemViewModel : ObservableDashboardItem
     public static string MetricKey(MetricReading reading) => $"{reading.Kind}:{reading.Name}";
 }
 
+public sealed record SensorGroupReading(
+    string Key,
+    string Title,
+    IReadOnlyList<MetricReading> Metrics,
+    bool IsExpandedByDefault);
+
+public sealed class SensorGroupViewModel : ObservableDashboardItem
+{
+    private string _title = string.Empty;
+    private string _statusText = "--";
+    private bool _isExpanded;
+
+    public SensorGroupViewModel(SensorGroupReading reading)
+    {
+        Key = reading.Key;
+        _isExpanded = reading.IsExpandedByDefault;
+        Update(reading);
+    }
+
+    public string Key { get; }
+
+    public ObservableCollection<MetricItemViewModel> Metrics { get; } = [];
+
+    public string Title
+    {
+        get => _title;
+        private set => SetProperty(ref _title, value);
+    }
+
+    public string StatusText
+    {
+        get => _statusText;
+        private set => SetProperty(ref _statusText, value);
+    }
+
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetProperty(ref _isExpanded, value);
+    }
+
+    public void Update(SensorGroupReading reading)
+    {
+        Title = reading.Title;
+        StatusText = DashboardStatus.SensorGroupStatus(reading.Metrics);
+        DashboardCollection.Sync(
+            Metrics,
+            reading.Metrics,
+            item => item.Key,
+            MetricItemViewModel.MetricKey,
+            metric => new MetricItemViewModel(metric),
+            (item, metric) => item.Update(metric));
+    }
+}
+
+internal static class DashboardStatus
+{
+    public static string SensorGroupStatus(IReadOnlyList<MetricReading> metrics)
+    {
+        if (metrics.Count == 0)
+        {
+            return "no sensors";
+        }
+
+        string thermal = ThermalStatus(metrics, 85, 75);
+        if (!string.IsNullOrEmpty(thermal))
+        {
+            return thermal;
+        }
+
+        int warnings = metrics.Count(IsGaugeWarning);
+        return warnings > 0 ? $"{warnings} warning" : $"{metrics.Count} sensors";
+    }
+
+    public static string DeviceStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
+    {
+        MetricReading[] readings = metrics.ToArray();
+        if (readings.Length == 0)
+        {
+            return "no sensors";
+        }
+
+        string thermal = ThermalStatus(readings, hotThreshold, warmThreshold);
+        if (!string.IsNullOrEmpty(thermal))
+        {
+            return thermal;
+        }
+
+        int warnings = readings.Count(IsGaugeWarning);
+        return warnings > 0 ? $"{warnings} warning" : "normal";
+    }
+
+    private static string ThermalStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
+    {
+        MetricReading[] temperatures = metrics
+            .Where(metric => metric.Kind.Equals("Temperature", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        int hot = temperatures.Count(metric => metric.Value >= hotThreshold);
+        if (hot > 0)
+        {
+            return $"{hot} hot";
+        }
+
+        int warm = temperatures.Count(metric => metric.Value >= warmThreshold);
+        return warm > 0 ? $"{warm} warm" : string.Empty;
+    }
+
+    private static bool IsGaugeWarning(MetricReading metric)
+    {
+        if (!metric.Kind.Equals("Load", StringComparison.OrdinalIgnoreCase)
+            && !metric.Kind.Equals("Control", StringComparison.OrdinalIgnoreCase)
+            && !metric.Kind.Equals("Level", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return metric.GaugeValue >= 95;
+    }
+}
+
+public sealed record OverviewReading(
+    string Key,
+    string Title,
+    string PrimaryText,
+    string SecondaryText,
+    string DetailText,
+    double GaugeValue,
+    SolidColorBrush AccentBrush);
+
+public sealed class OverviewItemViewModel : ObservableDashboardItem
+{
+    private const int MaxHistorySeconds = 10;
+    private const double SparklineWidth = 60;
+    private const double SparklineHeight = 32;
+
+    private readonly Queue<double> _history = new();
+    private string _title = string.Empty;
+    private string _primaryText = "--";
+    private string _secondaryText = "--";
+    private string _detailText = "--";
+    private double _gaugeValue;
+    private SolidColorBrush _accentBrush = null!;
+    private PointCollection _sparklinePoints = [];
+
+    public OverviewItemViewModel(OverviewReading reading)
+    {
+        Key = reading.Key;
+        _accentBrush = reading.AccentBrush;
+        Update(reading);
+    }
+
+    public string Key { get; }
+
+    public string Title
+    {
+        get => _title;
+        private set => SetProperty(ref _title, value);
+    }
+
+    public string PrimaryText
+    {
+        get => _primaryText;
+        private set => SetProperty(ref _primaryText, value);
+    }
+
+    public string SecondaryText
+    {
+        get => _secondaryText;
+        private set => SetProperty(ref _secondaryText, value);
+    }
+
+    public string DetailText
+    {
+        get => _detailText;
+        private set => SetProperty(ref _detailText, value);
+    }
+
+    public double GaugeValue
+    {
+        get => _gaugeValue;
+        private set => SetProperty(ref _gaugeValue, value);
+    }
+
+    public SolidColorBrush AccentBrush
+    {
+        get => _accentBrush;
+        private set => SetProperty(ref _accentBrush, value);
+    }
+
+    public PointCollection SparklinePoints
+    {
+        get => _sparklinePoints;
+        private set => SetProperty(ref _sparklinePoints, value);
+    }
+
+    public void Update(OverviewReading reading)
+    {
+        Title = reading.Title;
+        PrimaryText = reading.PrimaryText;
+        SecondaryText = reading.SecondaryText;
+        DetailText = reading.DetailText;
+        GaugeValue = Math.Clamp(reading.GaugeValue, 0, 100);
+        AccentBrush = reading.AccentBrush;
+
+        _history.Enqueue(GaugeValue);
+        while (_history.Count > MaxHistorySeconds)
+        {
+            _history.Dequeue();
+        }
+
+        SparklinePoints = BuildSparkline(_history);
+    }
+
+    private static PointCollection BuildSparkline(IReadOnlyCollection<double> history)
+    {
+        PointCollection points = [];
+        if (history.Count == 0)
+        {
+            return points;
+        }
+
+        double step = history.Count == 1 ? SparklineWidth : SparklineWidth / (history.Count - 1);
+        int index = 0;
+        foreach (double value in history)
+        {
+            double x = index * step;
+            double y = SparklineHeight - (Math.Clamp(value, 0, 100) / 100d * SparklineHeight);
+            points.Add(new Point(x, y));
+            index++;
+        }
+
+        return points;
+    }
+}
+
 public sealed class CoreItemViewModel : ObservableDashboardItem
 {
+    private const int MaxHistorySeconds = 10;
+    private const double SparklineWidth = 120;
+    private const double SparklineHeight = 56;
+
+    private readonly Queue<double> _history = new();
     private string _name = string.Empty;
     private int _loadPercent;
     private string _temperatureText = "--";
     private string _loadText = "--";
     private string _powerText = "--";
+    private PointCollection _sparklinePoints = [];
 
     public CoreItemViewModel(CoreReading reading)
     {
@@ -109,6 +352,12 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
         private set => SetProperty(ref _powerText, value);
     }
 
+    public PointCollection SparklinePoints
+    {
+        get => _sparklinePoints;
+        private set => SetProperty(ref _sparklinePoints, value);
+    }
+
     public void Update(CoreReading reading)
     {
         Name = reading.Name;
@@ -116,6 +365,33 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
         TemperatureText = reading.TemperatureText;
         LoadText = reading.LoadText;
         PowerText = reading.PowerText;
+
+        _history.Enqueue(Math.Clamp(reading.LoadPercent, 0, 100));
+        while (_history.Count > MaxHistorySeconds)
+        {
+            _history.Dequeue();
+        }
+
+        SparklinePoints = BuildSparkline(_history);
+    }
+
+    private static PointCollection BuildSparkline(IReadOnlyCollection<double> history)
+    {
+        PointCollection points = [];
+        if (history.Count == 0)
+        {
+            return points;
+        }
+
+        double step = history.Count == 1 ? SparklineWidth : SparklineWidth / (history.Count - 1);
+        int index = 0;
+        foreach (double value in history)
+        {
+            points.Add(new Point(index * step, SparklineHeight - Math.Clamp(value, 0, 100) / 100d * SparklineHeight));
+            index++;
+        }
+
+        return points;
     }
 }
 
@@ -123,8 +399,10 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
 {
     private string _name = string.Empty;
     private string _sensorCountText = "--";
+    private string _loadText = "--";
     private string _temperatureText = "--";
     private string _powerText = "--";
+    private string _statusText = "--";
 
     public GpuDeviceViewModel(GpuDeviceReading reading)
     {
@@ -152,6 +430,12 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
         private set => SetProperty(ref _sensorCountText, value);
     }
 
+    public string LoadText
+    {
+        get => _loadText;
+        private set => SetProperty(ref _loadText, value);
+    }
+
     public string TemperatureText
     {
         get => _temperatureText;
@@ -164,12 +448,23 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
         private set => SetProperty(ref _powerText, value);
     }
 
+    public string StatusText
+    {
+        get => _statusText;
+        private set => SetProperty(ref _statusText, value);
+    }
+
     public void Update(GpuDeviceReading reading)
     {
         Name = reading.Name;
         SensorCountText = reading.SensorCountText;
+        LoadText = reading.LoadText;
         TemperatureText = reading.TemperatureText;
         PowerText = reading.PowerText;
+        StatusText = DashboardStatus.DeviceStatus(
+            reading.TemperatureSensors.Concat(reading.LoadSensors),
+            85,
+            75);
         DashboardCollection.Sync(
             PowerSensors,
             reading.PowerSensors,
@@ -200,6 +495,7 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem
     private string _sensorCountText = "--";
     private string _temperatureText = "--";
     private string _readWriteText = "--";
+    private string _statusText = "--";
 
     public StorageDeviceViewModel(StorageDeviceReading reading)
     {
@@ -235,12 +531,22 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem
         private set => SetProperty(ref _readWriteText, value);
     }
 
+    public string StatusText
+    {
+        get => _statusText;
+        private set => SetProperty(ref _statusText, value);
+    }
+
     public void Update(StorageDeviceReading reading)
     {
         Name = reading.Name;
         SensorCountText = reading.SensorCountText;
         TemperatureText = reading.TemperatureText;
         ReadWriteText = reading.ReadWriteText;
+        StatusText = DashboardStatus.DeviceStatus(
+            reading.TemperatureSensors.Concat(reading.UsageSensors),
+            60,
+            50);
         DashboardCollection.Sync(
             Metrics,
             reading.Metrics,

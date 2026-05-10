@@ -27,6 +27,9 @@ public sealed record CpuDeviceReading(
     float ClockMHz,
     IReadOnlyList<MetricReading> TemperatureSensors,
     IReadOnlyList<MetricReading> PowerSensors,
+    IReadOnlyList<MetricReading> ClockSensors,
+    IReadOnlyList<MetricReading> VoltageSensors,
+    IReadOnlyList<MetricReading> CurrentSensors,
     IReadOnlyList<CoreReading> Cores)
 {
     public string CoreCountText => CoreCount > 0 ? CoreCount.ToString() : "--";
@@ -75,18 +78,23 @@ public sealed record MemoryDeviceReading(
     public string UsageText => UsageSensors.FirstOrDefault()?.ValueText ?? "--";
 
     public string TemperatureText => TemperatureSensors.Count == 0
-        ? "--"
+        ? string.Empty
         : MetricFormatter.FormatTemperature(TemperatureSensors.Max(sensor => sensor.Value));
 
     public string CapacityText => DataSensors.Count == 0 ? "--" : string.Join(" / ", DataSensors.Take(2).Select(sensor => sensor.ValueText));
+
+    public double UsageGauge => UsageSensors.FirstOrDefault()?.GaugeValue ?? 0;
 }
 
 public sealed record GpuDeviceReading(
     string Name,
+    IReadOnlyList<MetricReading> LoadSensors,
     IReadOnlyList<MetricReading> PowerSensors,
     IReadOnlyList<MetricReading> TemperatureSensors,
     IReadOnlyList<MetricReading> MemorySensors)
 {
+    public string LoadText => LoadSensors.FirstOrDefault()?.ValueText ?? "--";
+
     public string PowerText => PowerSensors.Count == 0 ? "--" : MetricFormatter.FormatPower(PowerSensors.Sum(sensor => sensor.Value));
 
     public string TemperatureText => TemperatureSensors.Count == 0
@@ -99,7 +107,9 @@ public sealed record GpuDeviceReading(
             || sensor.Kind.Equals("Load", StringComparison.OrdinalIgnoreCase))
         ?.ValueText ?? "--";
 
-    public string SensorCountText => $"{PowerSensors.Count + TemperatureSensors.Count + MemorySensors.Count} sensors";
+    public string SensorCountText => $"{LoadSensors.Count + PowerSensors.Count + TemperatureSensors.Count + MemorySensors.Count} sensors";
+
+    public double LoadGauge => LoadSensors.FirstOrDefault()?.GaugeValue ?? 0;
 }
 
 public sealed record StorageDeviceReading(
@@ -126,6 +136,8 @@ public sealed record StorageDeviceReading(
         : string.Join(" / ", ThroughputSensors.Take(2).Select(sensor => sensor.ValueText));
 
     public string SensorCountText => $"{Metrics.Count} sensors";
+
+    public double UsageGauge => UsageSensors.FirstOrDefault()?.GaugeValue ?? 0;
 }
 
 public sealed record MetricReading(
@@ -143,4 +155,6 @@ public static class MetricFormatter
     public static string FormatTemperature(float value) => $"{value:0.#} C";
 
     public static string FormatPower(float value) => $"{value:0.0} W";
+
+    public static string FormatDataGigabytes(float value) => $"{value:0.0} GB";
 }
