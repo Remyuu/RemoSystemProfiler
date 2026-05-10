@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
 
@@ -211,15 +212,6 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
                     "Sensors",
                     metrics.Length.ToString());
                 break;
-            case "current":
-                SetSummary(
-                    "Total",
-                    FormatCurrent(metrics.Sum(metric => metric.Value)),
-                    "Peak rail",
-                    FormatCurrent(metrics.Max(metric => metric.Value)),
-                    "Sensors",
-                    metrics.Length.ToString());
-                break;
             default:
                 SetSummary("Primary", metrics[0].ValueText, "Sensors", metrics.Length.ToString(), "--", "--");
                 break;
@@ -247,8 +239,6 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
         : $"{valueMHz:0} MHz";
 
     private static string FormatVoltage(double value) => $"{value:0.###} V";
-
-    private static string FormatCurrent(double value) => $"{value:0.##} A";
 }
 
 internal static class DashboardStatus
@@ -443,6 +433,7 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
     private string _temperatureText = "--";
     private string _loadText = "--";
     private string _powerText = "--";
+    private SolidColorBrush _loadBrush = new(Colors.DeepSkyBlue);
     private PointCollection _sparklinePoints = [];
 
     public CoreItemViewModel(CoreReading reading)
@@ -483,6 +474,12 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
         private set => SetProperty(ref _powerText, value);
     }
 
+    public SolidColorBrush LoadBrush
+    {
+        get => _loadBrush;
+        private set => SetProperty(ref _loadBrush, value);
+    }
+
     public PointCollection SparklinePoints
     {
         get => _sparklinePoints;
@@ -496,6 +493,7 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
         TemperatureText = reading.TemperatureText;
         LoadText = reading.LoadText;
         PowerText = reading.PowerText;
+        LoadBrush = BuildLoadBrush(reading.LoadPercent);
 
         _history.Enqueue(Math.Clamp(reading.LoadPercent, 0, 100));
         while (_history.Count > MaxHistorySeconds)
@@ -524,6 +522,17 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
 
         return points;
     }
+
+    private static SolidColorBrush BuildLoadBrush(int loadPercent)
+    {
+        double t = Math.Clamp(loadPercent, 0, 100) / 100d;
+        byte red = (byte)Math.Round(Lerp(0x37, 0xF9, t));
+        byte green = (byte)Math.Round(Lerp(0xB7, 0x70, t));
+        byte blue = (byte)Math.Round(Lerp(0xE8, 0x66, t));
+        return new SolidColorBrush(ColorHelper.FromArgb(255, red, green, blue));
+    }
+
+    private static double Lerp(double start, double end, double amount) => start + ((end - start) * amount);
 }
 
 public sealed class GpuDeviceViewModel : ObservableDashboardItem

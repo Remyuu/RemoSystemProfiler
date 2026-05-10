@@ -381,7 +381,6 @@ public sealed partial class MainWindow : Window
         yield return new SensorGroupReading("power", "Power", cpu?.PowerSensors ?? Array.Empty<MetricReading>(), false);
         yield return new SensorGroupReading("clock", "Clock", cpu?.ClockSensors ?? Array.Empty<MetricReading>(), false);
         yield return new SensorGroupReading("voltage", "Voltage", cpu?.VoltageSensors ?? Array.Empty<MetricReading>(), false);
-        yield return new SensorGroupReading("current", "Current", cpu?.CurrentSensors ?? Array.Empty<MetricReading>(), false);
     }
 
     private void SyncOverviewCollection(IEnumerable<OverviewReading> readings)

@@ -73,12 +73,6 @@
                             BorderThickness="1"
                             CornerRadius="3">
                             <Grid Margin="4">
-                                <Line
-                                    X1="0"
-                                    X2="54"
-                                    Y1="27"
-                                    Y2="27"
-                                    Stroke="{ThemeResource PanelStrokeBrush}" />
                                 <Polyline
                                     Points="{Binding SparklinePoints}"
                                     Stroke="{Binding AccentBrush}"
@@ -135,15 +129,9 @@
                                     Fill="{ThemeResource ChartBackgroundBrush}"
                                     RadiusX="2"
                                     RadiusY="2" />
-                                <Line
-                                    X1="0"
-                                    X2="120"
-                                    Y1="42"
-                                    Y2="42"
-                                    Stroke="{ThemeResource PanelStrokeBrush}" />
                                 <Polyline
                                     Points="{Binding SparklinePoints}"
-                                    Stroke="{StaticResource BlueBrush}"
+                                    Stroke="{Binding LoadBrush}"
                                     StrokeLineJoin="Round"
                                     StrokeThickness="2.2" />
                             </Canvas>
@@ -160,7 +148,7 @@
                             <TextBlock
                                 FontSize="14"
                                 FontWeight="SemiBold"
-                                Foreground="{ThemeResource AccentTextBrush}"
+                                Foreground="{Binding LoadBrush}"
                                 Text="{Binding LoadText}" />
                         </Border>
                     </Grid>
@@ -521,7 +509,7 @@
                                         <TextBlock x:Name="CpuPeakTempText" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource RedBrush}" Text="--" />
                                     </StackPanel>
                                     <StackPanel Grid.Row="2">
-                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Logical processors" />
+                                        <TextBlock Style="{StaticResource LabelTextStyle}" Text="Cores / threads" />
                                         <TextBlock x:Name="CoreCountText" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextBrush}" Text="--" />
                                     </StackPanel>
                                 </Grid>

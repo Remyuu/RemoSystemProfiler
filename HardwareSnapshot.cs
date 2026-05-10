@@ -23,16 +23,18 @@ public sealed record SystemSnapshot(
 public sealed record CpuDeviceReading(
     string Name,
     int CoreCount,
+    int LogicalProcessorCount,
     float AverageLoadPercent,
     float ClockMHz,
     IReadOnlyList<MetricReading> TemperatureSensors,
     IReadOnlyList<MetricReading> PowerSensors,
     IReadOnlyList<MetricReading> ClockSensors,
     IReadOnlyList<MetricReading> VoltageSensors,
-    IReadOnlyList<MetricReading> CurrentSensors,
     IReadOnlyList<CoreReading> Cores)
 {
-    public string CoreCountText => CoreCount > 0 ? CoreCount.ToString() : "--";
+    public string CoreCountText => CoreCount > 0 && LogicalProcessorCount > 0
+        ? $"{CoreCount}c / {LogicalProcessorCount}t"
+        : "--";
 
     public string AverageLoadText => $"{AverageLoadPercent:0}%";
 

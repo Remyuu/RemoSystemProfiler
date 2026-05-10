@@ -1,3 +1,4 @@
+using System.Management;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
@@ -20,6 +21,8 @@ public sealed class HardwareMonitorReader : IDisposable
     private readonly PdhCpuFrequencyReader _cpuFrequencyReader = new();
 
     private bool _opened;
+
+    private sealed record CpuTopology(int PhysicalCores, int LogicalProcessors);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -122,6 +125,7 @@ public sealed class HardwareMonitorReader : IDisposable
 
         ISensor[] sensors = ActiveSensors(cpu);
         IReadOnlyList<CoreReading> cores = BuildCoreReadings(sensors);
+        CpuTopology topology = ReadCpuTopology(cores.Count);
         float averageLoad = FindSensor(sensors, SensorType.Load, "CPU Total")?.Value
             ?? FindSensor(sensors, SensorType.Load, "Total")?.Value
             ?? Average(cores.Select(core => (float)core.LoadPercent));
@@ -129,15 +133,46 @@ public sealed class HardwareMonitorReader : IDisposable
 
         return new CpuDeviceReading(
             cpu.Name,
-            cores.Count,
+            topology.PhysicalCores,
+            topology.LogicalProcessors,
             averageLoad,
             clockMHz,
             BuildMetricReadings(sensors, SensorType.Temperature),
             BuildMetricReadings(sensors, SensorType.Power),
             BuildMetricReadings(sensors, SensorType.Clock),
             BuildMetricReadings(sensors, SensorType.Voltage),
-            BuildMetricReadings(sensors, SensorType.Current),
             cores);
+    }
+
+    private static CpuTopology ReadCpuTopology(int sensorLogicalProcessorCount)
+    {
+        int physicalCores = 0;
+        int logicalProcessors = 0;
+
+        try
+        {
+            using ManagementObjectSearcher searcher = new("SELECT NumberOfCores, NumberOfLogicalProcessors FROM Win32_Processor");
+            foreach (ManagementBaseObject item in searcher.Get())
+            {
+                physicalCores += Convert.ToInt32(item["NumberOfCores"] ?? 0);
+                logicalProcessors += Convert.ToInt32(item["NumberOfLogicalProcessors"] ?? 0);
+            }
+        }
+        catch (ManagementException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        logicalProcessors = logicalProcessors > 0
+            ? logicalProcessors
+            : Math.Max(sensorLogicalProcessorCount, Environment.ProcessorCount);
+        physicalCores = physicalCores > 0
+            ? physicalCores
+            : logicalProcessors;
+
+        return new CpuTopology(physicalCores, logicalProcessors);
     }
 
     private static MemoryDeviceReading? BuildMemory(IReadOnlyList<IHardware> hardwareTree)
