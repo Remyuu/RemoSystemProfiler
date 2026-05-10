@@ -375,7 +375,7 @@
                     </Grid>
 
                     <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
                             <Ellipse
                                 x:Name="StatusDot"
                                 Width="8"
@@ -389,8 +389,17 @@
                                 FontSize="12"
                                 Foreground="{ThemeResource MutedTextBrush}"
                                 Text="Waiting for sensors"
-                                TextWrapping="WrapWholeWords"
-                                MaxLines="2" />
+                                TextWrapping="Wrap"
+                                MaxLines="3" />
+                            <HyperlinkButton
+                                x:Name="PawnIoDownloadLink"
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Padding="0"
+                                Content="Download PawnIO"
+                                FontSize="12"
+                                NavigateUri="https://pawnio.eu/"
+                                Visibility="Collapsed" />
                         </Grid>
                     </Border>
 

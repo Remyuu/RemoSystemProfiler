@@ -3,6 +3,7 @@ namespace RemoSystemProfiler;
 public sealed record SystemSnapshot(
     DateTimeOffset SampledAt,
     string Source,
+    SensorDriverStatus DriverStatus,
     CpuDeviceReading? Cpu,
     MemoryDeviceReading? Memory,
     IReadOnlyList<GpuDeviceReading> Gpus,
@@ -18,6 +19,21 @@ public sealed record SystemSnapshot(
             return $"{count} hardware groups";
         }
     }
+}
+
+public sealed record SensorDriverStatus(
+    bool IsInstalled,
+    bool IsLoaded,
+    string? Version,
+    string Message)
+{
+    public bool NeedsInstallation => !IsInstalled;
+
+    public bool IsReady => IsInstalled && IsLoaded;
+
+    public string SummaryText => IsReady
+        ? string.IsNullOrWhiteSpace(Version) ? "PawnIO ready" : $"PawnIO {Version}"
+        : Message;
 }
 
 public sealed record CpuDeviceReading(

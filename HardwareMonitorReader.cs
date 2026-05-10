@@ -2,7 +2,9 @@ using System.Management;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using Microsoft.Win32.SafeHandles;
 using LibreHardwareMonitor.Hardware;
+using LhmPawnIo = LibreHardwareMonitor.PawnIo.PawnIo;
 
 namespace RemoSystemProfiler;
 
@@ -28,11 +30,23 @@ public sealed class HardwareMonitorReader : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GlobalMemoryStatusEx(ref MemoryStatusEx buffer);
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string fileName,
+        uint desiredAccess,
+        uint shareMode,
+        IntPtr securityAttributes,
+        uint creationDisposition,
+        uint flagsAndAttributes,
+        IntPtr templateFile);
+
     public HardwareMonitorReadResult Read()
     {
+        SensorDriverStatus driverStatus = ReadPawnIoStatus();
         try
         {
             EnsureOpen();
+            driverStatus = ReadPawnIoStatus();
 
             foreach (IHardware hardware in _computer.Hardware)
             {
@@ -49,6 +63,7 @@ public sealed class HardwareMonitorReader : IDisposable
             SystemSnapshot snapshot = new(
                 DateTimeOffset.Now,
                 "LibreHardwareMonitor",
+                driverStatus,
                 BuildCpu(hardwareTree.FirstOrDefault(hardware => hardware.HardwareType == HardwareType.Cpu)),
                 BuildMemory(hardwareTree),
                 hardwareTree.Where(IsGpuHardware).Select(BuildGpu).ToArray(),
@@ -56,14 +71,14 @@ public sealed class HardwareMonitorReader : IDisposable
 
             if (snapshot.Cpu is null && snapshot.Memory is null && snapshot.Gpus.Count == 0 && snapshot.StorageDevices.Count == 0)
             {
-                return HardwareMonitorReadResult.Unavailable("No supported hardware sensors found; try running as administrator");
+                return HardwareMonitorReadResult.Unavailable("No supported hardware sensors found; try running as administrator", driverStatus);
             }
 
             return HardwareMonitorReadResult.Available(snapshot, requiresAdministrator);
         }
         catch (Exception ex)
         {
-            return HardwareMonitorReadResult.Unavailable($"Sensor read failed: {ex.Message}");
+            return HardwareMonitorReadResult.Unavailable($"Sensor read failed: {ex.Message}", driverStatus);
         }
     }
 
@@ -102,6 +117,48 @@ public sealed class HardwareMonitorReader : IDisposable
         using WindowsIdentity identity = WindowsIdentity.GetCurrent();
         WindowsPrincipal principal = new(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    private static SensorDriverStatus ReadPawnIoStatus()
+    {
+        try
+        {
+            bool installed = LhmPawnIo.IsInstalled;
+            bool loaded = CanOpenPawnIoDevice();
+            string? version = LhmPawnIo.Version?.ToString();
+            string message = (installed, loaded) switch
+            {
+                (true, true) => string.IsNullOrWhiteSpace(version) ? "PawnIO ready" : $"PawnIO {version}",
+                (true, false) => "PawnIO installed but not loaded; restart as administrator",
+                _ => "PawnIO missing; install it for motherboard, fan, and low-level sensors"
+            };
+
+            return new SensorDriverStatus(installed, loaded, version, message);
+        }
+        catch (Exception ex)
+        {
+            return new SensorDriverStatus(false, false, null, $"PawnIO status unavailable: {ex.Message}");
+        }
+    }
+
+    private static bool CanOpenPawnIoDevice()
+    {
+        const uint genericRead = 0x80000000;
+        const uint genericWrite = 0x40000000;
+        const uint fileShareRead = 0x00000001;
+        const uint fileShareWrite = 0x00000002;
+        const uint openExisting = 3;
+        const uint fileAttributeNormal = 0x00000080;
+
+        using SafeFileHandle handle = CreateFile(
+            @"\\?\GLOBALROOT\Device\PawnIO",
+            genericRead | genericWrite,
+            fileShareRead | fileShareWrite,
+            IntPtr.Zero,
+            openExisting,
+            fileAttributeNormal,
+            IntPtr.Zero);
+        return !handle.IsInvalid && !handle.IsClosed;
     }
 
     private static IEnumerable<IHardware> FlattenHardware(IHardware hardware)
@@ -598,10 +655,17 @@ public readonly record struct HardwareMonitorReadResult(
     bool IsAvailable,
     SystemSnapshot? Snapshot,
     string Message,
-    bool RequiresAdministrator)
+    bool RequiresAdministrator,
+    SensorDriverStatus DriverStatus)
 {
     public static HardwareMonitorReadResult Available(SystemSnapshot snapshot, bool requiresAdministrator) =>
-        new(true, snapshot, requiresAdministrator ? "Run as administrator for full hardware sensors" : "Connected", requiresAdministrator);
+        new(
+            true,
+            snapshot,
+            requiresAdministrator ? "Run as administrator for full hardware sensors" : snapshot.DriverStatus.SummaryText,
+            requiresAdministrator,
+            snapshot.DriverStatus);
 
-    public static HardwareMonitorReadResult Unavailable(string message) => new(false, null, message, false);
+    public static HardwareMonitorReadResult Unavailable(string message, SensorDriverStatus driverStatus) =>
+        new(false, null, message, false, driverStatus);
 }

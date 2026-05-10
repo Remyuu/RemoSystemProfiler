@@ -163,26 +163,34 @@ public sealed partial class MainWindow : Window
         UpdatedText.Text = DateTime.Now.ToString("HH:mm:ss");
         if (!result.IsAvailable || result.Snapshot is null)
         {
-            ShowUnavailable(result.Message);
-            DismissStartupOverlay("Sensor backend unavailable");
+            ShowUnavailable(result.Message, result.DriverStatus);
+            DismissStartupOverlay(result.DriverStatus.NeedsInstallation
+                ? "PawnIO is required for full sensor access"
+                : "Sensor backend unavailable");
             return;
         }
 
         ShowSnapshot(result.Snapshot, result);
-        DismissStartupOverlay(result.RequiresAdministrator
+        DismissStartupOverlay(result.DriverStatus.NeedsInstallation
+            ? "PawnIO is required for full sensor access"
+            : result.RequiresAdministrator
             ? "Connected with limited sensor access"
             : "Connected to hardware backend");
     }
 
     private void ShowSnapshot(SystemSnapshot snapshot, HardwareMonitorReadResult result)
     {
-        bool limited = result.RequiresAdministrator;
+        bool driverLimited = !result.DriverStatus.IsReady;
+        bool limited = result.RequiresAdministrator || driverLimited;
         StatusDot.Fill = new SolidColorBrush(limited ? Colors.OrangeRed : Colors.LimeGreen);
-        StatusText.Text = limited
-            ? $"Limited via {snapshot.Source}\nRun as administrator for full hardware sensors"
-            : $"Connected via {snapshot.Source}";
-        StatusText.TextWrapping = limited ? TextWrapping.WrapWholeWords : TextWrapping.NoWrap;
-        ToolTipService.SetToolTip(StatusText, limited ? result.Message : null);
+        StatusText.Text = driverLimited
+            ? result.DriverStatus.Message
+            : result.RequiresAdministrator
+            ? $"Limited access\n{snapshot.Source}\nRun as administrator"
+            : $"Connected\n{snapshot.Source}\n{result.DriverStatus.SummaryText}";
+        StatusText.TextWrapping = TextWrapping.Wrap;
+        ToolTipService.SetToolTip(StatusText, limited ? BuildLimitedStatusTooltip(result) : null);
+        PawnIoDownloadLink.Visibility = result.DriverStatus.NeedsInstallation ? Visibility.Visible : Visibility.Collapsed;
         UpdatedText.Text = snapshot.SampledAtText;
         HardwareSummaryText.Text = BuildHardwareSummary(snapshot);
 
@@ -230,18 +238,31 @@ public sealed partial class MainWindow : Window
         SyncMetricCollection(_memoryMetrics, memory.Metrics);
     }
 
-    private void ShowUnavailable(string message)
+    private void ShowUnavailable(string message, SensorDriverStatus driverStatus)
     {
         StatusDot.Fill = new SolidColorBrush(Colors.OrangeRed);
-        StatusText.Text = message;
+        StatusText.Text = driverStatus.NeedsInstallation ? driverStatus.Message : message;
         StatusText.TextWrapping = TextWrapping.Wrap;
-        ToolTipService.SetToolTip(StatusText, message);
+        ToolTipService.SetToolTip(StatusText, driverStatus.NeedsInstallation ? $"{driverStatus.Message}\n{message}" : message);
+        PawnIoDownloadLink.Visibility = driverStatus.NeedsInstallation ? Visibility.Visible : Visibility.Collapsed;
         HardwareSummaryText.Text = "Hardware sensors unavailable";
         ShowCpu(null);
         ShowMemory(null);
         SyncDeviceCollection(_gpus, Array.Empty<GpuDeviceReading>(), gpu => gpu.Name, gpu => new GpuDeviceViewModel(gpu));
         SyncDeviceCollection(_storageDevices, Array.Empty<StorageDeviceReading>(), storage => storage.Name, storage => new StorageDeviceViewModel(storage));
         SyncOverviewCollection([]);
+    }
+
+    private static string BuildLimitedStatusTooltip(HardwareMonitorReadResult result)
+    {
+        if (!result.DriverStatus.IsReady)
+        {
+            return result.DriverStatus.NeedsInstallation
+                ? "Install PawnIO, then restart Remo System Profiler as administrator."
+                : result.DriverStatus.Message;
+        }
+
+        return result.Message;
     }
 
     private void DismissStartupOverlay(string message)
