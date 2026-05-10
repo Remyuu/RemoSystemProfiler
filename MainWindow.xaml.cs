@@ -25,6 +25,7 @@ public sealed partial class MainWindow : Window
     private readonly ObservableCollection<StorageDeviceViewModel> _storageDevices = [];
     private AppWindow? _appWindow;
     private Task? _pollingTask;
+    private int _pollIntervalMilliseconds = 1000;
     private bool _isClosed;
     private bool _startupOverlayDismissed;
 
@@ -42,6 +43,8 @@ public sealed partial class MainWindow : Window
         Root.ActualThemeChanged += Root_ActualThemeChanged;
         Closed += OnClosed;
 
+        ChartRangePicker.SelectedIndex = 0;
+        UpdateIntervalPicker.SelectedIndex = 1;
         ThemePicker.SelectedIndex = 0;
         UpdatedText.Text = DateTime.Now.ToString("HH:mm:ss");
     }
@@ -126,11 +129,10 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            using PeriodicTimer timer = new(TimeSpan.FromSeconds(1));
-            await ReadAndDispatchAsync(token);
-            while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+            while (!token.IsCancellationRequested)
             {
                 await ReadAndDispatchAsync(token);
+                await Task.Delay(TimeSpan.FromMilliseconds(_pollIntervalMilliseconds), token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -314,6 +316,29 @@ public sealed partial class MainWindow : Window
             _ => ElementTheme.Default
         };
         ApplyTitleBarTheme();
+    }
+
+    private void ChartRangePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ChartHistorySettings.DisplaySeconds = ChartRangePicker.SelectedIndex switch
+        {
+            1 => 30,
+            2 => 60,
+            3 => 300,
+            _ => 10
+        };
+    }
+
+    private void UpdateIntervalPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _pollIntervalMilliseconds = UpdateIntervalPicker.SelectedIndex switch
+        {
+            0 => 500,
+            2 => 2000,
+            3 => 5000,
+            _ => 1000
+        };
+        ChartHistorySettings.SampleIntervalSeconds = _pollIntervalMilliseconds / 1000d;
     }
 
     private void Root_ActualThemeChanged(FrameworkElement sender, object args) => ApplyTitleBarTheme();

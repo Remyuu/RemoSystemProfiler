@@ -315,9 +315,28 @@ public sealed record OverviewReading(
     double GaugeValue,
     SolidColorBrush AccentBrush);
 
+public static class ChartHistorySettings
+{
+    private static int _displaySeconds = 10;
+    private static double _sampleIntervalSeconds = 1;
+
+    public static int DisplaySeconds
+    {
+        get => _displaySeconds;
+        set => _displaySeconds = Math.Clamp(value, 10, 300);
+    }
+
+    public static double SampleIntervalSeconds
+    {
+        get => _sampleIntervalSeconds;
+        set => _sampleIntervalSeconds = Math.Clamp(value, 0.5, 10);
+    }
+
+    public static int MaxSamples => Math.Max(2, (int)Math.Ceiling(DisplaySeconds / SampleIntervalSeconds));
+}
+
 public sealed class OverviewItemViewModel : ObservableDashboardItem
 {
-    private const int MaxHistorySeconds = 10;
     private const double SparklineWidth = 60;
     private const double SparklineHeight = 32;
 
@@ -391,7 +410,7 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem
         AccentBrush = reading.AccentBrush;
 
         _history.Enqueue(GaugeValue);
-        while (_history.Count > MaxHistorySeconds)
+        while (_history.Count > ChartHistorySettings.MaxSamples)
         {
             _history.Dequeue();
         }
@@ -423,7 +442,6 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem
 
 public sealed class CoreItemViewModel : ObservableDashboardItem
 {
-    private const int MaxHistorySeconds = 10;
     private const double SparklineWidth = 120;
     private const double SparklineHeight = 56;
 
@@ -496,7 +514,7 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
 
         _history.Enqueue(Math.Clamp(reading.LoadPercent, 0, 100));
-        while (_history.Count > MaxHistorySeconds)
+        while (_history.Count > ChartHistorySettings.MaxSamples)
         {
             _history.Dequeue();
         }

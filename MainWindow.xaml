@@ -357,8 +357,8 @@
                 Background="{ThemeResource SidebarBrush}"
                 BorderBrush="{ThemeResource PanelStrokeBrush}"
                 BorderThickness="0,0,1,0">
-                <Grid Padding="12,10" RowDefinitions="Auto,Auto,*" RowSpacing="9">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Grid Padding="12,10" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="9">
+                    <Grid>
                         <StackPanel Spacing="1">
                             <TextBlock
                                 FontSize="18"
@@ -371,22 +371,6 @@
                                 Foreground="{ThemeResource SubtleTextBrush}"
                                 Text="Waiting for hardware sensors"
                                 TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="5">
-                            <ComboBox
-                                x:Name="ThemePicker"
-                                Width="96"
-                                SelectionChanged="ThemePicker_SelectionChanged">
-                                <ComboBoxItem Content="System" />
-                                <ComboBoxItem Content="Light" />
-                                <ComboBoxItem Content="Dark" />
-                            </ComboBox>
-                            <TextBlock
-                                x:Name="UpdatedText"
-                                HorizontalAlignment="Right"
-                                FontSize="11"
-                                Foreground="{ThemeResource SubtleTextBrush}"
-                                Text="--:--:--" />
                         </StackPanel>
                     </Grid>
 
@@ -424,6 +408,148 @@
                             </ItemsControl.ItemsPanel>
                         </ItemsControl>
                     </ScrollViewer>
+
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Button
+                            x:Name="SettingsButton"
+                            Width="36"
+                            Height="32"
+                            Padding="0"
+                            ToolTipService.ToolTip="Settings">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="15"
+                                Glyph="&#xE713;" />
+                            <Button.Flyout>
+                                <Flyout Placement="TopEdgeAlignedLeft">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Padding" Value="14" />
+                                            <Setter Property="MinWidth" Value="240" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <StackPanel Spacing="12">
+                                        <TextBlock
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Foreground="{ThemeResource AccentTextBrush}"
+                                            Text="Display settings" />
+
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Style="{StaticResource LabelTextStyle}" Text="Chart range" />
+                                            <ComboBox
+                                                x:Name="ChartRangePicker"
+                                                HorizontalAlignment="Stretch"
+                                                SelectionChanged="ChartRangePicker_SelectionChanged">
+                                                <ComboBoxItem Content="10 seconds" Tag="10" />
+                                                <ComboBoxItem Content="30 seconds" Tag="30" />
+                                                <ComboBoxItem Content="1 minute" Tag="60" />
+                                                <ComboBoxItem Content="5 minutes" Tag="300" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Style="{StaticResource LabelTextStyle}" Text="Update interval" />
+                                            <ComboBox
+                                                x:Name="UpdateIntervalPicker"
+                                                HorizontalAlignment="Stretch"
+                                                SelectionChanged="UpdateIntervalPicker_SelectionChanged">
+                                                <ComboBoxItem Content="0.5 seconds" Tag="0.5" />
+                                                <ComboBoxItem Content="1 second" Tag="1" />
+                                                <ComboBoxItem Content="2 seconds" Tag="2" />
+                                                <ComboBoxItem Content="5 seconds" Tag="5" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Style="{StaticResource LabelTextStyle}" Text="Theme" />
+                                            <ComboBox
+                                                x:Name="ThemePicker"
+                                                HorizontalAlignment="Stretch"
+                                                SelectionChanged="ThemePicker_SelectionChanged">
+                                                <ComboBoxItem Content="System" />
+                                                <ComboBoxItem Content="Light" />
+                                                <ComboBoxItem Content="Dark" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <Border
+                                            Height="1"
+                                            Margin="0,2"
+                                            Background="{ThemeResource PanelStrokeBrush}" />
+
+                                        <Expander
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch"
+                                            Header="About">
+                                            <StackPanel Padding="0,8,0,0" Spacing="8">
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock
+                                                        FontSize="14"
+                                                        FontWeight="SemiBold"
+                                                        Foreground="{ThemeResource AccentTextBrush}"
+                                                        Text="Remo System Profiler" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{ThemeResource SubtleTextBrush}"
+                                                        Text="WinUI 3 hardware monitor" />
+                                                </StackPanel>
+
+                                                <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto" RowSpacing="3">
+                                                    <TextBlock Style="{StaticResource LabelTextStyle}" Text="Website" />
+                                                    <HyperlinkButton
+                                                        Grid.Column="1"
+                                                        Padding="0"
+                                                        Content="remoooo.com"
+                                                        NavigateUri="https://remoooo.com" />
+                                                    <TextBlock
+                                                        Grid.Row="1"
+                                                        Style="{StaticResource LabelTextStyle}"
+                                                        Text="GitHub" />
+                                                    <HyperlinkButton
+                                                        Grid.Row="1"
+                                                        Grid.Column="1"
+                                                        Padding="0"
+                                                        Content="github.com/Remyuu"
+                                                        NavigateUri="https://github.com/Remyuu" />
+                                                </Grid>
+
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Style="{StaticResource LabelTextStyle}" Text="Open-source notices" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{ThemeResource MutedTextBrush}"
+                                                        Text="Built with WinUI 3, Windows App SDK, and LibreHardwareMonitor."
+                                                        TextWrapping="WrapWholeWords" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{ThemeResource SubtleTextBrush}"
+                                                        Text="Third-party components retain their original licenses."
+                                                        TextWrapping="WrapWholeWords" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Expander>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <StackPanel
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Spacing="0">
+                            <TextBlock
+                                FontSize="10"
+                                Foreground="{ThemeResource SubtleTextBrush}"
+                                Text="Updated" />
+                            <TextBlock
+                                x:Name="UpdatedText"
+                                HorizontalAlignment="Right"
+                                FontSize="11"
+                                Foreground="{ThemeResource SubtleTextBrush}"
+                                Text="--:--:--" />
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </Border>
 
@@ -442,7 +568,7 @@
                         <TextBlock
                             FontSize="12"
                             Foreground="{ThemeResource SubtleTextBrush}"
-                            Text="10s live utilization history and package sensors" />
+                            Text="Configurable live utilization history and package sensors" />
                     </StackPanel>
                     <TextBlock
                         x:Name="CpuNameText"
