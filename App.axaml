@@ -20,6 +20,22 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                    <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#222832" />
+                        <GradientStop Offset="1" Color="#00222832" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00222832" />
+                        <GradientStop Offset="1" Color="#222832" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#1D222B" />
+                        <GradientStop Offset="1" Color="#001D222B" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#001D222B" />
+                        <GradientStop Offset="1" Color="#1D222B" />
+                    </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#171A20" />
@@ -32,6 +48,22 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                    <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#222832" />
+                        <GradientStop Offset="1" Color="#00222832" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00222832" />
+                        <GradientStop Offset="1" Color="#222832" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#1D222B" />
+                        <GradientStop Offset="1" Color="#001D222B" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#001D222B" />
+                        <GradientStop Offset="1" Color="#1D222B" />
+                    </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F5F7FA" />
@@ -44,6 +76,22 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#475467" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#667085" />
+                    <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#FFFFFF" />
+                        <GradientStop Offset="1" Color="#00FFFFFF" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00FFFFFF" />
+                        <GradientStop Offset="1" Color="#FFFFFF" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#EEF2F7" />
+                        <GradientStop Offset="1" Color="#00EEF2F7" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00EEF2F7" />
+                        <GradientStop Offset="1" Color="#EEF2F7" />
+                    </LinearGradientBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 

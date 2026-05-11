@@ -344,22 +344,6 @@ public sealed record OverviewReading(
     double GaugeValue,
     IBrush AccentBrush);
 
-internal sealed class SparklineHistory
-{
-    private readonly Queue<double> _values = new();
-
-    public IReadOnlyList<double> Add(double value)
-    {
-        _values.Enqueue(Math.Clamp(value, 0, 100));
-        while (_values.Count > ChartHistorySettings.MaxSamples)
-        {
-            _values.Dequeue();
-        }
-
-        return _values.ToArray();
-    }
-}
-
 public static class ChartHistorySettings
 {
     private static int _displaySeconds = 10;
@@ -374,13 +358,12 @@ public static class ChartHistorySettings
 
 public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
 {
-    private readonly SparklineHistory _history = new();
     private string _title = string.Empty;
     private string _primaryText = "--";
     private string _secondaryText = "--";
     private string _detailText = "--";
     private IBrush _accentBrush = DashboardBrushes.Blue;
-    private IReadOnlyList<double> _sparklineValues = [];
+    private double _gaugeValue;
 
     public OverviewItemViewModel(OverviewReading reading)
     {
@@ -400,7 +383,7 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
 
     public IBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
 
-    public IReadOnlyList<double> SparklineValues { get => _sparklineValues; private set => SetProperty(ref _sparklineValues, value); }
+    public double GaugeValue { get => _gaugeValue; private set => SetProperty(ref _gaugeValue, value); }
 
     public void Update(OverviewReading reading)
     {
@@ -409,16 +392,15 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
         SecondaryText = reading.SecondaryText;
         DetailText = reading.DetailText;
         AccentBrush = reading.AccentBrush;
-        SparklineValues = _history.Add(reading.GaugeValue);
+        GaugeValue = reading.GaugeValue;
     }
 }
 
 public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
-    private readonly SparklineHistory _history = new();
     private string _loadText = "--";
     private IBrush _loadBrush = DashboardBrushes.Blue;
-    private IReadOnlyList<double> _sparklineValues = [];
+    private double _loadPercent;
 
     public CoreItemViewModel(CoreReading reading)
     {
@@ -432,13 +414,13 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
 
     public IBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
 
-    public IReadOnlyList<double> SparklineValues { get => _sparklineValues; private set => SetProperty(ref _sparklineValues, value); }
+    public double LoadPercent { get => _loadPercent; private set => SetProperty(ref _loadPercent, value); }
 
     public void Update(CoreReading reading)
     {
         LoadText = reading.LoadText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
-        SparklineValues = _history.Add(reading.LoadPercent);
+        LoadPercent = reading.LoadPercent;
     }
 
     private static IBrush BuildLoadBrush(int loadPercent)
@@ -621,6 +603,9 @@ internal static class DashboardBrushes
     public static readonly IBrush Purple = Solid("#C77DFF");
     public static readonly IBrush OrangeRed = Solid("#FF5A4F");
     public static readonly IBrush LimeGreen = Solid("#32D583");
+    public static readonly IBrush CoreCellBackground = Solid("#202733");
+    public static readonly IBrush CoreCellBorder = Solid("#455060");
+    public static readonly IBrush CorePillBackground = Solid("#28303C");
 
     private static IBrush Solid(string color) => new SolidColorBrush(Color.Parse(color));
 }

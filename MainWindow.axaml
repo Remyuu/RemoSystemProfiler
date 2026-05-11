@@ -135,7 +135,7 @@
                             Margin="4"
                             Stroke="{Binding AccentBrush}"
                             StrokeThickness="2"
-                            Values="{Binding SparklineValues}" />
+                            Value="{Binding GaugeValue}" />
                     </Border>
                     <StackPanel Grid.Column="1" Spacing="1">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
@@ -160,39 +160,6 @@
                             Text="{Binding DetailText}"
                             TextTrimming="CharacterEllipsis" />
                     </StackPanel>
-                </Grid>
-            </Border>
-        </DataTemplate>
-
-        <DataTemplate x:Key="CoreTemplate" x:DataType="local:CoreItemViewModel">
-            <Border
-                MinWidth="34"
-                MinHeight="34"
-                Background="{DynamicResource ChartBackgroundBrush}"
-                BorderBrush="{DynamicResource PanelStrokeBrush}"
-                BorderThickness="1"
-                CornerRadius="3">
-                <Grid>
-                    <local:Sparkline
-                        Margin="4"
-                        Stroke="{Binding LoadBrush}"
-                        StrokeThickness="2.2"
-                        Values="{Binding SparklineValues}" />
-                    <Border
-                        Margin="6,4,0,0"
-                        Padding="4,1"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Background="{DynamicResource PanelStrongBrush}"
-                        BorderBrush="{DynamicResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="2">
-                        <TextBlock
-                            FontSize="14"
-                            FontWeight="SemiBold"
-                            Foreground="{Binding LoadBrush}"
-                            Text="{Binding LoadText}" />
-                    </Border>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -388,15 +355,20 @@
                         </Grid>
                     </Border>
 
-                    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemTemplate="{StaticResource OverviewTemplate}" ItemsSource="{Binding OverviewItems}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Spacing="6" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <local:ScrollFadeHost
+                        Grid.Row="2"
+                        BottomFade="{DynamicResource SidebarFadeBottomBrush}"
+                        TopFade="{DynamicResource SidebarFadeTopBrush}">
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                            <ItemsControl ItemTemplate="{StaticResource OverviewTemplate}" ItemsSource="{Binding OverviewItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="6" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </local:ScrollFadeHost>
 
                     <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="8">
                         <Button Content="Settings">
@@ -518,16 +490,13 @@
                             <TextBlock Classes="label" Text="Logical processors" />
                             <TextBlock Grid.Column="1" Classes="label" Text="100%" />
                         </Grid>
-                        <ItemsControl
+                        <local:CpuCoreGrid
                             Grid.Row="1"
-                            ItemTemplate="{StaticResource CoreTemplate}"
-                            ItemsSource="{Binding CpuCores}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <local:CoreTopologyPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                            CellBackground="{DynamicResource ChartBackgroundBrush}"
+                            CellBorderBrush="{DynamicResource PanelStrokeBrush}"
+                            Cores="{Binding CpuCores}"
+                            PillBackground="{DynamicResource PanelStrongBrush}"
+                            TextBrush="{DynamicResource AccentTextBrush}" />
                     </Grid>
                 </Border>
 
@@ -569,9 +538,14 @@
                                         <TextBlock Classes="label" Text="{Binding MemoryCapacityText}" TextTrimming="CharacterEllipsis" />
                                         <TextBlock Grid.Column="1" FontSize="12" Foreground="{StaticResource RedBrush}" Text="{Binding MemoryTempText}" />
                                     </Grid>
-                                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding MemoryMetrics}" />
-                                    </ScrollViewer>
+                                    <local:ScrollFadeHost
+                                        Grid.Row="1"
+                                        BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                        TopFade="{DynamicResource PanelFadeTopBrush}">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                            <ItemsControl ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding MemoryMetrics}" />
+                                        </ScrollViewer>
+                                    </local:ScrollFadeHost>
                                 </Grid>
                             </Grid>
                         </Border>
@@ -580,15 +554,20 @@
                     <Border Grid.Column="1" Classes="panel">
                         <Grid RowDefinitions="Auto,*" RowSpacing="6">
                             <TextBlock Classes="emphasis" FontSize="14" Text="CPU sensors" />
-                            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                <ItemsControl ItemTemplate="{StaticResource SensorGroupTemplate}" ItemsSource="{Binding CpuSensorGroups}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Spacing="6" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                            </ScrollViewer>
+                            <local:ScrollFadeHost
+                                Grid.Row="1"
+                                BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                TopFade="{DynamicResource PanelFadeTopBrush}">
+                                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                    <ItemsControl ItemTemplate="{StaticResource SensorGroupTemplate}" ItemsSource="{Binding CpuSensorGroups}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </local:ScrollFadeHost>
                         </Grid>
                     </Border>
 
@@ -596,29 +575,39 @@
                         <Border Classes="panel">
                             <Grid RowDefinitions="Auto,*" RowSpacing="6">
                                 <TextBlock Classes="emphasis" FontSize="14" Text="GPU devices" />
-                                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemTemplate="{StaticResource GpuTemplate}" ItemsSource="{Binding Gpus}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Spacing="6" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                <local:ScrollFadeHost
+                                    Grid.Row="1"
+                                    BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                    TopFade="{DynamicResource PanelFadeTopBrush}">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                        <ItemsControl ItemTemplate="{StaticResource GpuTemplate}" ItemsSource="{Binding Gpus}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="6" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </local:ScrollFadeHost>
                             </Grid>
                         </Border>
                         <Border Grid.Row="1" Classes="panel">
                             <Grid RowDefinitions="Auto,*" RowSpacing="6">
                                 <TextBlock Classes="emphasis" FontSize="14" Text="Storage devices" />
-                                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemTemplate="{StaticResource StorageTemplate}" ItemsSource="{Binding StorageDevices}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Spacing="6" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                <local:ScrollFadeHost
+                                    Grid.Row="1"
+                                    BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                    TopFade="{DynamicResource PanelFadeTopBrush}">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                        <ItemsControl ItemTemplate="{StaticResource StorageTemplate}" ItemsSource="{Binding StorageDevices}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="6" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </local:ScrollFadeHost>
                             </Grid>
                         </Border>
                     </Grid>
