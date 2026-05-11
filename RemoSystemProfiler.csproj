@@ -13,7 +13,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationIcon>cat_icon_optimized.ico</ApplicationIcon>
-    <PackageIcon>cat_icon_optimized.ico</PackageIcon>
+    <PackageIcon>cropped-New_HeadIcon.jpg</PackageIcon>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="RemoSystemProfiler.Core\**\*.cs" />
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="C:\Users\remo\Pictures\cat_icon_optimized.ico">
+    <None Include="cropped-New_HeadIcon.jpg">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
