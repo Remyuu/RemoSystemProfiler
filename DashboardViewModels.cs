@@ -41,6 +41,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _memoryCapacityText = "--";
     private string _memoryTempText = "";
     private bool _isStartupOverlayVisible = true;
+    private double _startupOverlayOpacity = 1;
     private string _startupStatusText = "Opening sensor backend";
     private int _selectedChartRangeIndex;
     private int _selectedUpdateIntervalIndex = 1;
@@ -89,6 +90,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public string MemoryTempText { get => _memoryTempText; set => SetProperty(ref _memoryTempText, value); }
 
     public bool IsStartupOverlayVisible { get => _isStartupOverlayVisible; set => SetProperty(ref _isStartupOverlayVisible, value); }
+
+    public double StartupOverlayOpacity { get => _startupOverlayOpacity; set => SetProperty(ref _startupOverlayOpacity, value); }
 
     public string StartupStatusText { get => _startupStatusText; set => SetProperty(ref _startupStatusText, value); }
 

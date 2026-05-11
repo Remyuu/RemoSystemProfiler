@@ -616,29 +616,29 @@
         </Grid>
 
         <Border
-            Background="#E6111214"
-            IsVisible="{Binding IsStartupOverlayVisible}">
+            Background="{DynamicResource AppBackgroundBrush}"
+            IsVisible="{Binding IsStartupOverlayVisible}"
+            Opacity="{Binding StartupOverlayOpacity}">
             <Grid Margin="28">
                 <StackPanel
                     Width="560"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Spacing="16">
+                    Spacing="18">
                     <Border
-                        Width="108"
-                        Height="108"
+                        Width="168"
+                        Height="72"
                         HorizontalAlignment="Center"
-                        Background="#3326282D"
+                        Padding="18,16"
+                        Background="{DynamicResource PanelBrush}"
                         BorderBrush="{DynamicResource PanelStrokeBrush}"
                         BorderThickness="1"
-                        CornerRadius="54">
-                        <ProgressBar
-                            Width="68"
-                            Height="6"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Foreground="{StaticResource BlueBrush}"
-                            IsIndeterminate="True" />
+                        CornerRadius="6">
+                        <local:LoadingPulseBars
+                            PrimaryBrush="{StaticResource BlueBrush}"
+                            SecondaryBrush="{StaticResource GreenBrush}"
+                            TertiaryBrush="{StaticResource AmberBrush}"
+                            TrackBrush="{DynamicResource PanelStrongBrush}" />
                     </Border>
                     <StackPanel Spacing="6">
                         <TextBlock

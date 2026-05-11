@@ -12,6 +12,9 @@ namespace RemoSystemProfiler;
 
 public sealed partial class MainWindow : Window
 {
+    private const int StartupOverlayFadeMilliseconds = 320;
+    private const int StartupOverlayCompletionHoldMilliseconds = 180;
+
     private static readonly int[] ChartRangesSeconds = [10, 30, 60, 300];
     private static readonly double[] UpdateIntervalsSeconds = [0.5, 1, 2, 5];
 
@@ -199,6 +202,23 @@ public sealed partial class MainWindow : Window
 
         _startupOverlayDismissed = true;
         _viewModel.StartupStatusText = message;
+        _ = DismissStartupOverlayAsync();
+    }
+
+    private async Task DismissStartupOverlayAsync()
+    {
+        await Task.Delay(StartupOverlayCompletionHoldMilliseconds).ConfigureAwait(true);
+
+        const int steps = 16;
+        for (int i = 1; i <= steps; i++)
+        {
+            double t = i / (double)steps;
+            double eased = 1d - Math.Pow(1d - t, 3);
+            _viewModel.StartupOverlayOpacity = Math.Max(0, 1d - eased);
+            await Task.Delay(StartupOverlayFadeMilliseconds / steps).ConfigureAwait(true);
+        }
+
+        _viewModel.StartupOverlayOpacity = 0;
         _viewModel.IsStartupOverlayVisible = false;
     }
 
