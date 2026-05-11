@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:RemoSystemProfiler"
     x:DataType="local:MainWindowViewModel"
-    Title="Remo System Profiler"
+    Title=""
+    Icon="avares://RemoSystemProfiler/cat_icon_optimized.ico"
     Width="1100"
     Height="720"
     MinWidth="760"
@@ -69,6 +70,8 @@
             <Setter Property="Width" Value="34" />
             <Setter Property="Height" Value="34" />
             <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -285,15 +288,15 @@
                             </Grid>
                             <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
                                 <StackPanel>
-                                    <TextBlock Classes="label" Text="Load" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Load}" />
                                     <TextBlock Classes="small-value" Text="{Binding LoadText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Classes="label" Text="Temp" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Temp}" />
                                     <TextBlock Classes="hot-value" Text="{Binding TemperatureText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Classes="label" Text="Power" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Power}" />
                                     <TextBlock Classes="small-value" Text="{Binding PowerText}" />
                                 </StackPanel>
                             </Grid>
@@ -356,12 +359,37 @@
         BorderBrush="{DynamicResource WindowEdgeBrush}"
         BorderThickness="1">
         <Grid RowDefinitions="32,*">
-            <Border
+            <Grid
                 Grid.Row="0"
-                Padding="12,0,148,0"
-                Background="Transparent"
-                DoubleTapped="TitleBar_DoubleTapped"
-                PointerPressed="TitleBar_PointerPressed" />
+                Background="Transparent">
+                <Border
+                    Padding="12,0,148,0"
+                    Background="Transparent"
+                    DoubleTapped="TitleBar_DoubleTapped"
+                    PointerPressed="TitleBar_PointerPressed" />
+                <StackPanel
+                    Margin="10,0,148,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="7"
+                    IsHitTestVisible="False">
+                    <Border
+                        Width="18"
+                        Height="18"
+                        ClipToBounds="True"
+                        CornerRadius="4">
+                        <Image
+                            Source="avares://RemoSystemProfiler/cropped-New_HeadIcon.jpg"
+                            Stretch="UniformToFill" />
+                    </Border>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        Text="{DynamicResource Ui_WindowTitle}" />
+                </StackPanel>
+            </Grid>
 
             <Grid Grid.Row="1">
         <Grid x:Name="ShellGrid">
@@ -398,7 +426,7 @@
                             Grid.Column="1"
                             IsVisible="{Binding IsSidebarExpanded}"
                             Spacing="1">
-                            <TextBlock Classes="emphasis" FontSize="18" Text="Performance" />
+                            <TextBlock Classes="emphasis" FontSize="18" Text="{DynamicResource Ui_Performance}" />
                             <TextBlock
                                 FontSize="12"
                                 Foreground="{DynamicResource SubtleTextBrush}"
@@ -431,7 +459,7 @@
                                 Grid.Column="1"
                                 Classes="link"
                                 Click="PawnIoLink_Click"
-                                Content="Install PawnIO"
+                                Content="{DynamicResource Ui_InstallPawnIo}"
                                 IsVisible="{Binding IsPawnIoDownloadVisible}" />
                         </Grid>
                     </Border>
@@ -472,64 +500,74 @@
                             Classes="icon-button"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Bottom"
-                            ToolTip.Tip="Settings">
-                            <Path
-                                Width="18"
-                                Height="18"
-                                Data="M 9 1.5 L 10.9 3.4 L 13.5 2.7 L 15.3 5.8 L 13.4 7.7 C 13.5 8.1 13.5 8.5 13.5 9 C 13.5 9.5 13.5 9.9 13.4 10.3 L 15.3 12.2 L 13.5 15.3 L 10.9 14.6 L 9 16.5 L 7.1 14.6 L 4.5 15.3 L 2.7 12.2 L 4.6 10.3 C 4.5 9.9 4.5 9.5 4.5 9 C 4.5 8.5 4.5 8.1 4.6 7.7 L 2.7 5.8 L 4.5 2.7 L 7.1 3.4 Z M 9 6.3 A 2.7 2.7 0 1 0 9 11.7 A 2.7 2.7 0 1 0 9 6.3"
-                                Fill="{DynamicResource AccentTextBrush}"
-                                Stretch="Uniform" />
+                            ToolTip.Tip="{DynamicResource Ui_Settings}">
+                            <Viewbox Width="18" Height="18" Stretch="Uniform">
+                                <Canvas Width="24" Height="24">
+                                    <Path
+                                        Data="M19.43 12.98C19.47 12.66 19.5 12.34 19.5 12C19.5 11.66 19.47 11.33 19.42 11.02L21.54 9.37C21.73 9.22 21.78 8.95 21.66 8.73L19.66 5.27C19.54 5.05 19.28 4.96 19.05 5.05L16.56 6.05C16.04 5.65 15.5 5.32 14.87 5.07L14.5 2.42C14.46 2.18 14.25 2 14 2H10C9.75 2 9.54 2.18 9.5 2.42L9.13 5.07C8.5 5.32 7.96 5.66 7.44 6.05L4.95 5.05C4.72 4.96 4.46 5.05 4.34 5.27L2.34 8.73C2.21 8.95 2.27 9.22 2.46 9.37L4.58 11.02C4.53 11.33 4.5 11.67 4.5 12C4.5 12.33 4.53 12.66 4.58 12.98L2.46 14.63C2.27 14.78 2.22 15.05 2.34 15.27L4.34 18.73C4.46 18.95 4.72 19.04 4.95 18.95L7.44 17.95C7.96 18.35 8.5 18.68 9.13 18.93L9.5 21.58C9.54 21.82 9.75 22 10 22H14C14.25 22 14.46 21.82 14.5 21.58L14.87 18.93C15.5 18.68 16.04 18.34 16.56 17.95L19.05 18.95C19.28 19.04 19.54 18.95 19.66 18.73L21.66 15.27C21.78 15.05 21.73 14.78 21.54 14.63L19.43 12.98ZM12 15.5C10.07 15.5 8.5 13.93 8.5 12C8.5 10.07 10.07 8.5 12 8.5C13.93 8.5 15.5 10.07 15.5 12C15.5 13.93 13.93 15.5 12 15.5Z"
+                                        Fill="{DynamicResource AccentTextBrush}" />
+                                </Canvas>
+                            </Viewbox>
                             <Button.Flyout>
                                 <Flyout>
                                     <local:AnimatedFlyoutPanel Width="280" Spacing="10">
-                                        <TextBlock Classes="emphasis" FontSize="14" Text="Dashboard" />
+                                        <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
                                         <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="Chart range" />
+                                            <TextBlock Classes="label" Text="{DynamicResource Ui_ChartRange}" />
                                             <ComboBox
                                                 SelectedIndex="{Binding SelectedChartRangeIndex}"
                                                 SelectionChanged="ChartRangePicker_SelectionChanged">
-                                                <ComboBoxItem Content="10 seconds" />
-                                                <ComboBoxItem Content="30 seconds" />
-                                                <ComboBoxItem Content="1 minute" />
-                                                <ComboBoxItem Content="5 minutes" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_RangeTenSeconds}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_RangeThirtySeconds}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_RangeOneMinute}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_RangeFiveMinutes}" />
                                             </ComboBox>
                                         </StackPanel>
                                         <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="Update interval" />
+                                            <TextBlock Classes="label" Text="{DynamicResource Ui_UpdateInterval}" />
                                             <ComboBox
                                                 SelectedIndex="{Binding SelectedUpdateIntervalIndex}"
                                                 SelectionChanged="UpdateIntervalPicker_SelectionChanged">
-                                                <ComboBoxItem Content="0.5 second" />
-                                                <ComboBoxItem Content="1 second" />
-                                                <ComboBoxItem Content="2 seconds" />
-                                                <ComboBoxItem Content="5 seconds" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalHalfSecond}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalOneSecond}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalTwoSeconds}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalFiveSeconds}" />
                                             </ComboBox>
                                         </StackPanel>
                                         <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="Theme" />
+                                            <TextBlock Classes="label" Text="{DynamicResource Ui_Theme}" />
                                             <ComboBox
                                                 SelectedIndex="{Binding SelectedThemeIndex}"
                                                 SelectionChanged="ThemePicker_SelectionChanged">
-                                                <ComboBoxItem Content="System" />
-                                                <ComboBoxItem Content="Light" />
-                                                <ComboBoxItem Content="Dark" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_ThemeSystem}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_ThemeLight}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_ThemeDark}" />
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Classes="label" Text="{DynamicResource Ui_Language}" />
+                                            <ComboBox
+                                                SelectedIndex="{Binding SelectedLanguageIndex}"
+                                                SelectionChanged="LanguagePicker_SelectionChanged">
+                                                <ComboBoxItem Content="{DynamicResource Ui_English}" />
+                                                <ComboBoxItem Content="{DynamicResource Ui_Chinese}" />
                                             </ComboBox>
                                         </StackPanel>
                                         <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
                                         <local:AnimatedExpander>
                                             <local:AnimatedExpander.Header>
-                                                <TextBlock Classes="emphasis" FontSize="13" Text="About" />
+                                                <TextBlock Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_About}" />
                                             </local:AnimatedExpander.Header>
                                             <local:AnimatedExpander.Body>
                                                 <StackPanel Spacing="8">
                                                     <StackPanel Spacing="1">
                                                         <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
-                                                        <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="Avalonia hardware monitor" />
+                                                        <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="{DynamicResource Ui_AppSubtitle}" />
                                                     </StackPanel>
                                                     <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
-                                                        <TextBlock Classes="label" Text="Version" />
+                                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Version}" />
                                                         <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
-                                                        <TextBlock Grid.Row="1" Classes="label" Text="Website" />
+                                                        <TextBlock Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
                                                         <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
                                                         <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
                                                         <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
@@ -537,12 +575,12 @@
                                                     <TextBlock
                                                         FontSize="11"
                                                         Foreground="{DynamicResource MutedTextBrush}"
-                                                        Text="Built with Avalonia 12 and LibreHardwareMonitor."
+                                                        Text="{DynamicResource Ui_BuiltWith}"
                                                         TextWrapping="Wrap" />
                                                     <TextBlock
                                                         FontSize="11"
                                                         Foreground="{DynamicResource SubtleTextBrush}"
-                                                        Text="Third-party components retain their original licenses."
+                                                        Text="{DynamicResource Ui_LicenseNotice}"
                                                         TextWrapping="Wrap" />
                                                 </StackPanel>
                                             </local:AnimatedExpander.Body>
@@ -589,7 +627,7 @@
                 <Border Grid.Row="1" MinHeight="148" Classes="panel">
                     <Grid RowDefinitions="Auto,*" RowSpacing="7">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Classes="label" Text="Logical processors" />
+                            <TextBlock Classes="label" Text="{DynamicResource Ui_LogicalProcessors}" />
                             <TextBlock Grid.Column="1" Classes="label" Text="100%" />
                         </Grid>
                         <local:CpuCoreGrid
@@ -607,23 +645,23 @@
                         <Border Classes="panel">
                             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
                                 <StackPanel>
-                                    <TextBlock Classes="label" Text="Utilization" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Utilization}" />
                                     <TextBlock Classes="value" Text="{Binding CpuLoadSummaryText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Classes="label" Text="Speed" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Speed}" />
                                     <TextBlock Classes="value" Text="{Binding ClockText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="1">
-                                    <TextBlock Classes="label" Text="Package power" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_PackagePower}" />
                                     <TextBlock Classes="small-value" FontSize="15" Text="{Binding CpuPackagePowerText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="1" Grid.Column="1">
-                                    <TextBlock Classes="label" Text="Peak temp" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_PeakTemp}" />
                                     <TextBlock Classes="hot-value" FontSize="15" Text="{Binding CpuPeakTempText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Row="2">
-                                    <TextBlock Classes="label" Text="Cores / threads" />
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_CoresThreads}" />
                                     <TextBlock Classes="small-value" FontSize="15" Text="{Binding CoreCountText}" />
                                 </StackPanel>
                             </Grid>
@@ -632,7 +670,7 @@
                         <Border Grid.Row="1" Classes="panel">
                             <Grid RowDefinitions="Auto,*" RowSpacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Classes="emphasis" FontSize="14" Text="Memory" />
+                                    <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Memory}" />
                                     <TextBlock Grid.Column="1" Classes="small-value" Text="{Binding MemoryUsageText}" />
                                 </Grid>
                                 <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="5">
@@ -655,7 +693,7 @@
 
                     <Border Grid.Column="1" Classes="panel">
                         <Grid RowDefinitions="Auto,*" RowSpacing="6">
-                            <TextBlock Classes="emphasis" FontSize="14" Text="CPU sensors" />
+                            <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_CpuSensors}" />
                             <local:ScrollFadeHost
                                 Grid.Row="1"
                                 BottomFade="{DynamicResource PanelFadeBottomBrush}"
@@ -676,7 +714,7 @@
                     <Grid Grid.Column="2" RowDefinitions="11*,9*" RowSpacing="7">
                         <Border Classes="panel">
                             <Grid RowDefinitions="Auto,*" RowSpacing="6">
-                                <TextBlock Classes="emphasis" FontSize="14" Text="GPU devices" />
+                                <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_GpuDevices}" />
                                 <local:ScrollFadeHost
                                     Grid.Row="1"
                                     BottomFade="{DynamicResource PanelFadeBottomBrush}"
@@ -695,7 +733,7 @@
                         </Border>
                         <Border Grid.Row="1" Classes="panel">
                             <Grid RowDefinitions="Auto,*" RowSpacing="6">
-                                <TextBlock Classes="emphasis" FontSize="14" Text="Storage devices" />
+                                <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_StorageDevices}" />
                                 <local:ScrollFadeHost
                                     Grid.Row="1"
                                     BottomFade="{DynamicResource PanelFadeBottomBrush}"
@@ -749,7 +787,7 @@
                         FontWeight="SemiLight"
                         Foreground="{DynamicResource AccentTextBrush}"
                         MaxWidth="764"
-                        Text="Connecting to hardware backend"
+                        Text="{DynamicResource Ui_StartupTitle}"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                     <TextBlock
@@ -757,7 +795,7 @@
                         FontSize="18"
                         Foreground="{DynamicResource MutedTextBrush}"
                         MaxWidth="720"
-                        Text="Initializing LibreHardwareMonitor and enumerating devices"
+                        Text="{DynamicResource Ui_StartupSubtitle}"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                 </StackPanel>

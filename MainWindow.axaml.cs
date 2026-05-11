@@ -36,6 +36,7 @@ public sealed partial class MainWindow : Window
     private bool _isAnimatingSidebarWidth;
     private CancellationTokenSource? _sidebarWidthAnimation;
     private Size _lastNormalWindowSize = new(InitialWindowWidth, InitialWindowHeight);
+    private HardwareMonitorReadResult? _lastResult;
     private bool _isClosed;
     private bool _startupOverlayDismissed;
 
@@ -150,22 +151,23 @@ public sealed partial class MainWindow : Window
 
     private void ShowResult(HardwareMonitorReadResult result)
     {
+        _lastResult = result;
         _viewModel.UpdatedText = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
         if (!result.IsAvailable || result.Snapshot is null)
         {
             ShowUnavailable(result.Message, result.DriverStatus);
             DismissStartupOverlay(result.DriverStatus.NeedsInstallation
-                ? "PawnIO is required for full sensor access"
-                : "Sensor backend unavailable");
+                ? Localization.PawnIoRequired
+                : Localization.SensorBackendUnavailable);
             return;
         }
 
         ShowSnapshot(result.Snapshot, result);
         DismissStartupOverlay(result.DriverStatus.NeedsInstallation
-            ? "PawnIO is required for full sensor access"
+            ? Localization.PawnIoRequired
             : result.RequiresAdministrator
-            ? "Connected with limited sensor access"
-            : "Connected to hardware backend");
+            ? Localization.ConnectedLimited
+            : Localization.ConnectedBackend);
     }
 
     private void ShowSnapshot(SystemSnapshot snapshot, HardwareMonitorReadResult result)
@@ -174,14 +176,14 @@ public sealed partial class MainWindow : Window
         bool limited = result.RequiresAdministrator || driverLimited;
         _viewModel.StatusBrush = limited ? DashboardBrushes.OrangeRed : DashboardBrushes.LimeGreen;
         _viewModel.StatusText = driverLimited
-            ? result.DriverStatus.Message
+            ? Localization.DriverMessage(result.DriverStatus.Message)
             : result.RequiresAdministrator
-            ? $"Limited access\n{snapshot.Source}\nRun as administrator"
-            : $"Connected\n{snapshot.Source}\n{result.DriverStatus.SummaryText}";
+            ? Localization.LimitedAccessStatus(snapshot.Source)
+            : Localization.ConnectedStatus(snapshot.Source, Localization.DriverSummary(result.DriverStatus));
         _viewModel.StatusToolTip = limited ? BuildLimitedStatusTooltip(result) : null;
         _viewModel.IsPawnIoDownloadVisible = result.DriverStatus.NeedsInstallation;
         _viewModel.UpdatedText = snapshot.SampledAtText;
-        _viewModel.HardwareSummaryText = $"{snapshot.Gpus.Count} GPU | {snapshot.StorageDevices.Count} storage";
+        _viewModel.HardwareSummaryText = Localization.HardwareSummary(snapshot.Gpus.Count, snapshot.StorageDevices.Count);
 
         ShowCpu(snapshot.Cpu);
         ShowMemory(snapshot.Memory);
@@ -194,7 +196,7 @@ public sealed partial class MainWindow : Window
     {
         if (cpu is null)
         {
-            _viewModel.CpuNameText = "CPU sensors unavailable";
+            _viewModel.CpuNameText = Localization.CpuSensorsUnavailable;
             _viewModel.CpuPackagePowerText = "--";
             _viewModel.CpuPeakTempText = "--";
             _viewModel.CpuLoadSummaryText = "--";
@@ -234,11 +236,13 @@ public sealed partial class MainWindow : Window
 
     private void ShowUnavailable(string message, SensorDriverStatus driverStatus)
     {
+        string localizedMessage = Localization.ResultMessage(message);
+        string localizedDriverMessage = Localization.DriverMessage(driverStatus.Message);
         _viewModel.StatusBrush = DashboardBrushes.OrangeRed;
-        _viewModel.StatusText = driverStatus.NeedsInstallation ? driverStatus.Message : message;
-        _viewModel.StatusToolTip = driverStatus.NeedsInstallation ? $"{driverStatus.Message}\n{message}" : message;
+        _viewModel.StatusText = driverStatus.NeedsInstallation ? localizedDriverMessage : localizedMessage;
+        _viewModel.StatusToolTip = driverStatus.NeedsInstallation ? $"{localizedDriverMessage}\n{localizedMessage}" : localizedMessage;
         _viewModel.IsPawnIoDownloadVisible = driverStatus.NeedsInstallation;
-        _viewModel.HardwareSummaryText = "Hardware sensors unavailable";
+        _viewModel.HardwareSummaryText = Localization.HardwareSensorsUnavailable;
         ShowCpu(null);
         ShowMemory(null);
         SyncDeviceCollection(_viewModel.Gpus, Array.Empty<GpuDeviceReading>(), gpu => gpu.Name, gpu => new GpuDeviceViewModel(gpu));
@@ -251,11 +255,11 @@ public sealed partial class MainWindow : Window
         if (!result.DriverStatus.IsReady)
         {
             return result.DriverStatus.NeedsInstallation
-                ? "Install PawnIO, then restart Remo System Profiler as administrator."
-                : result.DriverStatus.Message;
+                ? Localization.InstallPawnIoRestartAdmin
+                : Localization.DriverMessage(result.DriverStatus.Message);
         }
 
-        return result.Message;
+        return Localization.ResultMessage(result.Message);
     }
 
     private void DismissStartupOverlay(string message)
@@ -297,19 +301,19 @@ public sealed partial class MainWindow : Window
 
         if (snapshot.Memory is { } memory)
         {
-            readings.Add(new("memory", "Memory", memory.UsageText, memory.CapacityText, memory.TemperatureText, memory.UsageGauge, DashboardBrushes.Green));
+            readings.Add(new("memory", Localization.OverviewMemory, memory.UsageText, memory.CapacityText, memory.TemperatureText, memory.UsageGauge, DashboardBrushes.Green));
         }
 
         for (int i = 0; i < snapshot.Gpus.Count; i++)
         {
             GpuDeviceReading gpu = snapshot.Gpus[i];
-            readings.Add(new($"gpu:{gpu.Name}", $"GPU {i}", gpu.LoadText, gpu.Name, $"{gpu.PowerText} | {gpu.TemperatureText}", gpu.LoadGauge, DashboardBrushes.Purple));
+            readings.Add(new($"gpu:{gpu.Name}", Localization.OverviewGpu(i), gpu.LoadText, gpu.Name, $"{gpu.PowerText} | {gpu.TemperatureText}", gpu.LoadGauge, DashboardBrushes.Purple));
         }
 
         for (int i = 0; i < snapshot.StorageDevices.Count; i++)
         {
             StorageDeviceReading storage = snapshot.StorageDevices[i];
-            readings.Add(new($"storage:{storage.Name}", $"Disk {i}", storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, DashboardBrushes.Amber));
+            readings.Add(new($"storage:{storage.Name}", Localization.OverviewDisk(i), storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, DashboardBrushes.Amber));
         }
 
         SyncDeviceCollection(_viewModel.OverviewItems, readings, reading => reading.Key, reading => new OverviewItemViewModel(reading));
@@ -341,6 +345,29 @@ public sealed partial class MainWindow : Window
         {
             _pollIntervalMilliseconds = (int)Math.Round(UpdateIntervalsSeconds[selected] * 1000d);
             ChartHistorySettings.SampleIntervalSeconds = _pollIntervalMilliseconds / 1000d;
+        }
+    }
+
+    private void LanguagePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!Localization.SetLanguageFromIndex(_viewModel.SelectedLanguageIndex))
+        {
+            return;
+        }
+
+        if (Application.Current?.Resources is { } resources)
+        {
+            Localization.ApplyToResources(resources);
+        }
+
+        _viewModel.RefreshLocalizedChrome();
+        if (_lastResult is { } result)
+        {
+            ShowResult(result);
+        }
+        else
+        {
+            _viewModel.RefreshWaitingText();
         }
     }
 
@@ -470,10 +497,10 @@ public sealed partial class MainWindow : Window
 
     private static SensorGroupReading[] BuildCpuSensorGroups(CpuDeviceReading? cpu) =>
     [
-        new("temperature", "Temperature", cpu?.TemperatureSensors ?? Array.Empty<MetricReading>(), false),
-        new("power", "Power", cpu?.PowerSensors ?? Array.Empty<MetricReading>(), false),
-        new("clock", "Clock", cpu?.ClockSensors ?? Array.Empty<MetricReading>(), false),
-        new("voltage", "Voltage", cpu?.VoltageSensors ?? Array.Empty<MetricReading>(), false)
+        new("temperature", Localization.SensorGroupTitle("temperature"), cpu?.TemperatureSensors ?? Array.Empty<MetricReading>(), false),
+        new("power", Localization.SensorGroupTitle("power"), cpu?.PowerSensors ?? Array.Empty<MetricReading>(), false),
+        new("clock", Localization.SensorGroupTitle("clock"), cpu?.ClockSensors ?? Array.Empty<MetricReading>(), false),
+        new("voltage", Localization.SensorGroupTitle("voltage"), cpu?.VoltageSensors ?? Array.Empty<MetricReading>(), false)
     ];
 
     private static void SyncDeviceCollection<TView, TData, TKey>(

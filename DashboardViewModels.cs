@@ -12,6 +12,11 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    protected void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
@@ -20,15 +25,15 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
         }
 
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        RaisePropertyChanged(propertyName);
         return true;
     }
 }
 
 public sealed class MainWindowViewModel : ObservableDashboardItem
 {
-    private string _hardwareSummaryText = "Waiting for hardware sensors";
-    private string _statusText = "Waiting for sensors";
+    private string _hardwareSummaryText = Localization.WaitingForHardwareSensors;
+    private string _statusText = Localization.WaitingForSensors;
     private string? _statusToolTip;
     private IBrush _statusBrush = DashboardBrushes.Amber;
     private bool _isPawnIoDownloadVisible;
@@ -44,13 +49,14 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _memoryTempText = "";
     private bool _isStartupOverlayVisible = true;
     private double _startupOverlayOpacity = 1;
-    private string _startupStatusText = "Opening sensor backend";
+    private string _startupStatusText = Localization.OpeningSensorBackend;
     private int _selectedChartRangeIndex;
     private int _selectedUpdateIntervalIndex = 1;
     private int _selectedThemeIndex;
+    private int _selectedLanguageIndex = Localization.CurrentLanguageIndex;
     private bool _isSidebarCompact;
     private bool _isSidebarExpanded = true;
-    private string _sidebarToggleToolTip = "Collapse sidebar";
+    private string _sidebarToggleToolTip = Localization.CollapseSidebar;
     private Thickness _sidebarMargin = new(8, 10);
     private static readonly string ApplicationVersion = ResolveApplicationVersion();
 
@@ -110,6 +116,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public int SelectedThemeIndex { get => _selectedThemeIndex; set => SetProperty(ref _selectedThemeIndex, value); }
 
+    public int SelectedLanguageIndex { get => _selectedLanguageIndex; set => SetProperty(ref _selectedLanguageIndex, value); }
+
     public bool IsSidebarCompact
     {
         get => _isSidebarCompact;
@@ -118,7 +126,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             if (SetProperty(ref _isSidebarCompact, value))
             {
                 IsSidebarExpanded = !value;
-                SidebarToggleToolTip = value ? "Expand sidebar" : "Collapse sidebar";
+                SidebarToggleToolTip = value ? Localization.ExpandSidebar : Localization.CollapseSidebar;
             }
         }
     }
@@ -128,6 +136,19 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public string SidebarToggleToolTip { get => _sidebarToggleToolTip; private set => SetProperty(ref _sidebarToggleToolTip, value); }
 
     public Thickness SidebarMargin { get => _sidebarMargin; set => SetProperty(ref _sidebarMargin, value); }
+
+    public void RefreshWaitingText()
+    {
+        HardwareSummaryText = Localization.WaitingForHardwareSensors;
+        StatusText = Localization.WaitingForSensors;
+        StartupStatusText = Localization.OpeningSensorBackend;
+        RefreshLocalizedChrome();
+    }
+
+    public void RefreshLocalizedChrome()
+    {
+        SidebarToggleToolTip = IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+    }
 
     private static string ResolveApplicationVersion()
     {
@@ -168,7 +189,7 @@ public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardIte
 
     public void Update(MetricReading reading)
     {
-        Label = reading.Label;
+        Label = Localization.MetricLabel(reading.Name, reading.Kind);
         ValueText = reading.ValueText;
     }
 
@@ -239,7 +260,7 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
         MetricReading[] metrics = reading.Metrics.ToArray();
         if (metrics.Length == 0)
         {
-            SetSummary("--", "--", "--", "--", "Sensors", "0");
+            SetSummary("--", "--", "--", "--", Localization.SummaryLabel("sensors"), "0");
             return;
         }
 
@@ -247,44 +268,44 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
         {
             case "temperature":
                 SetSummary(
-                    "Peak",
+                    Localization.SummaryLabel("peak"),
                     MetricFormatter.FormatTemperature(metrics.Max(metric => metric.Value)),
-                    "Avg",
+                    Localization.SummaryLabel("avg"),
                     MetricFormatter.FormatTemperature(metrics.Average(metric => metric.Value)),
-                    "Sensors",
+                    Localization.SummaryLabel("sensors"),
                     metrics.Length.ToString());
                 break;
             case "power":
                 MetricReading? package = metrics.FirstOrDefault(metric => metric.Name.Contains("Package", StringComparison.OrdinalIgnoreCase))
                     ?? metrics.FirstOrDefault(metric => metric.Name.Contains("Total", StringComparison.OrdinalIgnoreCase));
                 SetSummary(
-                    package is null ? "Total" : "Package",
+                    package is null ? Localization.SummaryLabel("total") : Localization.SummaryLabel("package"),
                     package?.ValueText ?? MetricFormatter.FormatPower(metrics.Sum(metric => metric.Value)),
-                    "Peak rail",
+                    Localization.SummaryLabel("peakRail"),
                     MetricFormatter.FormatPower(metrics.Max(metric => metric.Value)),
-                    "Sensors",
+                    Localization.SummaryLabel("sensors"),
                     metrics.Length.ToString());
                 break;
             case "clock":
                 SetSummary(
-                    "Avg",
+                    Localization.SummaryLabel("avg"),
                     FormatClock(metrics.Average(metric => metric.Value)),
-                    "Max",
+                    Localization.SummaryLabel("max"),
                     FormatClock(metrics.Max(metric => metric.Value)),
-                    "Sensors",
+                    Localization.SummaryLabel("sensors"),
                     metrics.Length.ToString());
                 break;
             case "voltage":
                 SetSummary(
-                    "Max",
+                    Localization.SummaryLabel("max"),
                     FormatVoltage(metrics.Max(metric => metric.Value)),
-                    "Avg",
+                    Localization.SummaryLabel("avg"),
                     FormatVoltage(metrics.Average(metric => metric.Value)),
-                    "Sensors",
+                    Localization.SummaryLabel("sensors"),
                     metrics.Length.ToString());
                 break;
             default:
-                SetSummary("Primary", metrics[0].ValueText, "Sensors", metrics.Length.ToString(), "--", "--");
+                SetSummary(Localization.SummaryLabel("primary"), metrics[0].ValueText, Localization.SummaryLabel("sensors"), metrics.Length.ToString(), "--", "--");
                 break;
         }
     }
@@ -318,7 +339,7 @@ internal static class DashboardStatus
     {
         if (metrics.Count == 0)
         {
-            return "no sensors";
+            return Localization.NoSensors;
         }
 
         string thermal = ThermalStatus(metrics, 85, 75);
@@ -328,7 +349,7 @@ internal static class DashboardStatus
         }
 
         int warnings = metrics.Count(IsGaugeWarning);
-        return warnings > 0 ? $"{warnings} warning" : $"{metrics.Count} sensors";
+        return warnings > 0 ? Localization.WarningCount(warnings) : Localization.SensorCount(metrics.Count);
     }
 
     public static string DeviceStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
@@ -336,7 +357,7 @@ internal static class DashboardStatus
         MetricReading[] readings = metrics.ToArray();
         if (readings.Length == 0)
         {
-            return "no sensors";
+            return Localization.NoSensors;
         }
 
         string thermal = ThermalStatus(readings, hotThreshold, warmThreshold);
@@ -346,7 +367,7 @@ internal static class DashboardStatus
         }
 
         int warnings = readings.Count(IsGaugeWarning);
-        return warnings > 0 ? $"{warnings} warning" : "normal";
+        return warnings > 0 ? Localization.WarningCount(warnings) : Localization.Normal;
     }
 
     private static string ThermalStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
@@ -357,11 +378,11 @@ internal static class DashboardStatus
         int hot = temperatures.Count(metric => metric.Value >= hotThreshold);
         if (hot > 0)
         {
-            return $"{hot} hot";
+            return Localization.HotCount(hot);
         }
 
         int warm = temperatures.Count(metric => metric.Value >= warmThreshold);
-        return warm > 0 ? $"{warm} warm" : string.Empty;
+        return warm > 0 ? Localization.WarmCount(warm) : string.Empty;
     }
 
     private static bool IsGaugeWarning(MetricReading metric)
