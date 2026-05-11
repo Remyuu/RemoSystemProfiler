@@ -335,16 +335,22 @@ public sealed class CpuCoreGrid : Control
 
     private static (int Columns, int Rows) LayoutShape(int count)
     {
-        int columns = count switch
+        if (count <= 0)
         {
-            <= 0 => 1,
-            <= 8 => count,
-            <= 32 => 8,
-            <= 64 => 16,
-            _ => 24
-        };
-        int rows = (int)Math.Ceiling(count / (double)columns);
-        return (columns, Math.Max(1, rows));
+            return (1, 1);
+        }
+
+        int root = (int)Math.Floor(Math.Sqrt(count));
+        for (int rows = root; rows >= 1; rows--)
+        {
+            if (count % rows == 0)
+            {
+                return (count / rows, rows);
+            }
+        }
+
+        int columns = (int)Math.Ceiling(Math.Sqrt(count));
+        return (columns, (int)Math.Ceiling(count / (double)columns));
     }
 
     private static double CellSize(double available, int count, double fallback, double gap)
