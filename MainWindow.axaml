@@ -165,11 +165,10 @@
         </DataTemplate>
 
         <DataTemplate x:Key="SensorGroupTemplate" x:DataType="local:SensorGroupViewModel">
-            <Expander
-                Classes="dashboard-expander"
+            <local:AnimatedExpander
                 Width="{Binding $parent[ItemsControl].Bounds.Width}"
                 IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
-                <Expander.Header>
+                <local:AnimatedExpander.Header>
                     <Grid
                         HorizontalAlignment="Stretch"
                         RowDefinitions="Auto,Auto"
@@ -201,18 +200,20 @@
                             </StackPanel>
                         </Grid>
                     </Grid>
-                </Expander.Header>
-                <ItemsControl
-                    Classes="stretch-items"
-                    ItemTemplate="{StaticResource MetricRowTemplate}"
-                    ItemsSource="{Binding Metrics}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="5" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </Expander>
+                </local:AnimatedExpander.Header>
+                <local:AnimatedExpander.Body>
+                    <ItemsControl
+                        Classes="stretch-items"
+                        ItemTemplate="{StaticResource MetricRowTemplate}"
+                        ItemsSource="{Binding Metrics}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </local:AnimatedExpander.Body>
+            </local:AnimatedExpander>
         </DataTemplate>
 
         <DataTemplate x:Key="GpuTemplate" x:DataType="local:GpuDeviceViewModel">
@@ -221,8 +222,8 @@
                 Width="{Binding $parent[ItemsControl].Bounds.Width}"
                 HorizontalAlignment="Stretch"
                 Padding="4">
-                <Expander Classes="dashboard-expander" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
-                    <Expander.Header>
+                <local:AnimatedExpander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                    <local:AnimatedExpander.Header>
                         <Grid
                             HorizontalAlignment="Stretch"
                             RowDefinitions="Auto,Auto"
@@ -258,13 +259,15 @@
                                 </StackPanel>
                             </Grid>
                         </Grid>
-                    </Expander.Header>
-                    <StackPanel Spacing="5">
-                        <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding PowerSensors}" />
-                        <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding TemperatureSensors}" />
-                        <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding MemorySensors}" />
-                    </StackPanel>
-                </Expander>
+                    </local:AnimatedExpander.Header>
+                    <local:AnimatedExpander.Body>
+                        <StackPanel Spacing="5">
+                            <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding PowerSensors}" />
+                            <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding TemperatureSensors}" />
+                            <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding MemorySensors}" />
+                        </StackPanel>
+                    </local:AnimatedExpander.Body>
+                </local:AnimatedExpander>
             </Border>
         </DataTemplate>
 
@@ -274,8 +277,8 @@
                 Width="{Binding $parent[ItemsControl].Bounds.Width}"
                 HorizontalAlignment="Stretch"
                 Padding="4">
-                <Expander Classes="dashboard-expander" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
-                    <Expander.Header>
+                <local:AnimatedExpander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                    <local:AnimatedExpander.Header>
                         <Grid
                             HorizontalAlignment="Stretch"
                             ColumnDefinitions="*,Auto,Auto"
@@ -300,9 +303,11 @@
                                 <TextBlock Classes="status-pill" FontSize="10" Text="{Binding StatusText}" />
                             </Border>
                         </Grid>
-                    </Expander.Header>
-                    <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding Metrics}" />
-                </Expander>
+                    </local:AnimatedExpander.Header>
+                    <local:AnimatedExpander.Body>
+                        <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding Metrics}" />
+                    </local:AnimatedExpander.Body>
+                </local:AnimatedExpander>
             </Border>
         </DataTemplate>
     </Window.Resources>
