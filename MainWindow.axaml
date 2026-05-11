@@ -24,12 +24,30 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="5" />
         </Style>
+        <Style Selector="Border.panel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
         <Style Selector="Border.soft-panel">
             <Setter Property="Padding" Value="8" />
             <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="Border.soft-panel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="Border.metric-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="Border.overview-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelHoverBrush}" />
+        </Style>
+        <Style Selector="Border.compact-overview-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelHoverBrush}" />
         </Style>
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="12" />
@@ -78,7 +96,8 @@
             <Setter Property="CornerRadius" Value="5" />
         </Style>
         <Style Selector="Button.icon-button:pointerover">
-            <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
+            <Setter Property="Background" Value="{DynamicResource PanelStrongHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
         </Style>
         <Style Selector="Button.icon-button:pressed">
             <Setter Property="Background" Value="{DynamicResource ChartBackgroundBrush}" />
@@ -119,6 +138,7 @@
     <Window.Resources>
         <DataTemplate x:Key="MetricRowTemplate" x:DataType="local:MetricItemViewModel">
             <Border
+                Classes="metric-row"
                 HorizontalAlignment="Stretch"
                 MinHeight="28"
                 Padding="8,4"
@@ -143,6 +163,7 @@
 
         <DataTemplate x:Key="OverviewTemplate" x:DataType="local:OverviewItemViewModel">
             <Border
+                Classes="overview-card"
                 HorizontalAlignment="Stretch"
                 MinHeight="68"
                 Padding="9,7"
@@ -193,6 +214,7 @@
 
         <DataTemplate x:Key="CompactOverviewTemplate" x:DataType="local:OverviewItemViewModel">
             <Border
+                Classes="compact-overview-card"
                 HorizontalAlignment="Stretch"
                 MinHeight="56"
                 Padding="4"

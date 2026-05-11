@@ -18,9 +18,13 @@
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
                     <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
+                    <SolidColorBrush x:Key="PanelHoverBrush" Color="#E0222934" />
                     <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
+                    <SolidColorBrush x:Key="PanelStrongHoverBrush" Color="#E82B3441" />
                     <SolidColorBrush x:Key="PanelSoftBrush" Color="#D828303B" />
-                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#70455060" />
+                    <SolidColorBrush x:Key="PanelSoftHoverBrush" Color="#E0303946" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#26455060" />
+                    <SolidColorBrush x:Key="PanelHoverStrokeBrush" Color="#59455060" />
                     <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#B0202733" />
                     <SolidColorBrush x:Key="WindowEdgeBrush" Color="#60455060" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
@@ -52,9 +56,13 @@
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
                     <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
+                    <SolidColorBrush x:Key="PanelHoverBrush" Color="#E0222934" />
                     <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
+                    <SolidColorBrush x:Key="PanelStrongHoverBrush" Color="#E82B3441" />
                     <SolidColorBrush x:Key="PanelSoftBrush" Color="#D828303B" />
-                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#70455060" />
+                    <SolidColorBrush x:Key="PanelSoftHoverBrush" Color="#E0303946" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#26455060" />
+                    <SolidColorBrush x:Key="PanelHoverStrokeBrush" Color="#59455060" />
                     <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#B0202733" />
                     <SolidColorBrush x:Key="WindowEdgeBrush" Color="#60455060" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
@@ -86,9 +94,13 @@
                     </LinearGradientBrush>
                     <SolidColorBrush x:Key="SidebarBrush" Color="#DDEEF2F7" />
                     <SolidColorBrush x:Key="PanelBrush" Color="#F2FFFFFF" />
+                    <SolidColorBrush x:Key="PanelHoverBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="PanelStrongBrush" Color="#F2F8FAFC" />
+                    <SolidColorBrush x:Key="PanelStrongHoverBrush" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="PanelSoftBrush" Color="#EAF3F6FA" />
-                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#8AD1D8E2" />
+                    <SolidColorBrush x:Key="PanelSoftHoverBrush" Color="#F6FFFFFF" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#38B8C2CF" />
+                    <SolidColorBrush x:Key="PanelHoverStrokeBrush" Color="#66A6B1C0" />
                     <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#DFFAFCFF" />
                     <SolidColorBrush x:Key="WindowEdgeBrush" Color="#8AD1D8E2" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
