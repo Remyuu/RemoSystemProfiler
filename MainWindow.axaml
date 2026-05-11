@@ -83,6 +83,12 @@
         <Style Selector="Button.icon-button:pressed">
             <Setter Property="Background" Value="{DynamicResource ChartBackgroundBrush}" />
         </Style>
+        <Style Selector="FlyoutPresenter">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
         <Style Selector="ItemsControl.stretch-items ContentPresenter">
             <Setter Property="HorizontalAlignment" Value="Stretch" />
         </Style>
@@ -510,82 +516,89 @@
                             </Viewbox>
                             <Button.Flyout>
                                 <Flyout Placement="RightEdgeAlignedBottom" HorizontalOffset="8">
-                                    <local:AnimatedFlyoutPanel Width="280" Spacing="10">
-                                        <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="{DynamicResource Ui_ChartRange}" />
-                                            <ComboBox
-                                                SelectedIndex="{Binding SelectedChartRangeIndex}"
-                                                SelectionChanged="ChartRangePicker_SelectionChanged">
-                                                <ComboBoxItem Content="{DynamicResource Ui_RangeTenSeconds}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_RangeThirtySeconds}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_RangeOneMinute}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_RangeFiveMinutes}" />
-                                            </ComboBox>
-                                        </StackPanel>
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="{DynamicResource Ui_UpdateInterval}" />
-                                            <ComboBox
-                                                SelectedIndex="{Binding SelectedUpdateIntervalIndex}"
-                                                SelectionChanged="UpdateIntervalPicker_SelectionChanged">
-                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalHalfSecond}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalOneSecond}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalTwoSeconds}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_IntervalFiveSeconds}" />
-                                            </ComboBox>
-                                        </StackPanel>
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="{DynamicResource Ui_Theme}" />
-                                            <ComboBox
-                                                SelectedIndex="{Binding SelectedThemeIndex}"
-                                                SelectionChanged="ThemePicker_SelectionChanged">
-                                                <ComboBoxItem Content="{DynamicResource Ui_ThemeSystem}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_ThemeLight}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_ThemeDark}" />
-                                            </ComboBox>
-                                        </StackPanel>
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Classes="label" Text="{DynamicResource Ui_Language}" />
-                                            <ComboBox
-                                                SelectedIndex="{Binding SelectedLanguageIndex}"
-                                                SelectionChanged="LanguagePicker_SelectionChanged">
-                                                <ComboBoxItem Content="{DynamicResource Ui_English}" />
-                                                <ComboBoxItem Content="{DynamicResource Ui_Chinese}" />
-                                            </ComboBox>
-                                        </StackPanel>
-                                        <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
-                                        <local:AnimatedExpander>
-                                            <local:AnimatedExpander.Header>
-                                                <TextBlock Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_About}" />
-                                            </local:AnimatedExpander.Header>
-                                            <local:AnimatedExpander.Body>
-                                                <StackPanel Spacing="8">
-                                                    <StackPanel Spacing="1">
-                                                        <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
-                                                        <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="{DynamicResource Ui_AppSubtitle}" />
+                                    <Border
+                                        Padding="18"
+                                        Background="{DynamicResource PanelBrush}"
+                                        BorderBrush="{DynamicResource PanelStrokeBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8">
+                                        <local:AnimatedFlyoutPanel Width="280" Spacing="10">
+                                            <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label" Text="{DynamicResource Ui_ChartRange}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedChartRangeIndex}"
+                                                    SelectionChanged="ChartRangePicker_SelectionChanged">
+                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeTenSeconds}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeThirtySeconds}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeOneMinute}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeFiveMinutes}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label" Text="{DynamicResource Ui_UpdateInterval}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedUpdateIntervalIndex}"
+                                                    SelectionChanged="UpdateIntervalPicker_SelectionChanged">
+                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalHalfSecond}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalOneSecond}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalTwoSeconds}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalFiveSeconds}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label" Text="{DynamicResource Ui_Theme}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedThemeIndex}"
+                                                    SelectionChanged="ThemePicker_SelectionChanged">
+                                                    <ComboBoxItem Content="{DynamicResource Ui_ThemeSystem}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_ThemeLight}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_ThemeDark}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label" Text="{DynamicResource Ui_Language}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedLanguageIndex}"
+                                                    SelectionChanged="LanguagePicker_SelectionChanged">
+                                                    <ComboBoxItem Content="{DynamicResource Ui_English}" />
+                                                    <ComboBoxItem Content="{DynamicResource Ui_Chinese}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
+                                            <local:AnimatedExpander>
+                                                <local:AnimatedExpander.Header>
+                                                    <TextBlock Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_About}" />
+                                                </local:AnimatedExpander.Header>
+                                                <local:AnimatedExpander.Body>
+                                                    <StackPanel Spacing="8">
+                                                        <StackPanel Spacing="1">
+                                                            <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
+                                                            <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="{DynamicResource Ui_AppSubtitle}" />
+                                                        </StackPanel>
+                                                        <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
+                                                            <TextBlock Classes="label" Text="{DynamicResource Ui_Version}" />
+                                                            <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
+                                                            <TextBlock Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
+                                                            <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
+                                                            <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
+                                                            <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
+                                                        </Grid>
+                                                        <TextBlock
+                                                            FontSize="11"
+                                                            Foreground="{DynamicResource MutedTextBrush}"
+                                                            Text="{DynamicResource Ui_BuiltWith}"
+                                                            TextWrapping="Wrap" />
+                                                        <TextBlock
+                                                            FontSize="11"
+                                                            Foreground="{DynamicResource SubtleTextBrush}"
+                                                            Text="{DynamicResource Ui_LicenseNotice}"
+                                                            TextWrapping="Wrap" />
                                                     </StackPanel>
-                                                    <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
-                                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Version}" />
-                                                        <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
-                                                        <TextBlock Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
-                                                        <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
-                                                        <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
-                                                        <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
-                                                    </Grid>
-                                                    <TextBlock
-                                                        FontSize="11"
-                                                        Foreground="{DynamicResource MutedTextBrush}"
-                                                        Text="{DynamicResource Ui_BuiltWith}"
-                                                        TextWrapping="Wrap" />
-                                                    <TextBlock
-                                                        FontSize="11"
-                                                        Foreground="{DynamicResource SubtleTextBrush}"
-                                                        Text="{DynamicResource Ui_LicenseNotice}"
-                                                        TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </local:AnimatedExpander.Body>
-                                        </local:AnimatedExpander>
-                                    </local:AnimatedFlyoutPanel>
+                                                </local:AnimatedExpander.Body>
+                                            </local:AnimatedExpander>
+                                        </local:AnimatedFlyoutPanel>
+                                    </Border>
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
