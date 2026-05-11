@@ -19,7 +19,6 @@ public sealed partial class AnimatedExpander : UserControl
             nameof(IsExpanded),
             defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
-    private const int AnimationMilliseconds = 180;
     private CancellationTokenSource? _animation;
     private bool _isHeaderPressed;
 
@@ -97,20 +96,18 @@ public sealed partial class AnimatedExpander : UserControl
         double targetHeight = expanded ? MeasureBodyHeight() : 0;
         double startOpacity = BodyHost.Opacity;
         double targetOpacity = expanded ? 1 : 0;
-        const int frames = 12;
-
-        for (int frame = 1; frame <= frames; frame++)
+        for (int frame = 1; frame <= DashboardAnimation.Frames; frame++)
         {
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            double t = frame / (double)frames;
-            double eased = EaseOutCubic(t);
-            BodyHost.MaxHeight = Lerp(currentHeight, targetHeight, eased);
-            BodyHost.Opacity = Lerp(startOpacity, targetOpacity, eased);
-            await Task.Delay(AnimationMilliseconds / frames, token).ConfigureAwait(true);
+            double t = frame / (double)DashboardAnimation.Frames;
+            double eased = DashboardAnimation.EaseOutCubic(t);
+            BodyHost.MaxHeight = DashboardAnimation.Lerp(currentHeight, targetHeight, eased);
+            BodyHost.Opacity = DashboardAnimation.Lerp(startOpacity, targetOpacity, eased);
+            await Task.Delay(DashboardAnimation.DurationMilliseconds / DashboardAnimation.Frames, token).ConfigureAwait(true);
         }
 
         if (expanded)
@@ -157,14 +154,6 @@ public sealed partial class AnimatedExpander : UserControl
         _animation?.Dispose();
         _animation = null;
     }
-
-    private static double EaseOutCubic(double value)
-    {
-        double inverted = 1 - value;
-        return 1 - inverted * inverted * inverted;
-    }
-
-    private static double Lerp(double start, double end, double amount) => start + (end - start) * amount;
 
     private void HeaderSurface_PointerEntered(object? sender, PointerEventArgs e)
     {

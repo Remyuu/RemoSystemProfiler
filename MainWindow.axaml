@@ -400,7 +400,7 @@
                                 Stretch="Uniform" />
                             <Button.Flyout>
                                 <Flyout>
-                                    <StackPanel Width="280" Spacing="10">
+                                    <local:AnimatedFlyoutPanel Width="280" Spacing="10">
                                         <TextBlock Classes="emphasis" FontSize="14" Text="Dashboard" />
                                         <StackPanel Spacing="4">
                                             <TextBlock Classes="label" Text="Chart range" />
@@ -435,31 +435,36 @@
                                             </ComboBox>
                                         </StackPanel>
                                         <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
-                                        <Expander Header="About">
-                                            <StackPanel Margin="0,8,0,0" Spacing="8">
-                                                <StackPanel Spacing="1">
-                                                    <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
-                                                    <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="Avalonia hardware monitor" />
+                                        <local:AnimatedExpander>
+                                            <local:AnimatedExpander.Header>
+                                                <TextBlock Classes="emphasis" FontSize="13" Text="About" />
+                                            </local:AnimatedExpander.Header>
+                                            <local:AnimatedExpander.Body>
+                                                <StackPanel Spacing="8">
+                                                    <StackPanel Spacing="1">
+                                                        <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
+                                                        <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="Avalonia hardware monitor" />
+                                                    </StackPanel>
+                                                    <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto" RowSpacing="3">
+                                                        <TextBlock Classes="label" Text="Website" />
+                                                        <Button Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
+                                                        <TextBlock Grid.Row="1" Classes="label" Text="GitHub" />
+                                                        <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
+                                                    </Grid>
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{DynamicResource MutedTextBrush}"
+                                                        Text="Built with Avalonia 12 and LibreHardwareMonitor."
+                                                        TextWrapping="Wrap" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{DynamicResource SubtleTextBrush}"
+                                                        Text="Third-party components retain their original licenses."
+                                                        TextWrapping="Wrap" />
                                                 </StackPanel>
-                                                <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto" RowSpacing="3">
-                                                    <TextBlock Classes="label" Text="Website" />
-                                                    <Button Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
-                                                    <TextBlock Grid.Row="1" Classes="label" Text="GitHub" />
-                                                    <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
-                                                </Grid>
-                                                <TextBlock
-                                                    FontSize="11"
-                                                    Foreground="{DynamicResource MutedTextBrush}"
-                                                    Text="Built with Avalonia 12 and LibreHardwareMonitor."
-                                                    TextWrapping="Wrap" />
-                                                <TextBlock
-                                                    FontSize="11"
-                                                    Foreground="{DynamicResource SubtleTextBrush}"
-                                                    Text="Third-party components retain their original licenses."
-                                                    TextWrapping="Wrap" />
-                                            </StackPanel>
-                                        </Expander>
-                                    </StackPanel>
+                                            </local:AnimatedExpander.Body>
+                                        </local:AnimatedExpander>
+                                    </local:AnimatedFlyoutPanel>
                                 </Flyout>
                             </Button.Flyout>
                         </Button>

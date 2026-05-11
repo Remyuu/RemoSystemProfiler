@@ -64,7 +64,7 @@
                             <RotateTransform Angle="0">
                                 <RotateTransform.Transitions>
                                     <Transitions>
-                                        <DoubleTransition Property="Angle" Duration="0:0:0.16" />
+                                        <DoubleTransition Property="Angle" Duration="0:0:0.18" />
                                     </Transitions>
                                 </RotateTransform.Transitions>
                             </RotateTransform>
