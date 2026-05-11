@@ -10,13 +10,14 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#12161C" />
-                    <SolidColorBrush x:Key="SidebarBrush" Color="#171C24" />
-                    <SolidColorBrush x:Key="PanelBrush" Color="#1C222B" />
-                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#242B36" />
-                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#28303B" />
-                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#455060" />
-                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#202733" />
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#B812161C" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#D828303B" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#70455060" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#B0202733" />
+                    <SolidColorBrush x:Key="WindowEdgeBrush" Color="#60455060" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
@@ -38,13 +39,14 @@
                     </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#12161C" />
-                    <SolidColorBrush x:Key="SidebarBrush" Color="#171C24" />
-                    <SolidColorBrush x:Key="PanelBrush" Color="#1C222B" />
-                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#242B36" />
-                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#28303B" />
-                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#455060" />
-                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#202733" />
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#B812161C" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#D828303B" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#70455060" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#B0202733" />
+                    <SolidColorBrush x:Key="WindowEdgeBrush" Color="#60455060" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
@@ -66,13 +68,14 @@
                     </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F5F7FA" />
-                    <SolidColorBrush x:Key="SidebarBrush" Color="#EEF2F7" />
-                    <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#F8FAFC" />
-                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#F3F6FA" />
-                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#D1D8E2" />
-                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#FAFCFF" />
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#DDF5F7FA" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#DDEEF2F7" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#F2FFFFFF" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#F2F8FAFC" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#EAF3F6FA" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#8AD1D8E2" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#DFFAFCFF" />
+                    <SolidColorBrush x:Key="WindowEdgeBrush" Color="#8AD1D8E2" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#475467" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#667085" />

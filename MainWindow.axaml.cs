@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -16,6 +18,8 @@ public sealed partial class MainWindow : Window
     private const double SidebarExpandedMinWidth = 108;
     private const double SidebarExpandedWidth = 260;
     private const double SidebarCompactThreshold = SidebarExpandedMinWidth;
+    private const double InitialWindowWidth = 1100;
+    private const double InitialWindowHeight = 720;
     private const int StartupOverlayFadeMilliseconds = 320;
     private const int StartupOverlayCompletionHoldMilliseconds = 180;
 
@@ -31,6 +35,7 @@ public sealed partial class MainWindow : Window
     private bool _isApplyingSidebarWidth;
     private bool _isAnimatingSidebarWidth;
     private CancellationTokenSource? _sidebarWidthAnimation;
+    private Size _lastNormalWindowSize = new(InitialWindowWidth, InitialWindowHeight);
     private bool _isClosed;
     private bool _startupOverlayDismissed;
 
@@ -40,6 +45,7 @@ public sealed partial class MainWindow : Window
         DataContext = _viewModel;
         Opened += OnOpened;
         Closed += OnClosed;
+        SizeChanged += OnWindowSizeChanged;
         _viewModel.UpdatedText = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
     }
 
@@ -47,6 +53,56 @@ public sealed partial class MainWindow : Window
     {
         UpdateSidebarMode(SidebarRoot.Bounds.Width);
         StartPolling();
+    }
+
+    private void OnWindowSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (WindowState == WindowState.Normal && e.NewSize.Width > 0 && e.NewSize.Height > 0)
+        {
+            _lastNormalWindowSize = e.NewSize;
+        }
+    }
+
+    private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        PointerPoint point = e.GetCurrentPoint(this);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        if (WindowState == WindowState.Maximized)
+        {
+            RestoreWindowForDrag(point.Position);
+        }
+
+        BeginMoveDrag(e);
+        e.Handled = true;
+    }
+
+    private void TitleBar_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+        e.Handled = true;
+    }
+
+    private void RestoreWindowForDrag(Point pointerPosition)
+    {
+        double restoredWidth = Math.Max(MinWidth, _lastNormalWindowSize.Width);
+        double restoredHeight = Math.Max(MinHeight, _lastNormalWindowSize.Height);
+        double sourceWidth = Math.Max(Bounds.Width, restoredWidth);
+        double horizontalRatio = Math.Clamp(pointerPosition.X / sourceWidth, 0.12, 0.88);
+        double titleBarOffsetY = Math.Clamp(pointerPosition.Y, 8, 28);
+        PixelPoint screenPoint = this.PointToScreen(pointerPosition);
+
+        WindowState = WindowState.Normal;
+        Width = restoredWidth;
+        Height = restoredHeight;
+        Position = new PixelPoint(
+            screenPoint.X - (int)Math.Round(restoredWidth * horizontalRatio),
+            screenPoint.Y - (int)Math.Round(titleBarOffsetY));
     }
 
     private void StartPolling()
@@ -126,6 +182,7 @@ public sealed partial class MainWindow : Window
         _viewModel.IsPawnIoDownloadVisible = result.DriverStatus.NeedsInstallation;
         _viewModel.UpdatedText = snapshot.SampledAtText;
         _viewModel.HardwareSummaryText = $"{snapshot.Gpus.Count} GPU | {snapshot.StorageDevices.Count} storage";
+        _viewModel.HeaderHardwareText = BuildHeaderHardwareText(snapshot);
 
         ShowCpu(snapshot.Cpu);
         ShowMemory(snapshot.Memory);
@@ -183,6 +240,7 @@ public sealed partial class MainWindow : Window
         _viewModel.StatusToolTip = driverStatus.NeedsInstallation ? $"{driverStatus.Message}\n{message}" : message;
         _viewModel.IsPawnIoDownloadVisible = driverStatus.NeedsInstallation;
         _viewModel.HardwareSummaryText = "Hardware sensors unavailable";
+        _viewModel.HeaderHardwareText = "Hardware sensors unavailable";
         ShowCpu(null);
         ShowMemory(null);
         SyncDeviceCollection(_viewModel.Gpus, Array.Empty<GpuDeviceReading>(), gpu => gpu.Name, gpu => new GpuDeviceViewModel(gpu));
@@ -200,6 +258,48 @@ public sealed partial class MainWindow : Window
         }
 
         return result.Message;
+    }
+
+    private static string BuildHeaderHardwareText(SystemSnapshot snapshot)
+    {
+        string cpuName = string.IsNullOrWhiteSpace(snapshot.Cpu?.Name) ? "CPU unavailable" : snapshot.Cpu.Name;
+        string memoryText = BuildHeaderMemoryText(snapshot.Memory);
+        string gpuText = BuildHeaderGpuText(snapshot.Gpus);
+        return $"{cpuName}        {memoryText}        {gpuText}";
+    }
+
+    private static string BuildHeaderMemoryText(MemoryDeviceReading? memory)
+    {
+        if (memory is null)
+        {
+            return "Memory unavailable";
+        }
+
+        MetricReading? total = memory.DataSensors.FirstOrDefault(sensor =>
+            sensor.Name.Equals("Total", StringComparison.OrdinalIgnoreCase));
+        return total?.ValueText ?? memory.CapacityText;
+    }
+
+    private static string BuildHeaderGpuText(IReadOnlyList<GpuDeviceReading> gpus)
+    {
+        if (gpus.Count == 0)
+        {
+            return "GPU unavailable";
+        }
+
+        return string.Join(" + ", gpus.Select(gpu => SimplifyGpuName(gpu.Name)).Where(name => !string.IsNullOrWhiteSpace(name)));
+    }
+
+    private static string SimplifyGpuName(string name)
+    {
+        return name
+            .Replace("NVIDIA GeForce ", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("NVIDIA ", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("AMD Radeon(TM)", "Radeon", StringComparison.OrdinalIgnoreCase)
+            .Replace("AMD Radeon", "Radeon", StringComparison.OrdinalIgnoreCase)
+            .Replace(" Laptop GPU", " Laptop", StringComparison.OrdinalIgnoreCase)
+            .Replace(" Graphics", " Graphics", StringComparison.OrdinalIgnoreCase)
+            .Trim();
     }
 
     private void DismissStartupOverlay(string message)

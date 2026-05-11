@@ -6,11 +6,14 @@
     x:DataType="local:MainWindowViewModel"
     Title="Remo System Profiler"
     Width="1100"
-    Height="700"
+    Height="720"
     MinWidth="760"
     MinHeight="540"
+    ExtendClientAreaTitleBarHeightHint="32"
+    ExtendClientAreaToDecorationsHint="True"
+    TransparencyLevelHint="Mica, AcrylicBlur, Blur"
     WindowStartupLocation="CenterScreen"
-    Background="{DynamicResource AppBackgroundBrush}">
+    Background="Transparent">
 
     <Window.Styles>
         <Style Selector="Border.panel">
@@ -348,7 +351,19 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Background="{DynamicResource AppBackgroundBrush}">
+    <Border
+        Background="{DynamicResource AppBackgroundBrush}"
+        BorderBrush="{DynamicResource WindowEdgeBrush}"
+        BorderThickness="1">
+        <Grid RowDefinitions="32,*">
+            <Border
+                Grid.Row="0"
+                Padding="12,0,148,0"
+                Background="Transparent"
+                DoubleTapped="TitleBar_DoubleTapped"
+                PointerPressed="TitleBar_PointerPressed" />
+
+            <Grid Grid.Row="1">
         <Grid x:Name="ShellGrid">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="260" MinWidth="56" MaxWidth="420" />
@@ -452,7 +467,7 @@
                         </local:ScrollFadeHost>
                     </Grid>
 
-                    <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="8" MinHeight="34">
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto" MinHeight="34">
                         <Button
                             Classes="icon-button"
                             HorizontalAlignment="Left"
@@ -511,11 +526,13 @@
                                                         <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
                                                         <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="Avalonia hardware monitor" />
                                                     </StackPanel>
-                                                    <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto" RowSpacing="3">
-                                                        <TextBlock Classes="label" Text="Website" />
-                                                        <Button Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
-                                                        <TextBlock Grid.Row="1" Classes="label" Text="GitHub" />
-                                                        <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
+                                                    <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
+                                                        <TextBlock Classes="label" Text="Version" />
+                                                        <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
+                                                        <TextBlock Grid.Row="1" Classes="label" Text="Website" />
+                                                        <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
+                                                        <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
+                                                        <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
                                                     </Grid>
                                                     <TextBlock
                                                         FontSize="11"
@@ -534,18 +551,6 @@
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
-                        <StackPanel
-                            Grid.Column="1"
-                            HorizontalAlignment="Right"
-                            IsVisible="{Binding IsSidebarExpanded}"
-                            Spacing="0">
-                            <TextBlock FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" Text="Updated" />
-                            <TextBlock
-                                HorizontalAlignment="Right"
-                                FontSize="11"
-                                Foreground="{DynamicResource SubtleTextBrush}"
-                                Text="{Binding UpdatedText}" />
-                        </StackPanel>
                     </Grid>
                 </Grid>
             </Border>
@@ -558,25 +563,16 @@
 
             <Grid
                 Grid.Column="2"
-                Margin="14,8,14,10"
+                Margin="14,4,14,10"
                 RowDefinitions="Auto,2*,3*"
                 RowSpacing="8">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                    <StackPanel Spacing="0">
-                        <TextBlock
-                            FontSize="34"
-                            FontWeight="SemiLight"
-                            Foreground="{DynamicResource AccentTextBrush}"
-                            Text="CPU" />
-                    </StackPanel>
+                <Grid>
                     <TextBlock
-                        Grid.Column="1"
-                        MaxWidth="430"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
-                        FontSize="19"
+                        FontSize="18"
                         Foreground="{DynamicResource AccentTextBrush}"
-                        Text="{Binding CpuNameText}"
+                        Text="{Binding HeaderHardwareText}"
                         TextAlignment="Right"
                         TextTrimming="CharacterEllipsis" />
                 </Grid>
@@ -712,75 +708,76 @@
             </Grid>
         </Grid>
 
-        <Border
-            Background="{DynamicResource AppBackgroundBrush}"
+        <Grid
+            Background="#D8070A0F"
             IsVisible="{Binding IsStartupOverlayVisible}"
             Opacity="{Binding StartupOverlayOpacity}">
-            <Grid Margin="28">
-                <StackPanel
-                    Width="560"
+            <StackPanel
+                Width="764"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="30">
+                <Border
+                    Width="252"
+                    Height="108"
                     HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="18">
-                    <Border
-                        Width="168"
-                        Height="72"
+                    Padding="26,22"
+                    Background="#8A1C2530"
+                    BorderBrush="{DynamicResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <local:LoadingPulseBars
+                        PrimaryBrush="{StaticResource BlueBrush}"
+                        SecondaryBrush="{StaticResource GreenBrush}"
+                        TertiaryBrush="{StaticResource AmberBrush}"
+                        TrackBrush="{DynamicResource PanelStrongBrush}" />
+                </Border>
+
+                <StackPanel Spacing="8">
+                    <TextBlock
                         HorizontalAlignment="Center"
-                        Padding="18,16"
-                        Background="{DynamicResource PanelBrush}"
-                        BorderBrush="{DynamicResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="6">
-                        <local:LoadingPulseBars
-                            PrimaryBrush="{StaticResource BlueBrush}"
-                            SecondaryBrush="{StaticResource GreenBrush}"
-                            TertiaryBrush="{StaticResource AmberBrush}"
-                            TrackBrush="{DynamicResource PanelStrongBrush}" />
-                    </Border>
-                    <StackPanel Spacing="6">
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            FontSize="28"
-                            FontWeight="SemiLight"
-                            Foreground="{DynamicResource AccentTextBrush}"
-                            MaxWidth="560"
-                            Text="Connecting to hardware backend"
-                            TextAlignment="Center"
-                            TextWrapping="Wrap" />
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            FontSize="13"
-                            Foreground="{DynamicResource MutedTextBrush}"
-                            MaxWidth="520"
-                            Text="Initializing LibreHardwareMonitor and enumerating devices"
-                            TextAlignment="Center"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                    <Border
-                        Width="440"
+                        FontSize="38"
+                        FontWeight="SemiLight"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        MaxWidth="764"
+                        Text="Connecting to hardware backend"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                    <TextBlock
                         HorizontalAlignment="Center"
-                        Padding="12,9"
-                        Background="{DynamicResource PanelBrush}"
-                        BorderBrush="{DynamicResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="6">
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
-                            <Ellipse
-                                Width="8"
-                                Height="8"
-                                Margin="0,2,0,0"
-                                VerticalAlignment="Top"
-                                Fill="{StaticResource AmberBrush}" />
-                            <TextBlock
-                                Grid.Column="1"
-                                FontSize="12"
-                                Foreground="{DynamicResource MutedTextBrush}"
-                                Text="{Binding StartupStatusText}"
-                                TextWrapping="Wrap" />
-                        </Grid>
-                    </Border>
+                        FontSize="18"
+                        Foreground="{DynamicResource MutedTextBrush}"
+                        MaxWidth="720"
+                        Text="Initializing LibreHardwareMonitor and enumerating devices"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
                 </StackPanel>
+
+                <Border
+                    HorizontalAlignment="Stretch"
+                    Padding="17,13"
+                    Background="#661C222B"
+                    BorderBrush="{DynamicResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="13">
+                        <Ellipse
+                            Width="12"
+                            Height="12"
+                            Margin="0,4,0,0"
+                            VerticalAlignment="Top"
+                            Fill="{StaticResource AmberBrush}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            FontSize="16"
+                            Foreground="{DynamicResource MutedTextBrush}"
+                            Text="{Binding StartupStatusText}"
+                            TextWrapping="Wrap" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Grid>
             </Grid>
-        </Border>
-    </Grid>
+        </Grid>
+    </Border>
 </Window>

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Media;
@@ -27,6 +28,7 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
 public sealed class MainWindowViewModel : ObservableDashboardItem
 {
     private string _hardwareSummaryText = "Waiting for hardware sensors";
+    private string _headerHardwareText = "Waiting for hardware sensors";
     private string _statusText = "Waiting for sensors";
     private string? _statusToolTip;
     private IBrush _statusBrush = DashboardBrushes.Amber;
@@ -51,6 +53,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private bool _isSidebarExpanded = true;
     private string _sidebarToggleToolTip = "Collapse sidebar";
     private Thickness _sidebarMargin = new(8, 10);
+    private static readonly string ApplicationVersion = ResolveApplicationVersion();
 
     public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
 
@@ -66,6 +69,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
 
+    public string HeaderHardwareText { get => _headerHardwareText; set => SetProperty(ref _headerHardwareText, value); }
+
     public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
 
     public string? StatusToolTip { get => _statusToolTip; set => SetProperty(ref _statusToolTip, value); }
@@ -75,6 +80,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
 
     public string UpdatedText { get => _updatedText; set => SetProperty(ref _updatedText, value); }
+
+    public string VersionText => $"v{ApplicationVersion}";
 
     public string CpuNameText { get => _cpuNameText; set => SetProperty(ref _cpuNameText, value); }
 
@@ -124,6 +131,17 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public string SidebarToggleToolTip { get => _sidebarToggleToolTip; private set => SetProperty(ref _sidebarToggleToolTip, value); }
 
     public Thickness SidebarMargin { get => _sidebarMargin; set => SetProperty(ref _sidebarMargin, value); }
+
+    private static string ResolveApplicationVersion()
+    {
+        Assembly assembly = typeof(MainWindowViewModel).Assembly;
+        string? informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        string? version = string.IsNullOrWhiteSpace(informationalVersion)
+            ? assembly.GetName().Version?.ToString(3)
+            : informationalVersion.Split('+')[0];
+
+        return string.IsNullOrWhiteSpace(version) ? "1.0.0" : version;
+    }
 }
 
 public interface IDashboardItem<in TData, out TKey>
