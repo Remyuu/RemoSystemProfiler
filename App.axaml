@@ -10,59 +10,59 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#171A20" />
-                    <SolidColorBrush x:Key="SidebarBrush" Color="#1D222B" />
-                    <SolidColorBrush x:Key="PanelBrush" Color="#222832" />
-                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#28303C" />
-                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#2D3542" />
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#12161C" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#171C24" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#1C222B" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#242B36" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#28303B" />
                     <SolidColorBrush x:Key="PanelStrokeBrush" Color="#455060" />
                     <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#202733" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#222832" />
-                        <GradientStop Offset="1" Color="#00222832" />
+                        <GradientStop Offset="0" Color="#1C222B" />
+                        <GradientStop Offset="1" Color="#001C222B" />
                     </LinearGradientBrush>
                     <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#00222832" />
-                        <GradientStop Offset="1" Color="#222832" />
+                        <GradientStop Offset="0" Color="#001C222B" />
+                        <GradientStop Offset="1" Color="#1C222B" />
                     </LinearGradientBrush>
                     <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#1D222B" />
-                        <GradientStop Offset="1" Color="#001D222B" />
+                        <GradientStop Offset="0" Color="#171C24" />
+                        <GradientStop Offset="1" Color="#00171C24" />
                     </LinearGradientBrush>
                     <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#001D222B" />
-                        <GradientStop Offset="1" Color="#1D222B" />
+                        <GradientStop Offset="0" Color="#00171C24" />
+                        <GradientStop Offset="1" Color="#171C24" />
                     </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#171A20" />
-                    <SolidColorBrush x:Key="SidebarBrush" Color="#1D222B" />
-                    <SolidColorBrush x:Key="PanelBrush" Color="#222832" />
-                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#28303C" />
-                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#2D3542" />
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#12161C" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#171C24" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#1C222B" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#242B36" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#28303B" />
                     <SolidColorBrush x:Key="PanelStrokeBrush" Color="#455060" />
                     <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#202733" />
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#222832" />
-                        <GradientStop Offset="1" Color="#00222832" />
+                        <GradientStop Offset="0" Color="#1C222B" />
+                        <GradientStop Offset="1" Color="#001C222B" />
                     </LinearGradientBrush>
                     <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#00222832" />
-                        <GradientStop Offset="1" Color="#222832" />
+                        <GradientStop Offset="0" Color="#001C222B" />
+                        <GradientStop Offset="1" Color="#1C222B" />
                     </LinearGradientBrush>
                     <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#1D222B" />
-                        <GradientStop Offset="1" Color="#001D222B" />
+                        <GradientStop Offset="0" Color="#171C24" />
+                        <GradientStop Offset="1" Color="#00171C24" />
                     </LinearGradientBrush>
                     <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#001D222B" />
-                        <GradientStop Offset="1" Color="#1D222B" />
+                        <GradientStop Offset="0" Color="#00171C24" />
+                        <GradientStop Offset="1" Color="#171C24" />
                     </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
