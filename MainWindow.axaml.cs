@@ -29,6 +29,8 @@ public sealed partial class MainWindow : Window
     private int _pollIntervalMilliseconds = 1000;
     private double _lastExpandedSidebarWidth = SidebarExpandedWidth;
     private bool _isApplyingSidebarWidth;
+    private bool _isAnimatingSidebarWidth;
+    private CancellationTokenSource? _sidebarWidthAnimation;
     private bool _isClosed;
     private bool _startupOverlayDismissed;
 
@@ -286,17 +288,17 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void SidebarToggle_Click(object? sender, RoutedEventArgs e)
+    private async void SidebarToggle_Click(object? sender, RoutedEventArgs e)
     {
         bool compact = !_viewModel.IsSidebarCompact;
         if (compact)
         {
             ApplySidebarMode(true);
-            SetSidebarWidth(SidebarCompactWidth);
+            await AnimateSidebarWidthAsync(SidebarRoot.Bounds.Width, SidebarCompactWidth).ConfigureAwait(true);
             return;
         }
 
-        SetSidebarWidth(_lastExpandedSidebarWidth);
+        await AnimateSidebarWidthAsync(SidebarRoot.Bounds.Width, _lastExpandedSidebarWidth).ConfigureAwait(true);
         ApplySidebarMode(false);
     }
 
@@ -312,7 +314,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (_isApplyingSidebarWidth)
+        if (_isApplyingSidebarWidth || _isAnimatingSidebarWidth)
         {
             return;
         }
@@ -353,6 +355,55 @@ public sealed partial class MainWindow : Window
         _isApplyingSidebarWidth = true;
         ShellGrid.ColumnDefinitions[0].Width = new GridLength(width);
         _isApplyingSidebarWidth = false;
+    }
+
+    private async Task AnimateSidebarWidthAsync(double from, double to)
+    {
+        StopSidebarWidthAnimation();
+        CancellationTokenSource animation = new();
+        _sidebarWidthAnimation = animation;
+        CancellationToken token = animation.Token;
+        _isAnimatingSidebarWidth = true;
+
+        try
+        {
+            from = Math.Max(0, from);
+            to = Math.Max(0, to);
+            if (Math.Abs(from - to) < 0.5)
+            {
+                SetSidebarWidth(to);
+                return;
+            }
+
+            for (int frame = 1; frame <= DashboardAnimation.Frames; frame++)
+            {
+                token.ThrowIfCancellationRequested();
+                double t = frame / (double)DashboardAnimation.Frames;
+                double eased = DashboardAnimation.EaseOutCubic(t);
+                SetSidebarWidth(DashboardAnimation.Lerp(from, to, eased));
+                await Task.Delay(DashboardAnimation.DurationMilliseconds / DashboardAnimation.Frames, token).ConfigureAwait(true);
+            }
+
+            SetSidebarWidth(to);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by another sidebar animation or window shutdown.
+        }
+        finally
+        {
+            if (ReferenceEquals(_sidebarWidthAnimation, animation))
+            {
+                _isAnimatingSidebarWidth = false;
+                animation.Dispose();
+                _sidebarWidthAnimation = null;
+            }
+        }
+    }
+
+    private void StopSidebarWidthAnimation()
+    {
+        _sidebarWidthAnimation?.Cancel();
     }
 
     private void ApplySidebarMode(bool compact)
@@ -409,6 +460,7 @@ public sealed partial class MainWindow : Window
 
         _isClosed = true;
         _shutdown.Cancel();
+        StopSidebarWidthAnimation();
         Closed -= OnClosed;
         _backend.Dispose();
         _shutdown.Dispose();
