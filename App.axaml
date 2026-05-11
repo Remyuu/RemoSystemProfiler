@@ -11,6 +11,11 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#B812161C" />
+                    <LinearGradientBrush x:Key="DashboardBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#72111B20" />
+                        <GradientStop Offset="0.48" Color="#5413181E" />
+                        <GradientStop Offset="1" Color="#6810161C" />
+                    </LinearGradientBrush>
                     <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
                     <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
                     <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
@@ -40,6 +45,11 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#B812161C" />
+                    <LinearGradientBrush x:Key="DashboardBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#72111B20" />
+                        <GradientStop Offset="0.48" Color="#5413181E" />
+                        <GradientStop Offset="1" Color="#6810161C" />
+                    </LinearGradientBrush>
                     <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
                     <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
                     <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
@@ -69,6 +79,11 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#DDF5F7FA" />
+                    <LinearGradientBrush x:Key="DashboardBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#F7FFFFFF" />
+                        <GradientStop Offset="0.48" Color="#EAF6F8FB" />
+                        <GradientStop Offset="1" Color="#F2EEF3F8" />
+                    </LinearGradientBrush>
                     <SolidColorBrush x:Key="SidebarBrush" Color="#DDEEF2F7" />
                     <SolidColorBrush x:Key="PanelBrush" Color="#F2FFFFFF" />
                     <SolidColorBrush x:Key="PanelStrongBrush" Color="#F2F8FAFC" />

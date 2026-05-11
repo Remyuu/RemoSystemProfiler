@@ -509,7 +509,7 @@
                                 </Canvas>
                             </Viewbox>
                             <Button.Flyout>
-                                <Flyout>
+                                <Flyout Placement="RightEdgeAlignedBottom" HorizontalOffset="8">
                                     <local:AnimatedFlyoutPanel Width="280" Spacing="10">
                                         <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
                                         <StackPanel Spacing="4">
@@ -599,8 +599,10 @@
                 Background="Transparent"
                 ResizeDirection="Columns" />
 
-            <Grid
+            <Border
                 Grid.Column="2"
+                Background="{DynamicResource DashboardBackgroundBrush}">
+            <Grid
                 Margin="14,4,14,10"
                 RowDefinitions="Auto,2*,3*"
                 RowSpacing="8">
@@ -753,6 +755,7 @@
                     </Grid>
                 </Grid>
             </Grid>
+            </Border>
         </Grid>
 
         <Grid
