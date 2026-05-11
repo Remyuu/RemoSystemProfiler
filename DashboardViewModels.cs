@@ -1,9 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Microsoft.UI;
-using Microsoft.UI.Xaml.Media;
-using Windows.Foundation;
+using Avalonia.Media;
+using RemoSystemProfiler.Core;
 
 namespace RemoSystemProfiler;
 
@@ -22,6 +21,82 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         return true;
     }
+}
+
+public sealed class MainWindowViewModel : ObservableDashboardItem
+{
+    private string _hardwareSummaryText = "Waiting for hardware sensors";
+    private string _statusText = "Waiting for sensors";
+    private string? _statusToolTip;
+    private IBrush _statusBrush = DashboardBrushes.Amber;
+    private bool _isPawnIoDownloadVisible;
+    private string _updatedText = "--:--:--";
+    private string _cpuNameText = "--";
+    private string _cpuLoadSummaryText = "--";
+    private string _clockText = "--";
+    private string _cpuPackagePowerText = "--";
+    private string _cpuPeakTempText = "--";
+    private string _coreCountText = "--";
+    private string _memoryUsageText = "--";
+    private string _memoryCapacityText = "--";
+    private string _memoryTempText = "";
+    private bool _isStartupOverlayVisible = true;
+    private string _startupStatusText = "Opening sensor backend";
+    private int _selectedChartRangeIndex;
+    private int _selectedUpdateIntervalIndex = 1;
+    private int _selectedThemeIndex;
+
+    public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
+
+    public ObservableCollection<SensorGroupViewModel> CpuSensorGroups { get; } = [];
+
+    public ObservableCollection<CoreItemViewModel> CpuCores { get; } = [];
+
+    public ObservableCollection<MetricItemViewModel> MemoryMetrics { get; } = [];
+
+    public ObservableCollection<GpuDeviceViewModel> Gpus { get; } = [];
+
+    public ObservableCollection<StorageDeviceViewModel> StorageDevices { get; } = [];
+
+    public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
+
+    public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
+
+    public string? StatusToolTip { get => _statusToolTip; set => SetProperty(ref _statusToolTip, value); }
+
+    public IBrush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
+
+    public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
+
+    public string UpdatedText { get => _updatedText; set => SetProperty(ref _updatedText, value); }
+
+    public string CpuNameText { get => _cpuNameText; set => SetProperty(ref _cpuNameText, value); }
+
+    public string CpuLoadSummaryText { get => _cpuLoadSummaryText; set => SetProperty(ref _cpuLoadSummaryText, value); }
+
+    public string ClockText { get => _clockText; set => SetProperty(ref _clockText, value); }
+
+    public string CpuPackagePowerText { get => _cpuPackagePowerText; set => SetProperty(ref _cpuPackagePowerText, value); }
+
+    public string CpuPeakTempText { get => _cpuPeakTempText; set => SetProperty(ref _cpuPeakTempText, value); }
+
+    public string CoreCountText { get => _coreCountText; set => SetProperty(ref _coreCountText, value); }
+
+    public string MemoryUsageText { get => _memoryUsageText; set => SetProperty(ref _memoryUsageText, value); }
+
+    public string MemoryCapacityText { get => _memoryCapacityText; set => SetProperty(ref _memoryCapacityText, value); }
+
+    public string MemoryTempText { get => _memoryTempText; set => SetProperty(ref _memoryTempText, value); }
+
+    public bool IsStartupOverlayVisible { get => _isStartupOverlayVisible; set => SetProperty(ref _isStartupOverlayVisible, value); }
+
+    public string StartupStatusText { get => _startupStatusText; set => SetProperty(ref _startupStatusText, value); }
+
+    public int SelectedChartRangeIndex { get => _selectedChartRangeIndex; set => SetProperty(ref _selectedChartRangeIndex, value); }
+
+    public int SelectedUpdateIntervalIndex { get => _selectedUpdateIntervalIndex; set => SetProperty(ref _selectedUpdateIntervalIndex, value); }
+
+    public int SelectedThemeIndex { get => _selectedThemeIndex; set => SetProperty(ref _selectedThemeIndex, value); }
 }
 
 public interface IDashboardItem<in TData, out TKey>
@@ -267,13 +342,13 @@ public sealed record OverviewReading(
     string SecondaryText,
     string DetailText,
     double GaugeValue,
-    SolidColorBrush AccentBrush);
+    IBrush AccentBrush);
 
-internal sealed class SparklineHistory(double width, double height)
+internal sealed class SparklineHistory
 {
     private readonly Queue<double> _values = new();
 
-    public PointCollection Add(double value)
+    public IReadOnlyList<double> Add(double value)
     {
         _values.Enqueue(Math.Clamp(value, 0, 100));
         while (_values.Count > ChartHistorySettings.MaxSamples)
@@ -281,16 +356,7 @@ internal sealed class SparklineHistory(double width, double height)
             _values.Dequeue();
         }
 
-        PointCollection points = [];
-        double step = _values.Count == 1 ? width : width / (_values.Count - 1);
-        int index = 0;
-        foreach (double sample in _values)
-        {
-            points.Add(new Point(index * step, height - sample / 100d * height));
-            index++;
-        }
-
-        return points;
+        return _values.ToArray();
     }
 }
 
@@ -308,18 +374,17 @@ public static class ChartHistorySettings
 
 public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
 {
-    private readonly SparklineHistory _history = new(60, 32);
+    private readonly SparklineHistory _history = new();
     private string _title = string.Empty;
     private string _primaryText = "--";
     private string _secondaryText = "--";
     private string _detailText = "--";
-    private SolidColorBrush _accentBrush = null!;
-    private PointCollection _sparklinePoints = [];
+    private IBrush _accentBrush = DashboardBrushes.Blue;
+    private IReadOnlyList<double> _sparklineValues = [];
 
     public OverviewItemViewModel(OverviewReading reading)
     {
         Key = reading.Key;
-        _accentBrush = reading.AccentBrush;
         Update(reading);
     }
 
@@ -333,9 +398,9 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
 
     public string DetailText { get => _detailText; private set => SetProperty(ref _detailText, value); }
 
-    public SolidColorBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
+    public IBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
 
-    public PointCollection SparklinePoints { get => _sparklinePoints; private set => SetProperty(ref _sparklinePoints, value); }
+    public IReadOnlyList<double> SparklineValues { get => _sparklineValues; private set => SetProperty(ref _sparklineValues, value); }
 
     public void Update(OverviewReading reading)
     {
@@ -344,17 +409,16 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
         SecondaryText = reading.SecondaryText;
         DetailText = reading.DetailText;
         AccentBrush = reading.AccentBrush;
-
-        SparklinePoints = _history.Add(reading.GaugeValue);
+        SparklineValues = _history.Add(reading.GaugeValue);
     }
 }
 
 public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
-    private readonly SparklineHistory _history = new(120, 56);
+    private readonly SparklineHistory _history = new();
     private string _loadText = "--";
-    private SolidColorBrush _loadBrush = new(Colors.DeepSkyBlue);
-    private PointCollection _sparklinePoints = [];
+    private IBrush _loadBrush = DashboardBrushes.Blue;
+    private IReadOnlyList<double> _sparklineValues = [];
 
     public CoreItemViewModel(CoreReading reading)
     {
@@ -366,25 +430,24 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
 
     public string LoadText { get => _loadText; private set => SetProperty(ref _loadText, value); }
 
-    public SolidColorBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
+    public IBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
 
-    public PointCollection SparklinePoints { get => _sparklinePoints; private set => SetProperty(ref _sparklinePoints, value); }
+    public IReadOnlyList<double> SparklineValues { get => _sparklineValues; private set => SetProperty(ref _sparklineValues, value); }
 
     public void Update(CoreReading reading)
     {
         LoadText = reading.LoadText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
-
-        SparklinePoints = _history.Add(reading.LoadPercent);
+        SparklineValues = _history.Add(reading.LoadPercent);
     }
 
-    private static SolidColorBrush BuildLoadBrush(int loadPercent)
+    private static IBrush BuildLoadBrush(int loadPercent)
     {
         double t = Math.Clamp(loadPercent, 0, 100) / 100d;
         byte red = (byte)Math.Round(Lerp(0x37, 0xF9, t));
         byte green = (byte)Math.Round(Lerp(0xB7, 0x70, t));
         byte blue = (byte)Math.Round(Lerp(0xE8, 0x66, t));
-        return new SolidColorBrush(ColorHelper.FromArgb(255, red, green, blue));
+        return new SolidColorBrush(Color.FromArgb(255, red, green, blue));
     }
 
     private static double Lerp(double start, double end, double amount) => start + ((end - start) * amount);
@@ -547,4 +610,17 @@ public static class DashboardCollection
             update(collection[i], incoming[i]);
         }
     }
+}
+
+internal static class DashboardBrushes
+{
+    public static readonly IBrush Blue = Solid("#37B7E8");
+    public static readonly IBrush Red = Solid("#F97066");
+    public static readonly IBrush Green = Solid("#32D583");
+    public static readonly IBrush Amber = Solid("#FDB022");
+    public static readonly IBrush Purple = Solid("#C77DFF");
+    public static readonly IBrush OrangeRed = Solid("#FF5A4F");
+    public static readonly IBrush LimeGreen = Solid("#32D583");
+
+    private static IBrush Solid(string color) => new SolidColorBrush(Color.Parse(color));
 }

@@ -4,11 +4,12 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using Microsoft.Win32.SafeHandles;
 using LibreHardwareMonitor.Hardware;
+using RemoSystemProfiler.Core;
 using LhmPawnIo = LibreHardwareMonitor.PawnIo.PawnIo;
 
-namespace RemoSystemProfiler;
+namespace RemoSystemProfiler.Backends.Windows;
 
-public sealed class HardwareMonitorReader : IDisposable
+public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 {
     private static readonly Regex CoreNumberRegex = new(@"Core\s*#?\s*(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -25,6 +26,8 @@ public sealed class HardwareMonitorReader : IDisposable
     private bool _opened;
 
     private sealed record CpuTopology(int PhysicalCores, int LogicalProcessors);
+
+    public string Name => "Windows LibreHardwareMonitor";
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -585,23 +588,4 @@ public sealed class HardwareMonitorReader : IDisposable
     {
         return (float)(bytes / 1024d / 1024d / 1024d);
     }
-}
-
-public readonly record struct HardwareMonitorReadResult(
-    bool IsAvailable,
-    SystemSnapshot? Snapshot,
-    string Message,
-    bool RequiresAdministrator,
-    SensorDriverStatus DriverStatus)
-{
-    public static HardwareMonitorReadResult Available(SystemSnapshot snapshot, bool requiresAdministrator) =>
-        new(
-            true,
-            snapshot,
-            requiresAdministrator ? "Run as administrator for full hardware sensors" : snapshot.DriverStatus.SummaryText,
-            requiresAdministrator,
-            snapshot.DriverStatus);
-
-    public static HardwareMonitorReadResult Unavailable(string message, SensorDriverStatus driverStatus) =>
-        new(false, null, message, false, driverStatus);
 }

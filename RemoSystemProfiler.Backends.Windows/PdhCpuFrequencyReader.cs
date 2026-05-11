@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 
-namespace RemoSystemProfiler;
+namespace RemoSystemProfiler.Backends.Windows;
 
-public sealed class PdhCpuFrequencyReader : IDisposable
+internal sealed class PdhCpuFrequencyReader : IDisposable
 {
     private const uint ErrorSuccess = 0;
     private const uint PdhFmtDouble = 0x00000200;

@@ -1,0 +1,57 @@
+<Application
+    x:Class="RemoSystemProfiler.App"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Styles>
+        <FluentTheme DensityStyle="Compact" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#171A20" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#1D222B" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#222832" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#28303C" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#2D3542" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#455060" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#202733" />
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
+                    <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#171A20" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#1D222B" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#222832" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#28303C" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#2D3542" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#455060" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#202733" />
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
+                    <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F5F7FA" />
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#EEF2F7" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#F8FAFC" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#F3F6FA" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#D1D8E2" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#FAFCFF" />
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#475467" />
+                    <SolidColorBrush x:Key="SubtleTextBrush" Color="#667085" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <SolidColorBrush x:Key="BlueBrush" Color="#37B7E8" />
+            <SolidColorBrush x:Key="RedBrush" Color="#F97066" />
+            <SolidColorBrush x:Key="GreenBrush" Color="#32D583" />
+            <SolidColorBrush x:Key="AmberBrush" Color="#FDB022" />
+            <SolidColorBrush x:Key="PurpleBrush" Color="#C77DFF" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

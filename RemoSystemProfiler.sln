@@ -4,6 +4,10 @@ VisualStudioVersion = 17.14.36408.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RemoSystemProfiler", "RemoSystemProfiler.csproj", "{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoSystemProfiler.Core", "RemoSystemProfiler.Core\RemoSystemProfiler.Core.csproj", "{66A589A9-FB80-4F11-AF3A-178D8A2C735D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoSystemProfiler.Backends.Windows", "RemoSystemProfiler.Backends.Windows\RemoSystemProfiler.Backends.Windows.csproj", "{4C1BD802-1B37-4CFA-BA4B-5507FD13E960}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -16,6 +20,14 @@ Global
 		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Release|x64.ActiveCfg = Release|x64
 		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Release|x64.Build.0 = Release|x64
 		{8F0641F3-5A1D-4CF7-A2F4-8C1A0EAB6422}.Release|x64.Deploy.0 = Release|x64
+		{66A589A9-FB80-4F11-AF3A-178D8A2C735D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{66A589A9-FB80-4F11-AF3A-178D8A2C735D}.Debug|x64.Build.0 = Debug|Any CPU
+		{66A589A9-FB80-4F11-AF3A-178D8A2C735D}.Release|x64.ActiveCfg = Release|Any CPU
+		{66A589A9-FB80-4F11-AF3A-178D8A2C735D}.Release|x64.Build.0 = Release|Any CPU
+		{4C1BD802-1B37-4CFA-BA4B-5507FD13E960}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4C1BD802-1B37-4CFA-BA4B-5507FD13E960}.Debug|x64.Build.0 = Debug|Any CPU
+		{4C1BD802-1B37-4CFA-BA4B-5507FD13E960}.Release|x64.ActiveCfg = Release|Any CPU
+		{4C1BD802-1B37-4CFA-BA4B-5507FD13E960}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

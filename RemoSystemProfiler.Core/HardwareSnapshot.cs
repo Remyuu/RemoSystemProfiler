@@ -1,4 +1,4 @@
-namespace RemoSystemProfiler;
+namespace RemoSystemProfiler.Core;
 
 public sealed record SystemSnapshot(
     DateTimeOffset SampledAt,

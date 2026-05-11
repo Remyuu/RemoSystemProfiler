@@ -1,6 +1,5 @@
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Windows.Foundation;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace RemoSystemProfiler;
 
@@ -23,7 +22,7 @@ public sealed class CoreTopologyPanel : Panel
         double cellHeight = CellSize(availableSize.Height, rows, FallbackCellHeight);
         Size cellSize = new(cellWidth, cellHeight);
 
-        foreach (UIElement child in Children)
+        foreach (Control child in Children)
         {
             child.Measure(cellSize);
         }
@@ -46,9 +45,9 @@ public sealed class CoreTopologyPanel : Panel
             return finalSize;
         }
 
-        (int columns, int rows) = LayoutShape(count);
+        (int columns, _) = LayoutShape(count);
         double cellWidth = CellSize(finalSize.Width, columns, FallbackCellWidth);
-        double cellHeight = CellSize(finalSize.Height, rows, FallbackCellHeight);
+        double cellHeight = CellSize(finalSize.Height, LayoutShape(count).Rows, FallbackCellHeight);
 
         for (int i = 0; i < count; i++)
         {
@@ -78,12 +77,7 @@ public sealed class CoreTopologyPanel : Panel
 
     private static double CellSize(double available, int count, double fallback)
     {
-        if (count <= 0)
-        {
-            return fallback;
-        }
-
-        if (double.IsInfinity(available))
+        if (count <= 0 || double.IsInfinity(available))
         {
             return fallback;
         }
