@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia;
 using Avalonia.Media;
 using RemoSystemProfiler.Core;
 
@@ -46,6 +47,10 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private int _selectedChartRangeIndex;
     private int _selectedUpdateIntervalIndex = 1;
     private int _selectedThemeIndex;
+    private bool _isSidebarCompact;
+    private bool _isSidebarExpanded = true;
+    private string _sidebarToggleToolTip = "Collapse sidebar";
+    private Thickness _sidebarMargin = new(8, 10);
 
     public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
 
@@ -100,6 +105,25 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public int SelectedUpdateIntervalIndex { get => _selectedUpdateIntervalIndex; set => SetProperty(ref _selectedUpdateIntervalIndex, value); }
 
     public int SelectedThemeIndex { get => _selectedThemeIndex; set => SetProperty(ref _selectedThemeIndex, value); }
+
+    public bool IsSidebarCompact
+    {
+        get => _isSidebarCompact;
+        set
+        {
+            if (SetProperty(ref _isSidebarCompact, value))
+            {
+                IsSidebarExpanded = !value;
+                SidebarToggleToolTip = value ? "Expand sidebar" : "Collapse sidebar";
+            }
+        }
+    }
+
+    public bool IsSidebarExpanded { get => _isSidebarExpanded; private set => SetProperty(ref _isSidebarExpanded, value); }
+
+    public string SidebarToggleToolTip { get => _sidebarToggleToolTip; private set => SetProperty(ref _sidebarToggleToolTip, value); }
+
+    public Thickness SidebarMargin { get => _sidebarMargin; set => SetProperty(ref _sidebarMargin, value); }
 }
 
 public interface IDashboardItem<in TData, out TKey>

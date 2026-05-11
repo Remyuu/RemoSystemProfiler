@@ -12,6 +12,10 @@ namespace RemoSystemProfiler;
 
 public sealed partial class MainWindow : Window
 {
+    private const double SidebarCompactWidth = 56;
+    private const double SidebarExpandedMinWidth = 108;
+    private const double SidebarExpandedWidth = 260;
+    private const double SidebarCompactThreshold = SidebarExpandedMinWidth;
     private const int StartupOverlayFadeMilliseconds = 320;
     private const int StartupOverlayCompletionHoldMilliseconds = 180;
 
@@ -23,6 +27,8 @@ public sealed partial class MainWindow : Window
     private readonly MainWindowViewModel _viewModel = new();
     private Task? _pollingTask;
     private int _pollIntervalMilliseconds = 1000;
+    private double _lastExpandedSidebarWidth = SidebarExpandedWidth;
+    private bool _isApplyingSidebarWidth;
     private bool _isClosed;
     private bool _startupOverlayDismissed;
 
@@ -37,6 +43,7 @@ public sealed partial class MainWindow : Window
 
     private void OnOpened(object? sender, EventArgs e)
     {
+        UpdateSidebarMode(SidebarRoot.Bounds.Width);
         StartPolling();
     }
 
@@ -277,6 +284,81 @@ public sealed partial class MainWindow : Window
             _pollIntervalMilliseconds = (int)Math.Round(UpdateIntervalsSeconds[selected] * 1000d);
             ChartHistorySettings.SampleIntervalSeconds = _pollIntervalMilliseconds / 1000d;
         }
+    }
+
+    private void SidebarToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        bool compact = !_viewModel.IsSidebarCompact;
+        if (compact)
+        {
+            ApplySidebarMode(true);
+            SetSidebarWidth(SidebarCompactWidth);
+            return;
+        }
+
+        SetSidebarWidth(_lastExpandedSidebarWidth);
+        ApplySidebarMode(false);
+    }
+
+    private void SidebarRoot_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        UpdateSidebarMode(e.NewSize.Width);
+    }
+
+    private void UpdateSidebarMode(double width)
+    {
+        if (width <= 0)
+        {
+            return;
+        }
+
+        if (_isApplyingSidebarWidth)
+        {
+            return;
+        }
+
+        if (_viewModel.IsSidebarCompact)
+        {
+            if (width >= SidebarExpandedMinWidth)
+            {
+                double expandedWidth = Math.Max(width, SidebarExpandedMinWidth);
+                _lastExpandedSidebarWidth = expandedWidth;
+                SetSidebarWidth(expandedWidth);
+                ApplySidebarMode(false);
+                return;
+            }
+
+            if (Math.Abs(width - SidebarCompactWidth) > 0.5)
+            {
+                SetSidebarWidth(SidebarCompactWidth);
+            }
+
+            ApplySidebarMode(true);
+            return;
+        }
+
+        if (width < SidebarCompactThreshold)
+        {
+            ApplySidebarMode(true);
+            SetSidebarWidth(SidebarCompactWidth);
+            return;
+        }
+
+        _lastExpandedSidebarWidth = Math.Max(width, SidebarExpandedMinWidth);
+        ApplySidebarMode(false);
+    }
+
+    private void SetSidebarWidth(double width)
+    {
+        _isApplyingSidebarWidth = true;
+        ShellGrid.ColumnDefinitions[0].Width = new GridLength(width);
+        _isApplyingSidebarWidth = false;
+    }
+
+    private void ApplySidebarMode(bool compact)
+    {
+        _viewModel.IsSidebarCompact = compact;
+        _viewModel.SidebarMargin = new Avalonia.Thickness(8, 10);
     }
 
     private static SensorGroupReading[] BuildCpuSensorGroups(CpuDeviceReading? cpu) =>

@@ -5,10 +5,10 @@
     xmlns:local="using:RemoSystemProfiler"
     x:DataType="local:MainWindowViewModel"
     Title="Remo System Profiler"
-    Width="1500"
-    Height="900"
-    MinWidth="980"
-    MinHeight="640"
+    Width="1280"
+    Height="760"
+    MinWidth="760"
+    MinHeight="540"
     WindowStartupLocation="CenterScreen"
     Background="{DynamicResource AppBackgroundBrush}">
 
@@ -179,6 +179,27 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="CompactOverviewTemplate" x:DataType="local:OverviewItemViewModel">
+            <Border
+                HorizontalAlignment="Stretch"
+                MinHeight="56"
+                Padding="4"
+                Background="{DynamicResource PanelBrush}"
+                BorderBrush="{Binding AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="5"
+                ToolTip.Tip="{Binding DetailText}">
+                <local:ThermometerGauge
+                    Width="18"
+                    Height="46"
+                    HorizontalAlignment="Center"
+                    Fill="{Binding AccentBrush}"
+                    StrokeBrush="{DynamicResource PanelStrokeBrush}"
+                    TrackBrush="{DynamicResource ChartBackgroundBrush}"
+                    Value="{Binding GaugeValue}" />
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="SensorGroupTemplate" x:DataType="local:SensorGroupViewModel">
             <local:AnimatedExpander
                 Width="{Binding $parent[ItemsControl].Bounds.Width}"
@@ -328,28 +349,53 @@
     </Window.Resources>
 
     <Grid Background="{DynamicResource AppBackgroundBrush}">
-        <Grid>
+        <Grid x:Name="ShellGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="260" MinWidth="220" MaxWidth="420" />
+                <ColumnDefinition Width="260" MinWidth="56" MaxWidth="420" />
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border
+                x:Name="SidebarRoot"
                 Background="{DynamicResource SidebarBrush}"
                 BorderBrush="{DynamicResource PanelStrokeBrush}"
-                BorderThickness="0,0,1,0">
-                <Grid Margin="12,10" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="9">
-                    <StackPanel Spacing="1">
-                        <TextBlock Classes="emphasis" FontSize="18" Text="Performance" />
-                        <TextBlock
-                            FontSize="12"
-                            Foreground="{DynamicResource SubtleTextBrush}"
-                            Text="{Binding HardwareSummaryText}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                BorderThickness="0,0,1,0"
+                SizeChanged="SidebarRoot_SizeChanged">
+                <Grid Margin="{Binding SidebarMargin}" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="9">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" MinHeight="34">
+                        <Button
+                            Classes="icon-button"
+                            Click="SidebarToggle_Click"
+                            HorizontalAlignment="Left"
+                            ToolTip.Tip="{Binding SidebarToggleToolTip}"
+                            VerticalAlignment="Top">
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Data="M 3 4 H 15 M 3 9 H 15 M 3 14 H 15"
+                                Stroke="{DynamicResource AccentTextBrush}"
+                                StrokeLineCap="Round"
+                                StrokeThickness="1.8"
+                                Stretch="Uniform" />
+                        </Button>
+                        <StackPanel
+                            Grid.Column="1"
+                            IsVisible="{Binding IsSidebarExpanded}"
+                            Spacing="1">
+                            <TextBlock Classes="emphasis" FontSize="18" Text="Performance" />
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{DynamicResource SubtleTextBrush}"
+                                Text="{Binding HardwareSummaryText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
 
-                    <Border Grid.Row="1" Classes="panel">
+                    <Border
+                        Grid.Row="1"
+                        Classes="panel"
+                        IsVisible="{Binding IsSidebarExpanded}">
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
                             <Ellipse
                                 Width="8"
@@ -375,23 +421,43 @@
                         </Grid>
                     </Border>
 
-                    <local:ScrollFadeHost
-                        Grid.Row="2"
-                        BottomFade="{DynamicResource SidebarFadeBottomBrush}"
-                        TopFade="{DynamicResource SidebarFadeTopBrush}">
-                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
-                            <ItemsControl ItemTemplate="{StaticResource OverviewTemplate}" ItemsSource="{Binding OverviewItems}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Spacing="6" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </local:ScrollFadeHost>
+                    <Grid Grid.Row="2">
+                        <local:ScrollFadeHost
+                            BottomFade="{DynamicResource SidebarFadeBottomBrush}"
+                            IsVisible="{Binding IsSidebarExpanded}"
+                            TopFade="{DynamicResource SidebarFadeTopBrush}">
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                <ItemsControl ItemTemplate="{StaticResource OverviewTemplate}" ItemsSource="{Binding OverviewItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="6" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </local:ScrollFadeHost>
+                        <local:ScrollFadeHost
+                            BottomFade="{DynamicResource SidebarFadeBottomBrush}"
+                            IsVisible="{Binding IsSidebarCompact}"
+                            TopFade="{DynamicResource SidebarFadeTopBrush}">
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                <ItemsControl ItemTemplate="{StaticResource CompactOverviewTemplate}" ItemsSource="{Binding OverviewItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="6" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </local:ScrollFadeHost>
+                    </Grid>
 
-                    <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                        <Button Classes="icon-button" ToolTip.Tip="Settings">
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="8" MinHeight="34">
+                        <Button
+                            Classes="icon-button"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Bottom"
+                            ToolTip.Tip="Settings">
                             <Path
                                 Width="18"
                                 Height="18"
@@ -468,7 +534,11 @@
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
-                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="0">
+                        <StackPanel
+                            Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            IsVisible="{Binding IsSidebarExpanded}"
+                            Spacing="0">
                             <TextBlock FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" Text="Updated" />
                             <TextBlock
                                 HorizontalAlignment="Right"
@@ -498,10 +568,6 @@
                             FontWeight="SemiLight"
                             Foreground="{DynamicResource AccentTextBrush}"
                             Text="CPU" />
-                        <TextBlock
-                            FontSize="12"
-                            Foreground="{DynamicResource SubtleTextBrush}"
-                            Text="Configurable live utilization history and package sensors" />
                     </StackPanel>
                     <TextBlock
                         Grid.Column="1"
