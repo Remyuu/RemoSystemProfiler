@@ -215,10 +215,7 @@ public sealed class HardwareMonitorReader : IDisposable
                 logicalProcessors += Convert.ToInt32(item["NumberOfLogicalProcessors"] ?? 0);
             }
         }
-        catch (ManagementException)
-        {
-        }
-        catch (UnauthorizedAccessException)
+        catch (Exception ex) when (ex is ManagementException or UnauthorizedAccessException)
         {
         }
 
@@ -291,11 +288,7 @@ public sealed class HardwareMonitorReader : IDisposable
             BuildMetricReadings(sensors, SensorType.Load, IsGpuLoadNamed),
             BuildMetricReadings(sensors, SensorType.Power),
             BuildMetricReadings(sensors, SensorType.Temperature),
-            BuildMetricReadings(sensors, SensorType.Load, IsMemoryNamed)
-                .Concat(BuildMetricReadings(sensors, SensorType.Data, IsMemoryNamed))
-                .Concat(BuildMetricReadings(sensors, SensorType.SmallData, IsMemoryNamed))
-                .Concat(BuildMetricReadings(sensors, SensorType.Temperature, IsMemoryNamed))
-                .ToArray());
+            BuildMetricReadings(sensors, [SensorType.Load, SensorType.Data, SensorType.SmallData, SensorType.Temperature], IsMemoryNamed));
     }
 
     private static StorageDeviceReading BuildStorage(IHardware storage)
@@ -306,9 +299,7 @@ public sealed class HardwareMonitorReader : IDisposable
             BuildMetricReadings(sensors, SensorType.Load),
             BuildStorageTemperatureReadings(sensors),
             BuildMetricReadings(sensors, SensorType.Throughput),
-            BuildMetricReadings(sensors, SensorType.Data)
-                .Concat(BuildMetricReadings(sensors, SensorType.SmallData))
-                .ToArray());
+            BuildMetricReadings(sensors, [SensorType.Data, SensorType.SmallData]));
     }
 
     private static IReadOnlyList<MetricReading> BuildStorageTemperatureReadings(IReadOnlyList<ISensor> sensors)
@@ -360,41 +351,19 @@ public sealed class HardwareMonitorReader : IDisposable
 
     private static IReadOnlyList<CoreReading> BuildCoreReadings(IReadOnlyList<ISensor> sensors)
     {
-        Dictionary<int, CoreBuilder> builders = new();
-        AddCoreValues(builders, SensorsOfType(sensors, SensorType.Temperature).Where(IsCoreNamed), (builder, value) => builder.TemperatureCelsius = value);
-        AddCoreValues(builders, SensorsOfType(sensors, SensorType.Load).Where(IsCoreNamed), (builder, value) => builder.LoadPercent = (int)Math.Round(Math.Clamp(value, 0, 100)));
-        AddCoreValues(builders, SensorsOfType(sensors, SensorType.Power).Where(IsCoreNamed), (builder, value) => builder.PowerWatts = value);
-
-        return builders
-            .OrderBy(pair => pair.Key)
-            .Select(pair => new CoreReading(
-                pair.Key,
-                $"Core {pair.Key + 1}",
-                pair.Value.TemperatureCelsius,
-                pair.Value.LoadPercent ?? 0,
-                pair.Value.PowerWatts))
-            .ToArray();
-    }
-
-    private static void AddCoreValues(
-        IDictionary<int, CoreBuilder> builders,
-        IEnumerable<ISensor> sensors,
-        Action<CoreBuilder, float> apply)
-    {
+        Dictionary<int, int> loads = new();
         int fallbackIndex = 0;
-        foreach (ISensor sensor in sensors.OrderBy(sensor => sensor.Index).ThenBy(sensor => sensor.Name))
+        foreach (ISensor sensor in SensorsOfType(sensors, SensorType.Load).Where(IsCoreNamed).OrderBy(sensor => sensor.Index).ThenBy(sensor => sensor.Name))
         {
             int index = TryGetCoreIndex(sensor.Name) ?? fallbackIndex;
             fallbackIndex++;
-
-            if (!builders.TryGetValue(index, out CoreBuilder? builder))
-            {
-                builder = new CoreBuilder();
-                builders[index] = builder;
-            }
-
-            apply(builder, sensor.Value.GetValueOrDefault());
+            loads[index] = (int)Math.Round(Math.Clamp(sensor.Value.GetValueOrDefault(), 0, 100));
         }
+
+        return loads
+            .OrderBy(pair => pair.Key)
+            .Select(pair => new CoreReading(pair.Key, pair.Value))
+            .ToArray();
     }
 
     private static IReadOnlyList<MetricReading> BuildMetricReadings(
@@ -402,7 +371,16 @@ public sealed class HardwareMonitorReader : IDisposable
         SensorType type,
         Func<ISensor, bool>? filter = null)
     {
-        return SensorsOfType(sensors, type)
+        return BuildMetricReadings(sensors, [type], filter);
+    }
+
+    private static IReadOnlyList<MetricReading> BuildMetricReadings(
+        IReadOnlyList<ISensor> sensors,
+        IReadOnlyCollection<SensorType> types,
+        Func<ISensor, bool>? filter = null)
+    {
+        return sensors
+            .Where(sensor => types.Contains(sensor.SensorType) && sensor.Value.HasValue)
             .Where(sensor => filter?.Invoke(sensor) ?? true)
             .OrderBy(sensor => sensor.Index)
             .ThenBy(sensor => sensor.Name)
@@ -460,12 +438,7 @@ public sealed class HardwareMonitorReader : IDisposable
             && !sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsMemoryNamed(ISensor sensor)
-    {
-        return sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
-            || sensor.Name.Contains("VRAM", StringComparison.OrdinalIgnoreCase)
-            || sensor.Name.Contains("FB", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsMemoryNamed(ISensor sensor) => ContainsAny(sensor.Name, "Memory", "VRAM", "FB");
 
     private static bool IsMemoryTemperatureSensor(IHardware hardware, ISensor sensor)
     {
@@ -475,41 +448,17 @@ public sealed class HardwareMonitorReader : IDisposable
         }
 
         string name = $"{hardware.Name} {sensor.Name}";
-        if (name.Contains("VRAM", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("GPU", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("Graphics", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!IsMemoryModuleTemperatureSensor(sensor))
-        {
-            return false;
-        }
-
-        return hardware.HardwareType == HardwareType.Memory
-            || name.Contains("DIMM", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("DRAM", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("DDR", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("SPD", StringComparison.OrdinalIgnoreCase);
+        return !ContainsAny(name, "VRAM", "GPU", "Graphics")
+            && IsMemoryModuleTemperatureSensor(sensor)
+            && (hardware.HardwareType == HardwareType.Memory
+                || ContainsAny(name, "DIMM", "DRAM", "DDR", "SPD"));
     }
 
     private static bool IsMemoryModuleTemperatureSensor(ISensor sensor)
     {
         string name = sensor.Name;
-        if (name.Contains("Resolution", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("Limit", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("Critical", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("Threshold", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return name.Contains("DIMM", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("DRAM", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("DDR", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("SPD", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("Module", StringComparison.OrdinalIgnoreCase);
+        return !ContainsAny(name, "Resolution", "Limit", "Critical", "Threshold")
+            && ContainsAny(name, "DIMM", "DRAM", "DDR", "SPD", "Module");
     }
 
     private static bool IsPrimaryStorageTemperatureName(ISensor sensor)
@@ -519,22 +468,18 @@ public sealed class HardwareMonitorReader : IDisposable
             || sensor.Name.Equals("Composite Temperature", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsGpuLoadNamed(ISensor sensor)
-    {
-        return (sensor.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase)
-                || sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
-                || sensor.Name.Contains("D3D", StringComparison.OrdinalIgnoreCase))
-            && !IsMemoryNamed(sensor)
-            && !sensor.Name.Contains("Video", StringComparison.OrdinalIgnoreCase)
-            && !sensor.Name.Contains("Bus", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsGpuLoadNamed(ISensor sensor) =>
+        ContainsAny(sensor.Name, "GPU", "Core", "D3D")
+        && !IsMemoryNamed(sensor)
+        && !ContainsAny(sensor.Name, "Video", "Bus");
 
-    private static bool IsCpuCoreClockSensor(ISensor sensor)
+    private static bool IsCpuCoreClockSensor(ISensor sensor) =>
+        sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
+        && !ContainsAny(sensor.Name, "Bus", "Memory", "Fabric");
+
+    private static bool ContainsAny(string text, params string[] values)
     {
-        return sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
-            && !sensor.Name.Contains("Bus", StringComparison.OrdinalIgnoreCase)
-            && !sensor.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase)
-            && !sensor.Name.Contains("Fabric", StringComparison.OrdinalIgnoreCase);
+        return values.Any(value => text.Contains(value, StringComparison.OrdinalIgnoreCase));
     }
 
     private static PhysicalMemorySnapshot? ReadPhysicalMemory()
@@ -612,15 +557,6 @@ public sealed class HardwareMonitorReader : IDisposable
     {
         float[] array = values.ToArray();
         return array.Length == 0 ? 0 : array.Average();
-    }
-
-    private sealed class CoreBuilder
-    {
-        public float? TemperatureCelsius { get; set; }
-
-        public int? LoadPercent { get; set; }
-
-        public float? PowerWatts { get; set; }
     }
 
     private readonly record struct HardwareSensor(IHardware Hardware, ISensor Sensor);

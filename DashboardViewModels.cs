@@ -24,11 +24,18 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
     }
 }
 
-public sealed class MetricItemViewModel : ObservableDashboardItem
+public interface IDashboardItem<in TData, out TKey>
+    where TKey : notnull
+{
+    TKey Key { get; }
+
+    void Update(TData data);
+}
+
+public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardItem<MetricReading, string>
 {
     private string _label = string.Empty;
     private string _valueText = "--";
-    private double _gaugeValue;
 
     public MetricItemViewModel(MetricReading reading)
     {
@@ -38,29 +45,14 @@ public sealed class MetricItemViewModel : ObservableDashboardItem
 
     public string Key { get; }
 
-    public string Label
-    {
-        get => _label;
-        private set => SetProperty(ref _label, value);
-    }
+    public string Label { get => _label; private set => SetProperty(ref _label, value); }
 
-    public string ValueText
-    {
-        get => _valueText;
-        private set => SetProperty(ref _valueText, value);
-    }
-
-    public double GaugeValue
-    {
-        get => _gaugeValue;
-        private set => SetProperty(ref _gaugeValue, value);
-    }
+    public string ValueText { get => _valueText; private set => SetProperty(ref _valueText, value); }
 
     public void Update(MetricReading reading)
     {
         Label = reading.Label;
         ValueText = reading.ValueText;
-        GaugeValue = reading.GaugeValue;
     }
 
     public static string MetricKey(MetricReading reading) => $"{reading.Kind}:{reading.Name}";
@@ -72,7 +64,7 @@ public sealed record SensorGroupReading(
     IReadOnlyList<MetricReading> Metrics,
     bool IsExpandedByDefault);
 
-public sealed class SensorGroupViewModel : ObservableDashboardItem
+public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardItem<SensorGroupReading, string>
 {
     private string _title = string.Empty;
     private string _statusText = "--";
@@ -95,72 +87,34 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem
 
     public ObservableCollection<MetricItemViewModel> Metrics { get; } = [];
 
-    public string Title
-    {
-        get => _title;
-        private set => SetProperty(ref _title, value);
-    }
+    public string Title { get => _title; private set => SetProperty(ref _title, value); }
 
-    public string StatusText
-    {
-        get => _statusText;
-        private set => SetProperty(ref _statusText, value);
-    }
+    public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
 
-    public string SummaryOneLabel
-    {
-        get => _summaryOneLabel;
-        private set => SetProperty(ref _summaryOneLabel, value);
-    }
+    public string SummaryOneLabel { get => _summaryOneLabel; private set => SetProperty(ref _summaryOneLabel, value); }
 
-    public string SummaryOneText
-    {
-        get => _summaryOneText;
-        private set => SetProperty(ref _summaryOneText, value);
-    }
+    public string SummaryOneText { get => _summaryOneText; private set => SetProperty(ref _summaryOneText, value); }
 
-    public string SummaryTwoLabel
-    {
-        get => _summaryTwoLabel;
-        private set => SetProperty(ref _summaryTwoLabel, value);
-    }
+    public string SummaryTwoLabel { get => _summaryTwoLabel; private set => SetProperty(ref _summaryTwoLabel, value); }
 
-    public string SummaryTwoText
-    {
-        get => _summaryTwoText;
-        private set => SetProperty(ref _summaryTwoText, value);
-    }
+    public string SummaryTwoText { get => _summaryTwoText; private set => SetProperty(ref _summaryTwoText, value); }
 
-    public string SummaryThreeLabel
-    {
-        get => _summaryThreeLabel;
-        private set => SetProperty(ref _summaryThreeLabel, value);
-    }
+    public string SummaryThreeLabel { get => _summaryThreeLabel; private set => SetProperty(ref _summaryThreeLabel, value); }
 
-    public string SummaryThreeText
-    {
-        get => _summaryThreeText;
-        private set => SetProperty(ref _summaryThreeText, value);
-    }
+    public string SummaryThreeText { get => _summaryThreeText; private set => SetProperty(ref _summaryThreeText, value); }
 
-    public bool IsExpanded
-    {
-        get => _isExpanded;
-        set => SetProperty(ref _isExpanded, value);
-    }
+    public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
 
     public void Update(SensorGroupReading reading)
     {
         Title = reading.Title;
         StatusText = DashboardStatus.SensorGroupStatus(reading.Metrics);
         ApplySummary(reading);
-        DashboardCollection.Sync(
+        DashboardCollection.SyncItems(
             Metrics,
             reading.Metrics,
-            item => item.Key,
             MetricItemViewModel.MetricKey,
-            metric => new MetricItemViewModel(metric),
-            (item, metric) => item.Update(metric));
+            metric => new MetricItemViewModel(metric));
     }
 
     private void ApplySummary(SensorGroupReading reading)
@@ -315,37 +269,50 @@ public sealed record OverviewReading(
     double GaugeValue,
     SolidColorBrush AccentBrush);
 
+internal sealed class SparklineHistory(double width, double height)
+{
+    private readonly Queue<double> _values = new();
+
+    public PointCollection Add(double value)
+    {
+        _values.Enqueue(Math.Clamp(value, 0, 100));
+        while (_values.Count > ChartHistorySettings.MaxSamples)
+        {
+            _values.Dequeue();
+        }
+
+        PointCollection points = [];
+        double step = _values.Count == 1 ? width : width / (_values.Count - 1);
+        int index = 0;
+        foreach (double sample in _values)
+        {
+            points.Add(new Point(index * step, height - sample / 100d * height));
+            index++;
+        }
+
+        return points;
+    }
+}
+
 public static class ChartHistorySettings
 {
     private static int _displaySeconds = 10;
     private static double _sampleIntervalSeconds = 1;
 
-    public static int DisplaySeconds
-    {
-        get => _displaySeconds;
-        set => _displaySeconds = Math.Clamp(value, 10, 300);
-    }
+    public static int DisplaySeconds { get => _displaySeconds; set => _displaySeconds = Math.Clamp(value, 10, 300); }
 
-    public static double SampleIntervalSeconds
-    {
-        get => _sampleIntervalSeconds;
-        set => _sampleIntervalSeconds = Math.Clamp(value, 0.5, 10);
-    }
+    public static double SampleIntervalSeconds { get => _sampleIntervalSeconds; set => _sampleIntervalSeconds = Math.Clamp(value, 0.5, 10); }
 
     public static int MaxSamples => Math.Max(2, (int)Math.Ceiling(DisplaySeconds / SampleIntervalSeconds));
 }
 
-public sealed class OverviewItemViewModel : ObservableDashboardItem
+public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
 {
-    private const double SparklineWidth = 60;
-    private const double SparklineHeight = 32;
-
-    private readonly Queue<double> _history = new();
+    private readonly SparklineHistory _history = new(60, 32);
     private string _title = string.Empty;
     private string _primaryText = "--";
     private string _secondaryText = "--";
     private string _detailText = "--";
-    private double _gaugeValue;
     private SolidColorBrush _accentBrush = null!;
     private PointCollection _sparklinePoints = [];
 
@@ -358,47 +325,17 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem
 
     public string Key { get; }
 
-    public string Title
-    {
-        get => _title;
-        private set => SetProperty(ref _title, value);
-    }
+    public string Title { get => _title; private set => SetProperty(ref _title, value); }
 
-    public string PrimaryText
-    {
-        get => _primaryText;
-        private set => SetProperty(ref _primaryText, value);
-    }
+    public string PrimaryText { get => _primaryText; private set => SetProperty(ref _primaryText, value); }
 
-    public string SecondaryText
-    {
-        get => _secondaryText;
-        private set => SetProperty(ref _secondaryText, value);
-    }
+    public string SecondaryText { get => _secondaryText; private set => SetProperty(ref _secondaryText, value); }
 
-    public string DetailText
-    {
-        get => _detailText;
-        private set => SetProperty(ref _detailText, value);
-    }
+    public string DetailText { get => _detailText; private set => SetProperty(ref _detailText, value); }
 
-    public double GaugeValue
-    {
-        get => _gaugeValue;
-        private set => SetProperty(ref _gaugeValue, value);
-    }
+    public SolidColorBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
 
-    public SolidColorBrush AccentBrush
-    {
-        get => _accentBrush;
-        private set => SetProperty(ref _accentBrush, value);
-    }
-
-    public PointCollection SparklinePoints
-    {
-        get => _sparklinePoints;
-        private set => SetProperty(ref _sparklinePoints, value);
-    }
+    public PointCollection SparklinePoints { get => _sparklinePoints; private set => SetProperty(ref _sparklinePoints, value); }
 
     public void Update(OverviewReading reading)
     {
@@ -406,51 +343,16 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem
         PrimaryText = reading.PrimaryText;
         SecondaryText = reading.SecondaryText;
         DetailText = reading.DetailText;
-        GaugeValue = Math.Clamp(reading.GaugeValue, 0, 100);
         AccentBrush = reading.AccentBrush;
 
-        _history.Enqueue(GaugeValue);
-        while (_history.Count > ChartHistorySettings.MaxSamples)
-        {
-            _history.Dequeue();
-        }
-
-        SparklinePoints = BuildSparkline(_history);
-    }
-
-    private static PointCollection BuildSparkline(IReadOnlyCollection<double> history)
-    {
-        PointCollection points = [];
-        if (history.Count == 0)
-        {
-            return points;
-        }
-
-        double step = history.Count == 1 ? SparklineWidth : SparklineWidth / (history.Count - 1);
-        int index = 0;
-        foreach (double value in history)
-        {
-            double x = index * step;
-            double y = SparklineHeight - (Math.Clamp(value, 0, 100) / 100d * SparklineHeight);
-            points.Add(new Point(x, y));
-            index++;
-        }
-
-        return points;
+        SparklinePoints = _history.Add(reading.GaugeValue);
     }
 }
 
-public sealed class CoreItemViewModel : ObservableDashboardItem
+public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
-    private const double SparklineWidth = 120;
-    private const double SparklineHeight = 56;
-
-    private readonly Queue<double> _history = new();
-    private string _name = string.Empty;
-    private int _loadPercent;
-    private string _temperatureText = "--";
+    private readonly SparklineHistory _history = new(120, 56);
     private string _loadText = "--";
-    private string _powerText = "--";
     private SolidColorBrush _loadBrush = new(Colors.DeepSkyBlue);
     private PointCollection _sparklinePoints = [];
 
@@ -462,83 +364,18 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
 
     public int Key { get; }
 
-    public string Name
-    {
-        get => _name;
-        private set => SetProperty(ref _name, value);
-    }
+    public string LoadText { get => _loadText; private set => SetProperty(ref _loadText, value); }
 
-    public int LoadPercent
-    {
-        get => _loadPercent;
-        private set => SetProperty(ref _loadPercent, value);
-    }
+    public SolidColorBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
 
-    public string TemperatureText
-    {
-        get => _temperatureText;
-        private set => SetProperty(ref _temperatureText, value);
-    }
-
-    public string LoadText
-    {
-        get => _loadText;
-        private set => SetProperty(ref _loadText, value);
-    }
-
-    public string PowerText
-    {
-        get => _powerText;
-        private set => SetProperty(ref _powerText, value);
-    }
-
-    public SolidColorBrush LoadBrush
-    {
-        get => _loadBrush;
-        private set => SetProperty(ref _loadBrush, value);
-    }
-
-    public PointCollection SparklinePoints
-    {
-        get => _sparklinePoints;
-        private set => SetProperty(ref _sparklinePoints, value);
-    }
+    public PointCollection SparklinePoints { get => _sparklinePoints; private set => SetProperty(ref _sparklinePoints, value); }
 
     public void Update(CoreReading reading)
     {
-        Name = reading.Name;
-        LoadPercent = reading.LoadPercent;
-        TemperatureText = reading.TemperatureText;
         LoadText = reading.LoadText;
-        PowerText = reading.PowerText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
 
-        _history.Enqueue(Math.Clamp(reading.LoadPercent, 0, 100));
-        while (_history.Count > ChartHistorySettings.MaxSamples)
-        {
-            _history.Dequeue();
-        }
-
-        SparklinePoints = BuildSparkline(_history);
-    }
-
-    private static PointCollection BuildSparkline(IReadOnlyCollection<double> history)
-    {
-        PointCollection points = [];
-        if (history.Count == 0)
-        {
-            return points;
-        }
-
-        double step = history.Count == 1 ? SparklineWidth : SparklineWidth / (history.Count - 1);
-        int index = 0;
-        foreach (double value in history)
-        {
-            points.Add(new Point(index * step, SparklineHeight - Math.Clamp(value, 0, 100) / 100d * SparklineHeight));
-            index++;
-        }
-
-        return points;
+        SparklinePoints = _history.Add(reading.LoadPercent);
     }
 
     private static SolidColorBrush BuildLoadBrush(int loadPercent)
@@ -553,10 +390,9 @@ public sealed class CoreItemViewModel : ObservableDashboardItem
     private static double Lerp(double start, double end, double amount) => start + ((end - start) * amount);
 }
 
-public sealed class GpuDeviceViewModel : ObservableDashboardItem
+public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem<GpuDeviceReading, string>
 {
     private string _name = string.Empty;
-    private string _sensorCountText = "--";
     private string _loadText = "--";
     private string _temperatureText = "--";
     private string _powerText = "--";
@@ -577,52 +413,21 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
 
     public ObservableCollection<MetricItemViewModel> MemorySensors { get; } = [];
 
-    public string Name
-    {
-        get => _name;
-        private set => SetProperty(ref _name, value);
-    }
+    public string Name { get => _name; private set => SetProperty(ref _name, value); }
 
-    public string SensorCountText
-    {
-        get => _sensorCountText;
-        private set => SetProperty(ref _sensorCountText, value);
-    }
+    public string LoadText { get => _loadText; private set => SetProperty(ref _loadText, value); }
 
-    public string LoadText
-    {
-        get => _loadText;
-        private set => SetProperty(ref _loadText, value);
-    }
+    public string TemperatureText { get => _temperatureText; private set => SetProperty(ref _temperatureText, value); }
 
-    public string TemperatureText
-    {
-        get => _temperatureText;
-        private set => SetProperty(ref _temperatureText, value);
-    }
+    public string PowerText { get => _powerText; private set => SetProperty(ref _powerText, value); }
 
-    public string PowerText
-    {
-        get => _powerText;
-        private set => SetProperty(ref _powerText, value);
-    }
+    public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
 
-    public string StatusText
-    {
-        get => _statusText;
-        private set => SetProperty(ref _statusText, value);
-    }
-
-    public bool IsExpanded
-    {
-        get => _isExpanded;
-        set => SetProperty(ref _isExpanded, value);
-    }
+    public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
 
     public void Update(GpuDeviceReading reading)
     {
         Name = reading.Name;
-        SensorCountText = reading.SensorCountText;
         LoadText = reading.LoadText;
         TemperatureText = reading.TemperatureText;
         PowerText = reading.PowerText;
@@ -630,37 +435,28 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem
             reading.TemperatureSensors.Concat(reading.LoadSensors),
             85,
             75);
-        DashboardCollection.Sync(
+        DashboardCollection.SyncItems(
             PowerSensors,
             reading.PowerSensors,
-            item => item.Key,
             MetricItemViewModel.MetricKey,
-            reading => new MetricItemViewModel(reading),
-            (item, reading) => item.Update(reading));
-        DashboardCollection.Sync(
+            reading => new MetricItemViewModel(reading));
+        DashboardCollection.SyncItems(
             TemperatureSensors,
             reading.TemperatureSensors,
-            item => item.Key,
             MetricItemViewModel.MetricKey,
-            reading => new MetricItemViewModel(reading),
-            (item, reading) => item.Update(reading));
-        DashboardCollection.Sync(
+            reading => new MetricItemViewModel(reading));
+        DashboardCollection.SyncItems(
             MemorySensors,
             reading.MemorySensors,
-            item => item.Key,
             MetricItemViewModel.MetricKey,
-            reading => new MetricItemViewModel(reading),
-            (item, reading) => item.Update(reading));
+            reading => new MetricItemViewModel(reading));
     }
 }
 
-public sealed class StorageDeviceViewModel : ObservableDashboardItem
+public sealed class StorageDeviceViewModel : ObservableDashboardItem, IDashboardItem<StorageDeviceReading, string>
 {
     private string _name = string.Empty;
-    private string _sensorCountText = "--";
     private string _usageText = "--";
-    private string _temperatureText = "--";
-    private string _readWriteText = "--";
     private string _statusText = "--";
     private bool _isExpanded;
 
@@ -674,71 +470,43 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem
 
     public ObservableCollection<MetricItemViewModel> Metrics { get; } = [];
 
-    public string Name
-    {
-        get => _name;
-        private set => SetProperty(ref _name, value);
-    }
+    public string Name { get => _name; private set => SetProperty(ref _name, value); }
 
-    public string SensorCountText
-    {
-        get => _sensorCountText;
-        private set => SetProperty(ref _sensorCountText, value);
-    }
+    public string UsageText { get => _usageText; private set => SetProperty(ref _usageText, value); }
 
-    public string UsageText
-    {
-        get => _usageText;
-        private set => SetProperty(ref _usageText, value);
-    }
+    public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
 
-    public string TemperatureText
-    {
-        get => _temperatureText;
-        private set => SetProperty(ref _temperatureText, value);
-    }
-
-    public string ReadWriteText
-    {
-        get => _readWriteText;
-        private set => SetProperty(ref _readWriteText, value);
-    }
-
-    public string StatusText
-    {
-        get => _statusText;
-        private set => SetProperty(ref _statusText, value);
-    }
-
-    public bool IsExpanded
-    {
-        get => _isExpanded;
-        set => SetProperty(ref _isExpanded, value);
-    }
+    public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
 
     public void Update(StorageDeviceReading reading)
     {
         Name = reading.Name;
-        SensorCountText = reading.SensorCountText;
         UsageText = reading.UsageText;
-        TemperatureText = reading.TemperatureText;
-        ReadWriteText = reading.ReadWriteText;
         StatusText = DashboardStatus.DeviceStatus(
             reading.TemperatureSensors.Concat(reading.UsageSensors),
             60,
             50);
-        DashboardCollection.Sync(
+        DashboardCollection.SyncItems(
             Metrics,
             reading.Metrics,
-            item => item.Key,
             MetricItemViewModel.MetricKey,
-            reading => new MetricItemViewModel(reading),
-            (item, reading) => item.Update(reading));
+            reading => new MetricItemViewModel(reading));
     }
 }
 
 public static class DashboardCollection
 {
+    public static void SyncItems<TView, TData, TKey>(
+        ObservableCollection<TView> collection,
+        IEnumerable<TData> data,
+        Func<TData, TKey> dataKey,
+        Func<TData, TView> create)
+        where TView : IDashboardItem<TData, TKey>
+        where TKey : notnull
+    {
+        Sync(collection, data, item => item.Key, dataKey, create, (item, reading) => item.Update(reading));
+    }
+
     public static void Sync<TView, TData, TKey>(
         ObservableCollection<TView> collection,
         IEnumerable<TData> data,

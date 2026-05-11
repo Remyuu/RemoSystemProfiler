@@ -10,15 +10,6 @@ public sealed record SystemSnapshot(
     IReadOnlyList<StorageDeviceReading> StorageDevices)
 {
     public string SampledAtText => SampledAt.LocalDateTime.ToString("HH:mm:ss");
-
-    public string HardwareSummaryText
-    {
-        get
-        {
-            int count = (Cpu is null ? 0 : 1) + (Memory is null ? 0 : 1) + Gpus.Count + StorageDevices.Count;
-            return $"{count} hardware groups";
-        }
-    }
 }
 
 public sealed record SensorDriverStatus(
@@ -71,18 +62,9 @@ public sealed record CpuDeviceReading(
 
 public sealed record CoreReading(
     int Index,
-    string Name,
-    float? TemperatureCelsius,
-    int LoadPercent,
-    float? PowerWatts)
+    int LoadPercent)
 {
-    public string TemperatureText => TemperatureCelsius is null
-        ? "--"
-        : MetricFormatter.FormatTemperature(TemperatureCelsius.Value);
-
     public string LoadText => $"{LoadPercent}%";
-
-    public string PowerText => PowerWatts is null ? "--" : $"{PowerWatts.Value:0.0} W";
 }
 
 public sealed record MemoryDeviceReading(
@@ -130,14 +112,6 @@ public sealed record GpuDeviceReading(
     }
 
     public string TemperatureText => PrimaryTemperature?.ValueText ?? "--";
-
-    public string MemoryText => MemorySensors.FirstOrDefault(sensor =>
-            sensor.Name.Contains("Used", StringComparison.OrdinalIgnoreCase)
-            || sensor.Name.Contains("Load", StringComparison.OrdinalIgnoreCase)
-            || sensor.Kind.Equals("Load", StringComparison.OrdinalIgnoreCase))
-        ?.ValueText ?? "--";
-
-    public string SensorCountText => $"{LoadSensors.Count + PowerSensors.Count + TemperatureSensors.Count + MemorySensors.Count} sensors";
 
     public double LoadGauge => PrimaryLoad?.GaugeValue ?? 0;
 
@@ -212,10 +186,6 @@ public sealed record StorageDeviceReading(
     public string ReadWriteText => ThroughputSensors.Count == 0
         ? "--"
         : string.Join(" / ", ThroughputSensors.Take(2).Select(sensor => sensor.ValueText));
-
-    public string SensorCountText => $"{Metrics.Count} sensors";
-
-    public double UsageGauge => UsageSensors.FirstOrDefault()?.GaugeValue ?? 0;
 
     public double ActivityGauge
     {

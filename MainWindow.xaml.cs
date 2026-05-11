@@ -1,11 +1,12 @@
 using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
+using System.Globalization;
 using Microsoft.UI;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Graphics;
@@ -28,10 +29,6 @@ public sealed partial class MainWindow : Window
     private int _pollIntervalMilliseconds = 1000;
     private bool _isClosed;
     private bool _startupOverlayDismissed;
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SystemParametersInfo(uint action, uint param, out NativeRect rect, uint update);
 
     public MainWindow()
     {
@@ -92,27 +89,12 @@ public sealed partial class MainWindow : Window
     private static void ResizeToWorkArea(AppWindow appWindow, WindowId windowId)
     {
         DisplayArea display = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
-        RectInt32 area = GetPrimaryWorkArea(display.WorkArea);
+        RectInt32 area = display.WorkArea;
         int width = Math.Min(area.Width - 24, Math.Min(1880, Math.Max(1500, (int)Math.Round(area.Width * 0.72))));
         int height = Math.Min(area.Height - 32, Math.Min(1040, Math.Max(900, (int)Math.Round(area.Height * 0.78))));
         int x = area.X + Math.Max(12, Math.Min(120, (area.Width - width) / 2));
         int y = area.Y + Math.Max(12, Math.Min(120, (area.Height - height) / 2));
         appWindow.MoveAndResize(new RectInt32(x, y, width, height));
-    }
-
-    private static RectInt32 GetPrimaryWorkArea(RectInt32 fallback)
-    {
-        const uint SpiGetWorkArea = 0x0030;
-        if (!SystemParametersInfo(SpiGetWorkArea, 0, out NativeRect rect, 0))
-        {
-            return fallback;
-        }
-
-        int width = Math.Max(0, rect.Right - rect.Left);
-        int height = Math.Max(0, rect.Bottom - rect.Top);
-        return width == 0 || height == 0
-            ? fallback
-            : new RectInt32(rect.Left, rect.Top, width, height);
     }
 
     private void StartPolling()
@@ -192,7 +174,7 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(StatusText, limited ? BuildLimitedStatusTooltip(result) : null);
         PawnIoDownloadLink.Visibility = result.DriverStatus.NeedsInstallation ? Visibility.Visible : Visibility.Collapsed;
         UpdatedText.Text = snapshot.SampledAtText;
-        HardwareSummaryText.Text = BuildHardwareSummary(snapshot);
+        HardwareSummaryText.Text = $"{snapshot.Gpus.Count} GPU | {snapshot.StorageDevices.Count} storage";
 
         ShowCpu(snapshot.Cpu);
         ShowMemory(snapshot.Memory);
@@ -207,7 +189,7 @@ public sealed partial class MainWindow : Window
         {
             CpuNameText.Text = "CPU sensors unavailable";
             CpuPackagePowerText.Text = CpuPeakTempText.Text = CpuLoadSummaryText.Text = CoreCountText.Text = ClockText.Text = "--";
-            SyncSensorGroupCollection(_cpuSensorGroups, BuildCpuSensorGroups(null));
+            SyncDeviceCollection(_cpuSensorGroups, BuildCpuSensorGroups(null), reading => reading.Key, reading => new SensorGroupViewModel(reading));
             SyncDeviceCollection(_cpuCores, Array.Empty<CoreReading>(), core => core.Index, core => new CoreItemViewModel(core));
             return;
         }
@@ -218,7 +200,7 @@ public sealed partial class MainWindow : Window
         CpuLoadSummaryText.Text = cpu.AverageLoadText;
         CoreCountText.Text = cpu.CoreCountText;
         ClockText.Text = cpu.ClockText;
-        SyncSensorGroupCollection(_cpuSensorGroups, BuildCpuSensorGroups(cpu));
+        SyncDeviceCollection(_cpuSensorGroups, BuildCpuSensorGroups(cpu), reading => reading.Key, reading => new SensorGroupViewModel(reading));
         SyncDeviceCollection(_cpuCores, cpu.Cores, core => core.Index, core => new CoreItemViewModel(core));
     }
 
@@ -228,14 +210,14 @@ public sealed partial class MainWindow : Window
         {
             MemoryUsageText.Text = MemoryCapacityText.Text = "--";
             MemoryTempText.Text = string.Empty;
-            SyncMetricCollection(_memoryMetrics, []);
+            SyncDeviceCollection(_memoryMetrics, Array.Empty<MetricReading>(), MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
             return;
         }
 
         MemoryUsageText.Text = memory.UsageText;
         MemoryTempText.Text = memory.TemperatureText;
         MemoryCapacityText.Text = memory.CapacityText;
-        SyncMetricCollection(_memoryMetrics, memory.Metrics);
+        SyncDeviceCollection(_memoryMetrics, memory.Metrics, MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
     }
 
     private void ShowUnavailable(string message, SensorDriverStatus driverStatus)
@@ -250,7 +232,7 @@ public sealed partial class MainWindow : Window
         ShowMemory(null);
         SyncDeviceCollection(_gpus, Array.Empty<GpuDeviceReading>(), gpu => gpu.Name, gpu => new GpuDeviceViewModel(gpu));
         SyncDeviceCollection(_storageDevices, Array.Empty<StorageDeviceReading>(), storage => storage.Name, storage => new StorageDeviceViewModel(storage));
-        SyncOverviewCollection([]);
+        SyncDeviceCollection(_overviewItems, Array.Empty<OverviewReading>(), reading => reading.Key, reading => new OverviewItemViewModel(reading));
     }
 
     private static string BuildLimitedStatusTooltip(HardwareMonitorReadResult result)
@@ -281,7 +263,6 @@ public sealed partial class MainWindow : Window
             Duration = new Duration(TimeSpan.FromMilliseconds(240)),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-
         Storyboard.SetTarget(fade, StartupOverlay);
         Storyboard.SetTargetProperty(fade, "Opacity");
 
@@ -325,7 +306,7 @@ public sealed partial class MainWindow : Window
             readings.Add(new($"storage:{storage.Name}", $"Disk {i}", storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, ResourceBrush("AmberBrush")));
         }
 
-        SyncOverviewCollection(readings);
+        SyncDeviceCollection(_overviewItems, readings, reading => reading.Key, reading => new OverviewItemViewModel(reading));
     }
 
     private void ThemePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -341,25 +322,29 @@ public sealed partial class MainWindow : Window
 
     private void ChartRangePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        ChartHistorySettings.DisplaySeconds = ChartRangePicker.SelectedIndex switch
-        {
-            1 => 30,
-            2 => 60,
-            3 => 300,
-            _ => 10
-        };
+        ChartHistorySettings.DisplaySeconds = (int)SelectedNumberTag(ChartRangePicker, 10);
     }
 
     private void UpdateIntervalPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        _pollIntervalMilliseconds = UpdateIntervalPicker.SelectedIndex switch
-        {
-            0 => 500,
-            2 => 2000,
-            3 => 5000,
-            _ => 1000
-        };
+        _pollIntervalMilliseconds = (int)Math.Round(SelectedNumberTag(UpdateIntervalPicker, 1) * 1000d);
         ChartHistorySettings.SampleIntervalSeconds = _pollIntervalMilliseconds / 1000d;
+    }
+
+    private static double SelectedNumberTag(ComboBox comboBox, double fallback)
+    {
+        return comboBox.SelectedItem is ComboBoxItem { Tag: { } tag }
+            && double.TryParse(tag.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+            ? value
+            : fallback;
+    }
+
+    private void SidebarResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
+    {
+        double targetWidth = SidebarColumn.ActualWidth + e.HorizontalChange;
+        double minWidth = SidebarColumn.MinWidth;
+        double maxWidth = SidebarColumn.MaxWidth;
+        SidebarColumn.Width = new GridLength(Math.Clamp(targetWidth, minWidth, maxWidth));
     }
 
     private void Root_ActualThemeChanged(FrameworkElement sender, object args) => ApplyTitleBarTheme();
@@ -400,76 +385,23 @@ public sealed partial class MainWindow : Window
 
     private SolidColorBrush ResourceBrush(string key) => (SolidColorBrush)Application.Current.Resources[key];
 
-    private static string BuildHardwareSummary(SystemSnapshot snapshot)
-    {
-        return $"{snapshot.Gpus.Count} GPU | {snapshot.StorageDevices.Count} storage";
-    }
-
-    private static void SyncMetricCollection(ObservableCollection<MetricItemViewModel> collection, IEnumerable<MetricReading> readings)
-    {
-        SyncDeviceCollection(collection, readings, MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
-    }
-
-    private static void SyncSensorGroupCollection(ObservableCollection<SensorGroupViewModel> collection, IEnumerable<SensorGroupReading> readings)
-    {
-        DashboardCollection.Sync(
-            collection,
-            readings,
-            item => item.Key,
-            reading => reading.Key,
-            reading => new SensorGroupViewModel(reading),
-            (item, reading) => item.Update(reading));
-    }
-
-    private static IEnumerable<SensorGroupReading> BuildCpuSensorGroups(CpuDeviceReading? cpu)
-    {
-        yield return new SensorGroupReading("temperature", "Temperature", cpu?.TemperatureSensors ?? Array.Empty<MetricReading>(), false);
-        yield return new SensorGroupReading("power", "Power", cpu?.PowerSensors ?? Array.Empty<MetricReading>(), false);
-        yield return new SensorGroupReading("clock", "Clock", cpu?.ClockSensors ?? Array.Empty<MetricReading>(), false);
-        yield return new SensorGroupReading("voltage", "Voltage", cpu?.VoltageSensors ?? Array.Empty<MetricReading>(), false);
-    }
-
-    private void SyncOverviewCollection(IEnumerable<OverviewReading> readings)
-    {
-        DashboardCollection.Sync(_overviewItems, readings, item => item.Key, reading => reading.Key, reading => new OverviewItemViewModel(reading), (item, reading) => item.Update(reading));
-    }
+    private static SensorGroupReading[] BuildCpuSensorGroups(CpuDeviceReading? cpu) =>
+    [
+        new("temperature", "Temperature", cpu?.TemperatureSensors ?? Array.Empty<MetricReading>(), false),
+        new("power", "Power", cpu?.PowerSensors ?? Array.Empty<MetricReading>(), false),
+        new("clock", "Clock", cpu?.ClockSensors ?? Array.Empty<MetricReading>(), false),
+        new("voltage", "Voltage", cpu?.VoltageSensors ?? Array.Empty<MetricReading>(), false)
+    ];
 
     private static void SyncDeviceCollection<TView, TData, TKey>(
         ObservableCollection<TView> collection,
         IEnumerable<TData> readings,
         Func<TData, TKey> key,
         Func<TData, TView> create)
+        where TView : IDashboardItem<TData, TKey>
         where TKey : notnull
     {
-        DashboardCollection.Sync(collection, readings, ViewKey, key, create, Update);
-
-        static TKey ViewKey(TView view) => view switch
-        {
-            CoreItemViewModel core => (TKey)(object)core.Key,
-            GpuDeviceViewModel gpu => (TKey)(object)gpu.Key,
-            StorageDeviceViewModel storage => (TKey)(object)storage.Key,
-            MetricItemViewModel metric => (TKey)(object)metric.Key,
-            _ => throw new NotSupportedException(typeof(TView).Name)
-        };
-
-        static void Update(TView view, TData data)
-        {
-            switch (view, data)
-            {
-                case (CoreItemViewModel core, CoreReading reading):
-                    core.Update(reading);
-                    break;
-                case (GpuDeviceViewModel gpu, GpuDeviceReading reading):
-                    gpu.Update(reading);
-                    break;
-                case (StorageDeviceViewModel storage, StorageDeviceReading reading):
-                    storage.Update(reading);
-                    break;
-                case (MetricItemViewModel metric, MetricReading reading):
-                    metric.Update(reading);
-                    break;
-            }
-        }
+        DashboardCollection.SyncItems(collection, readings, key, create);
     }
 
     private void OnClosed(object sender, WindowEventArgs e) => ShutdownNow();
@@ -490,11 +422,4 @@ public sealed partial class MainWindow : Window
         ((App)Application.Current).ClearMainWindow(this);
     }
 
-    private struct NativeRect
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
 }

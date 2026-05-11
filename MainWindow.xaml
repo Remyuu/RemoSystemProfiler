@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:RemoSystemProfiler"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     mc:Ignorable="d"
     Title="Remo System Profiler">
 
@@ -31,6 +32,35 @@
                 <Setter Property="FontSize" Value="18" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="Foreground" Value="{ThemeResource AccentTextBrush}" />
+            </Style>
+
+            <Style x:Key="EmphasisTextStyle" TargetType="TextBlock">
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentTextBrush}" />
+            </Style>
+
+            <Style x:Key="StatusPillTextStyle" TargetType="TextBlock">
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource AmberBrush}" />
+            </Style>
+
+            <Style x:Key="SmallValueTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentTextBrush}" />
+            </Style>
+
+            <Style x:Key="HotSmallValueTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+            </Style>
+
+            <Style x:Key="DeviceListItemStyle" TargetType="ListViewItem">
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0,0,0,6" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
             </Style>
 
             <DataTemplate x:Key="MetricRowTemplate">
@@ -82,17 +112,10 @@
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="1">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <TextBlock
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource AccentTextBrush}"
-                                    Text="{Binding Title}"
-                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock FontSize="16" Style="{StaticResource EmphasisTextStyle}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
                                 <TextBlock
                                     Grid.Column="1"
-                                    FontSize="13"
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Style="{StaticResource SmallValueTextStyle}"
                                     Text="{Binding PrimaryText}" />
                             </Grid>
                             <TextBlock
@@ -145,11 +168,7 @@
                             BorderBrush="{ThemeResource PanelStrokeBrush}"
                             BorderThickness="1"
                             CornerRadius="2">
-                            <TextBlock
-                                FontSize="14"
-                                FontWeight="SemiBold"
-                                Foreground="{Binding LoadBrush}"
-                                Text="{Binding LoadText}" />
+                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{Binding LoadBrush}" Text="{Binding LoadText}" />
                         </Border>
                     </Grid>
                 </Border>
@@ -163,11 +182,7 @@
                     <Expander.Header>
                         <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                                <TextBlock
-                                    FontSize="13"
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource AccentTextBrush}"
-                                    Text="{Binding Title}" />
+                                <TextBlock FontSize="13" Style="{StaticResource EmphasisTextStyle}" Text="{Binding Title}" />
                                 <Border
                                     Grid.Column="1"
                                     Padding="6,1"
@@ -176,37 +191,21 @@
                                     BorderBrush="{ThemeResource PanelStrokeBrush}"
                                     BorderThickness="1"
                                     CornerRadius="3">
-                                    <TextBlock
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AmberBrush}"
-                                        Text="{Binding StatusText}" />
+                                    <TextBlock FontSize="11" Style="{StaticResource StatusPillTextStyle}" Text="{Binding StatusText}" />
                                 </Border>
                             </Grid>
                             <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
                                 <StackPanel>
                                     <TextBlock Style="{StaticResource LabelTextStyle}" Text="{Binding SummaryOneLabel}" />
-                                    <TextBlock
-                                        FontSize="13"
-                                        FontWeight="SemiBold"
-                                        Foreground="{ThemeResource AccentTextBrush}"
-                                        Text="{Binding SummaryOneText}" />
+                                    <TextBlock Style="{StaticResource SmallValueTextStyle}" Text="{Binding SummaryOneText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
                                     <TextBlock Style="{StaticResource LabelTextStyle}" Text="{Binding SummaryTwoLabel}" />
-                                    <TextBlock
-                                        FontSize="13"
-                                        FontWeight="SemiBold"
-                                        Foreground="{ThemeResource AccentTextBrush}"
-                                        Text="{Binding SummaryTwoText}" />
+                                    <TextBlock Style="{StaticResource SmallValueTextStyle}" Text="{Binding SummaryTwoText}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Style="{StaticResource LabelTextStyle}" Text="{Binding SummaryThreeLabel}" />
-                                    <TextBlock
-                                        FontSize="13"
-                                        FontWeight="SemiBold"
-                                        Foreground="{ThemeResource AccentTextBrush}"
-                                        Text="{Binding SummaryThreeText}" />
+                                    <TextBlock Style="{StaticResource SmallValueTextStyle}" Text="{Binding SummaryThreeText}" />
                                 </StackPanel>
                             </Grid>
                         </Grid>
@@ -237,12 +236,7 @@
                         <Expander.Header>
                             <Grid RowDefinitions="Auto,Auto" RowSpacing="3">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBlock
-                                        FontSize="12"
-                                        FontWeight="SemiBold"
-                                        Foreground="{ThemeResource AccentTextBrush}"
-                                        Text="{Binding Name}"
-                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock FontSize="12" Style="{StaticResource EmphasisTextStyle}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                     <Border
                                         Grid.Column="1"
                                         Padding="5,1"
@@ -252,37 +246,21 @@
                                         BorderBrush="{ThemeResource PanelStrokeBrush}"
                                         BorderThickness="1"
                                         CornerRadius="3">
-                                        <TextBlock
-                                            FontSize="10"
-                                            FontWeight="SemiBold"
-                                            Foreground="{StaticResource AmberBrush}"
-                                            Text="{Binding StatusText}" />
+                                        <TextBlock FontSize="10" Style="{StaticResource StatusPillTextStyle}" Text="{Binding StatusText}" />
                                     </Border>
                                 </Grid>
                                 <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
                                     <StackPanel>
                                         <TextBlock Style="{StaticResource LabelTextStyle}" Text="Load" />
-                                        <TextBlock
-                                            FontSize="13"
-                                            FontWeight="SemiBold"
-                                            Foreground="{ThemeResource AccentTextBrush}"
-                                            Text="{Binding LoadText}" />
+                                        <TextBlock Style="{StaticResource SmallValueTextStyle}" Text="{Binding LoadText}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Style="{StaticResource LabelTextStyle}" Text="Temp" />
-                                        <TextBlock
-                                            FontSize="13"
-                                            FontWeight="SemiBold"
-                                            Foreground="{StaticResource RedBrush}"
-                                            Text="{Binding TemperatureText}" />
+                                        <TextBlock Style="{StaticResource HotSmallValueTextStyle}" Text="{Binding TemperatureText}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Style="{StaticResource LabelTextStyle}" Text="Power" />
-                                        <TextBlock
-                                            FontSize="13"
-                                            FontWeight="SemiBold"
-                                            Foreground="{ThemeResource AccentTextBrush}"
-                                            Text="{Binding PowerText}" />
+                                        <TextBlock Style="{StaticResource SmallValueTextStyle}" Text="{Binding PowerText}" />
                                     </StackPanel>
                                 </Grid>
                             </Grid>
@@ -315,18 +293,11 @@
                         IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
                         <Expander.Header>
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                                <TextBlock
-                                    FontSize="12"
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource AccentTextBrush}"
-                                    Text="{Binding Name}"
-                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock FontSize="12" Style="{StaticResource EmphasisTextStyle}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                 <TextBlock
                                     Grid.Column="1"
                                     HorizontalAlignment="Right"
-                                    FontSize="13"
-                                    FontWeight="SemiBold"
-                                    Foreground="{ThemeResource AccentTextBrush}"
+                                    Style="{StaticResource SmallValueTextStyle}"
                                     Text="{Binding UsageText}" />
                                 <Border
                                     Grid.Column="2"
@@ -336,11 +307,7 @@
                                     BorderBrush="{ThemeResource PanelStrokeBrush}"
                                     BorderThickness="1"
                                     CornerRadius="3">
-                                    <TextBlock
-                                        FontSize="10"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource AmberBrush}"
-                                        Text="{Binding StatusText}" />
+                                    <TextBlock FontSize="10" Style="{StaticResource StatusPillTextStyle}" Text="{Binding StatusText}" />
                                 </Border>
                             </Grid>
                         </Expander.Header>
@@ -352,7 +319,16 @@
             </DataTemplate>
         </Grid.Resources>
 
-        <Grid ColumnDefinitions="260,*">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition
+                    x:Name="SidebarColumn"
+                    Width="260"
+                    MinWidth="220"
+                    MaxWidth="420" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Border
                 Background="{ThemeResource SidebarBrush}"
                 BorderBrush="{ThemeResource PanelStrokeBrush}"
@@ -360,11 +336,7 @@
                 <Grid Padding="12,10" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="9">
                     <Grid>
                         <StackPanel Spacing="1">
-                            <TextBlock
-                                FontSize="18"
-                                FontWeight="SemiBold"
-                                Foreground="{ThemeResource AccentTextBrush}"
-                                Text="Performance" />
+                            <TextBlock FontSize="18" Style="{StaticResource EmphasisTextStyle}" Text="Performance" />
                             <TextBlock
                                 x:Name="HardwareSummaryText"
                                 FontSize="12"
@@ -438,11 +410,7 @@
                                         </Style>
                                     </Flyout.FlyoutPresenterStyle>
                                     <StackPanel Spacing="12">
-                                        <TextBlock
-                                            FontSize="16"
-                                            FontWeight="SemiBold"
-                                            Foreground="{ThemeResource AccentTextBrush}"
-                                            Text="Display settings" />
+                                        <TextBlock FontSize="16" Style="{StaticResource EmphasisTextStyle}" Text="Display settings" />
 
                                         <StackPanel Spacing="5">
                                             <TextBlock Style="{StaticResource LabelTextStyle}" Text="Chart range" />
@@ -493,11 +461,7 @@
                                             Header="About">
                                             <StackPanel Padding="0,8,0,0" Spacing="8">
                                                 <StackPanel Spacing="1">
-                                                    <TextBlock
-                                                        FontSize="14"
-                                                        FontWeight="SemiBold"
-                                                        Foreground="{ThemeResource AccentTextBrush}"
-                                                        Text="Remo System Profiler" />
+                                                    <TextBlock FontSize="14" Style="{StaticResource EmphasisTextStyle}" Text="Remo System Profiler" />
                                                     <TextBlock
                                                         FontSize="11"
                                                         Foreground="{ThemeResource SubtleTextBrush}"
@@ -562,8 +526,22 @@
                 </Grid>
             </Border>
 
+            <Grid Grid.Column="1">
+                <Border
+                    Width="1"
+                    HorizontalAlignment="Center"
+                    Background="{ThemeResource PanelStrokeBrush}" />
+                <primitives:Thumb
+                    x:Name="SidebarResizeThumb"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    Background="Transparent"
+                    DragDelta="SidebarResizeThumb_DragDelta"
+                    ToolTipService.ToolTip="Resize sidebar" />
+            </Grid>
+
             <Grid
-                Grid.Column="1"
+                Grid.Column="2"
                 Padding="14,8,14,10"
                 RowDefinitions="Auto,2*,3*"
                 RowSpacing="8">
@@ -701,19 +679,11 @@
                                     Grid.Row="1"
                                     Background="Transparent"
                                     BorderThickness="0"
+                                    ItemContainerStyle="{StaticResource DeviceListItemStyle}"
                                     ItemTemplate="{StaticResource GpuTemplate}"
                                     SelectionMode="None"
                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                    ScrollViewer.VerticalScrollBarVisibility="Hidden">
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem">
-                                            <Setter Property="Padding" Value="0" />
-                                            <Setter Property="Margin" Value="0,0,0,6" />
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                            <Setter Property="VerticalContentAlignment" Value="Stretch" />
-                                        </Style>
-                                    </ListView.ItemContainerStyle>
-                                </ListView>
+                                    ScrollViewer.VerticalScrollBarVisibility="Hidden" />
                             </Grid>
                         </Border>
                         <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
@@ -724,19 +694,11 @@
                                     Grid.Row="1"
                                     Background="Transparent"
                                     BorderThickness="0"
+                                    ItemContainerStyle="{StaticResource DeviceListItemStyle}"
                                     ItemTemplate="{StaticResource StorageTemplate}"
                                     SelectionMode="None"
                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                    ScrollViewer.VerticalScrollBarVisibility="Hidden">
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem">
-                                            <Setter Property="Padding" Value="0" />
-                                            <Setter Property="Margin" Value="0,0,0,6" />
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                            <Setter Property="VerticalContentAlignment" Value="Stretch" />
-                                        </Style>
-                                    </ListView.ItemContainerStyle>
-                                </ListView>
+                                    ScrollViewer.VerticalScrollBarVisibility="Hidden" />
                             </Grid>
                         </Border>
                     </Grid>
