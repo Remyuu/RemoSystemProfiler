@@ -182,7 +182,6 @@ public sealed partial class MainWindow : Window
         _viewModel.IsPawnIoDownloadVisible = result.DriverStatus.NeedsInstallation;
         _viewModel.UpdatedText = snapshot.SampledAtText;
         _viewModel.HardwareSummaryText = $"{snapshot.Gpus.Count} GPU | {snapshot.StorageDevices.Count} storage";
-        _viewModel.HeaderHardwareText = BuildHeaderHardwareText(snapshot);
 
         ShowCpu(snapshot.Cpu);
         ShowMemory(snapshot.Memory);
@@ -240,7 +239,6 @@ public sealed partial class MainWindow : Window
         _viewModel.StatusToolTip = driverStatus.NeedsInstallation ? $"{driverStatus.Message}\n{message}" : message;
         _viewModel.IsPawnIoDownloadVisible = driverStatus.NeedsInstallation;
         _viewModel.HardwareSummaryText = "Hardware sensors unavailable";
-        _viewModel.HeaderHardwareText = "Hardware sensors unavailable";
         ShowCpu(null);
         ShowMemory(null);
         SyncDeviceCollection(_viewModel.Gpus, Array.Empty<GpuDeviceReading>(), gpu => gpu.Name, gpu => new GpuDeviceViewModel(gpu));
@@ -258,48 +256,6 @@ public sealed partial class MainWindow : Window
         }
 
         return result.Message;
-    }
-
-    private static string BuildHeaderHardwareText(SystemSnapshot snapshot)
-    {
-        string cpuName = string.IsNullOrWhiteSpace(snapshot.Cpu?.Name) ? "CPU unavailable" : snapshot.Cpu.Name;
-        string memoryText = BuildHeaderMemoryText(snapshot.Memory);
-        string gpuText = BuildHeaderGpuText(snapshot.Gpus);
-        return $"{cpuName}        {memoryText}        {gpuText}";
-    }
-
-    private static string BuildHeaderMemoryText(MemoryDeviceReading? memory)
-    {
-        if (memory is null)
-        {
-            return "Memory unavailable";
-        }
-
-        MetricReading? total = memory.DataSensors.FirstOrDefault(sensor =>
-            sensor.Name.Equals("Total", StringComparison.OrdinalIgnoreCase));
-        return total?.ValueText ?? memory.CapacityText;
-    }
-
-    private static string BuildHeaderGpuText(IReadOnlyList<GpuDeviceReading> gpus)
-    {
-        if (gpus.Count == 0)
-        {
-            return "GPU unavailable";
-        }
-
-        return string.Join(" + ", gpus.Select(gpu => SimplifyGpuName(gpu.Name)).Where(name => !string.IsNullOrWhiteSpace(name)));
-    }
-
-    private static string SimplifyGpuName(string name)
-    {
-        return name
-            .Replace("NVIDIA GeForce ", string.Empty, StringComparison.OrdinalIgnoreCase)
-            .Replace("NVIDIA ", string.Empty, StringComparison.OrdinalIgnoreCase)
-            .Replace("AMD Radeon(TM)", "Radeon", StringComparison.OrdinalIgnoreCase)
-            .Replace("AMD Radeon", "Radeon", StringComparison.OrdinalIgnoreCase)
-            .Replace(" Laptop GPU", " Laptop", StringComparison.OrdinalIgnoreCase)
-            .Replace(" Graphics", " Graphics", StringComparison.OrdinalIgnoreCase)
-            .Trim();
     }
 
     private void DismissStartupOverlay(string message)

@@ -566,13 +566,22 @@
                 Margin="14,4,14,10"
                 RowDefinitions="Auto,2*,3*"
                 RowSpacing="8">
-                <Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                    <StackPanel Spacing="0">
+                        <TextBlock
+                            FontSize="34"
+                            FontWeight="SemiLight"
+                            Foreground="{DynamicResource AccentTextBrush}"
+                            Text="CPU" />
+                    </StackPanel>
                     <TextBlock
+                        Grid.Column="1"
+                        MaxWidth="430"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
-                        FontSize="18"
+                        FontSize="19"
                         Foreground="{DynamicResource AccentTextBrush}"
-                        Text="{Binding HeaderHardwareText}"
+                        Text="{Binding CpuNameText}"
                         TextAlignment="Right"
                         TextTrimming="CharacterEllipsis" />
                 </Grid>

@@ -28,7 +28,6 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
 public sealed class MainWindowViewModel : ObservableDashboardItem
 {
     private string _hardwareSummaryText = "Waiting for hardware sensors";
-    private string _headerHardwareText = "Waiting for hardware sensors";
     private string _statusText = "Waiting for sensors";
     private string? _statusToolTip;
     private IBrush _statusBrush = DashboardBrushes.Amber;
@@ -68,8 +67,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public ObservableCollection<StorageDeviceViewModel> StorageDevices { get; } = [];
 
     public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
-
-    public string HeaderHardwareText { get => _headerHardwareText; set => SetProperty(ref _headerHardwareText, value); }
 
     public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
 
