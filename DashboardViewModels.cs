@@ -37,6 +37,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string? _statusToolTip;
     private IBrush _statusBrush = DashboardBrushes.Amber;
     private bool _isPawnIoDownloadVisible;
+    private bool _isPawnIoInstallRunning;
+    private string _pawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
     private string _updatedText = "--:--:--";
     private string _cpuNameText = "--";
     private string _cpuLoadSummaryText = "--";
@@ -107,6 +109,22 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public IBrush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
 
     public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
+
+    public bool IsPawnIoInstallRunning
+    {
+        get => _isPawnIoInstallRunning;
+        set
+        {
+            if (SetProperty(ref _isPawnIoInstallRunning, value))
+            {
+                RaisePropertyChanged(nameof(IsPawnIoInstallAvailable));
+            }
+        }
+    }
+
+    public bool IsPawnIoInstallAvailable => !IsPawnIoInstallRunning;
+
+    public string PawnIoInstallButtonText { get => _pawnIoInstallButtonText; set => SetProperty(ref _pawnIoInstallButtonText, value); }
 
     public string UpdatedText { get => _updatedText; set => SetProperty(ref _updatedText, value); }
 
@@ -359,6 +377,11 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public void RefreshLocalizedChrome()
     {
         SidebarToggleToolTip = IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+        if (!IsPawnIoInstallRunning)
+        {
+            PawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
+        }
+
         RefreshCpuCoreGraphChrome();
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
         RefreshBenchmarkDisplay();

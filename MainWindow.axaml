@@ -539,7 +539,8 @@
                                 Grid.Column="1"
                                 Classes="link"
                                 Click="PawnIoLink_Click"
-                                Content="{DynamicResource Ui_InstallPawnIo}"
+                                Content="{Binding PawnIoInstallButtonText}"
+                                IsEnabled="{Binding IsPawnIoInstallAvailable}"
                                 IsVisible="{Binding IsPawnIoDownloadVisible}" />
                         </Grid>
                     </Border>
@@ -624,6 +625,9 @@
                                                     <ComboBoxItem x:Name="FlyoutChineseItem" Content="{DynamicResource Ui_Chinese}" />
                                                     <ComboBoxItem x:Name="FlyoutJapaneseItem" Content="{DynamicResource Ui_Japanese}" />
                                                     <ComboBoxItem x:Name="FlyoutTraditionalChineseItem" Content="{DynamicResource Ui_TraditionalChinese}" />
+                                                    <ComboBoxItem x:Name="FlyoutSpanishItem" Content="{DynamicResource Ui_Spanish}" />
+                                                    <ComboBoxItem x:Name="FlyoutGermanItem" Content="{DynamicResource Ui_German}" />
+                                                    <ComboBoxItem x:Name="FlyoutFrenchItem" Content="{DynamicResource Ui_French}" />
                                                 </ComboBox>
                                             </StackPanel>
                                             <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
