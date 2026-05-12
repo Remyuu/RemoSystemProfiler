@@ -335,7 +335,7 @@ public sealed partial class MainWindow : Window
             ? Localization.LimitedAccessStatus(snapshot.Source)
             : Localization.ConnectedStatus(snapshot.Source, Localization.DriverSummary(result.DriverStatus));
         _viewModel.StatusToolTip = limited ? BuildLimitedStatusTooltip(result) : null;
-        _viewModel.IsPawnIoDownloadVisible = result.DriverStatus.NeedsInstallation;
+        _viewModel.IsPawnIoDownloadVisible = ShouldShowPawnIoInstaller(result.DriverStatus);
         _viewModel.UpdatedText = snapshot.SampledAtText;
         _viewModel.HardwareSummaryText = Localization.HardwareSummary(snapshot.Gpus.Count, snapshot.StorageDevices.Count);
 
@@ -401,7 +401,7 @@ public sealed partial class MainWindow : Window
         _viewModel.StatusBrush = DashboardBrushes.OrangeRed;
         _viewModel.StatusText = driverStatus.NeedsInstallation ? localizedDriverMessage : localizedMessage;
         _viewModel.StatusToolTip = driverStatus.NeedsInstallation ? $"{localizedDriverMessage}\n{localizedMessage}" : localizedMessage;
-        _viewModel.IsPawnIoDownloadVisible = driverStatus.NeedsInstallation;
+        _viewModel.IsPawnIoDownloadVisible = ShouldShowPawnIoInstaller(driverStatus);
         _viewModel.HardwareSummaryText = Localization.HardwareSensorsUnavailable;
         ShowCpu(null);
         ShowMemory(null);
@@ -420,6 +420,38 @@ public sealed partial class MainWindow : Window
         }
 
         return Localization.ResultMessage(result.Message);
+    }
+
+    private static bool ShouldShowPawnIoInstaller(SensorDriverStatus status)
+    {
+        return !status.IsInstalled
+            || IsLegacyPawnIoVersion(status.Version)
+            || status.Message.Equals(
+                "PawnIO installation found but the driver is unavailable; uninstall PawnIO, then install again",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLegacyPawnIoVersion(string? versionText)
+    {
+        if (string.IsNullOrWhiteSpace(versionText))
+        {
+            return false;
+        }
+
+        string normalized = versionText.Trim();
+        if (normalized.StartsWith('v') || normalized.StartsWith('V'))
+        {
+            normalized = normalized[1..];
+        }
+
+        int suffixIndex = normalized.IndexOfAny(['-', '+']);
+        if (suffixIndex >= 0)
+        {
+            normalized = normalized[..suffixIndex];
+        }
+
+        return Version.TryParse(normalized, out Version? version)
+            && version < new Version(2, 1, 0);
     }
 
     private void DismissStartupOverlay(string message)
@@ -604,6 +636,9 @@ public sealed partial class MainWindow : Window
         FlyoutChineseItem.Content = Localization.Resource("Ui_Chinese");
         FlyoutJapaneseItem.Content = Localization.Resource("Ui_Japanese");
         FlyoutTraditionalChineseItem.Content = Localization.Resource("Ui_TraditionalChinese");
+        FlyoutSpanishItem.Content = Localization.Resource("Ui_Spanish");
+        FlyoutGermanItem.Content = Localization.Resource("Ui_German");
+        FlyoutFrenchItem.Content = Localization.Resource("Ui_French");
 
         FlyoutAboutTitle.Text = Localization.Resource("Ui_About");
         FlyoutAppSubtitleText.Text = Localization.Resource("Ui_AppSubtitle");
@@ -968,7 +1003,73 @@ public sealed partial class MainWindow : Window
         _benchmarkCurtainAnimation?.Cancel();
     }
 
-    private void PawnIoLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://pawnio.eu/");
+    private async void PawnIoLink_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsPawnIoInstallRunning)
+        {
+            return;
+        }
+
+        _viewModel.IsPawnIoInstallRunning = true;
+        _viewModel.PawnIoInstallButtonText = Localization.PawnIoInstallDownloading;
+        _viewModel.StatusBrush = DashboardBrushes.Amber;
+        _viewModel.StatusText = Localization.PawnIoInstallDownloading;
+        _viewModel.StatusToolTip = Localization.PawnIoInstallerSource;
+
+        try
+        {
+            Progress<DownloadProgressInfo> progress = new(UpdatePawnIoDownloadProgress);
+            PawnIoInstallResult result = await PawnIoInstaller.DownloadAndInstallLatestAsync(progress, _shutdown.Token);
+            if (_isClosed)
+            {
+                return;
+            }
+
+            _viewModel.StatusBrush = result.IsSuccess ? DashboardBrushes.Amber : DashboardBrushes.OrangeRed;
+            _viewModel.StatusText = result.Message;
+            _viewModel.StatusToolTip = result.Message;
+            if (result.IsSuccess && !result.RequiresRestart)
+            {
+                await Task.Delay(800, _shutdown.Token);
+                await Task.Run(() => ReadAndDispatch(_shutdown.Token), _shutdown.Token);
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Window shutdown cancels the in-flight installer flow.
+        }
+        catch (Exception ex)
+        {
+            _viewModel.StatusBrush = DashboardBrushes.OrangeRed;
+            _viewModel.StatusText = Localization.PawnIoInstallFailed(ex.Message);
+            _viewModel.StatusToolTip = _viewModel.StatusText;
+        }
+        finally
+        {
+            if (!_isClosed)
+            {
+                _viewModel.IsPawnIoInstallRunning = false;
+                _viewModel.PawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
+            }
+        }
+    }
+
+    private void UpdatePawnIoDownloadProgress(DownloadProgressInfo value)
+    {
+        double progress = Math.Clamp(value.Percent, 0, 100);
+        if (progress >= 100)
+        {
+            _viewModel.PawnIoInstallButtonText = Localization.PawnIoInstallInstalling;
+            _viewModel.StatusText = Localization.PawnIoInstallInstalling;
+            return;
+        }
+
+        string progressText = value.TotalBytes > 0
+            ? Localization.PawnIoInstallDownloadingProgress(progress)
+            : Localization.PawnIoInstallDownloading;
+        _viewModel.PawnIoInstallButtonText = progressText;
+        _viewModel.StatusText = $"{progressText}\n{FormatDownloadSpeed(value.BytesPerSecond)}";
+    }
 
     private void WebsiteLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://remoooo.com");
 
