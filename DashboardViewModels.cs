@@ -1,15 +1,21 @@
+using Avalonia;
+using Avalonia.Media;
+using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Reflection;
 using System.Runtime.CompilerServices;
-using Microsoft.UI;
-using Microsoft.UI.Xaml.Media;
-using Windows.Foundation;
 
 namespace RemoSystemProfiler;
 
 public abstract class ObservableDashboardItem : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
@@ -19,8 +25,311 @@ public abstract class ObservableDashboardItem : INotifyPropertyChanged
         }
 
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        RaisePropertyChanged(propertyName);
         return true;
+    }
+}
+
+public sealed class MainWindowViewModel : ObservableDashboardItem
+{
+    private string _hardwareSummaryText = Localization.WaitingForHardwareSensors;
+    private string _statusText = Localization.WaitingForSensors;
+    private string? _statusToolTip;
+    private IBrush _statusBrush = DashboardBrushes.Amber;
+    private bool _isPawnIoDownloadVisible;
+    private string _updatedText = "--:--:--";
+    private string _cpuNameText = "--";
+    private string _cpuLoadSummaryText = "--";
+    private string _clockText = "--";
+    private string _cpuPackagePowerText = "--";
+    private string _cpuPeakTempText = "--";
+    private string _coreCountText = "--";
+    private bool _isBenchmarkRunning;
+    private string _benchmarkStatusText = Localization.BenchmarkReady;
+    private string _benchmarkScoreText = "--";
+    private string _benchmarkThroughputText = "--";
+    private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(CpuBenchmarkRunner.MaxWorkerCount);
+    private string _benchmarkDurationText = Localization.BenchmarkDurationRun(CpuBenchmarkRunner.DefaultDurationSeconds);
+    private string _benchmarkProgressText = "0%";
+    private double _benchmarkProgressValue;
+    private int _selectedBenchmarkModeIndex = 1;
+    private decimal _benchmarkDurationSeconds = CpuBenchmarkRunner.DefaultDurationSeconds;
+    private decimal _benchmarkCustomWorkerCount = CpuBenchmarkRunner.MaxWorkerCount;
+    private bool _isSyncingBenchmarkSettings;
+    private string _memoryUsageText = "--";
+    private string _memoryCapacityText = "--";
+    private string _memoryTempText = "";
+    private bool _isStartupOverlayVisible = true;
+    private double _startupOverlayOpacity = 1;
+    private string _startupStatusText = Localization.OpeningSensorBackend;
+    private int _selectedChartRangeIndex;
+    private int _selectedUpdateIntervalIndex = 1;
+    private int _selectedThemeIndex;
+    private int _selectedLanguageIndex = Localization.CurrentLanguageIndex;
+    private bool _isSidebarCompact;
+    private bool _isSidebarExpanded = true;
+    private string _sidebarToggleToolTip = Localization.CollapseSidebar;
+    private Thickness _sidebarMargin = new(8, 10);
+    private static readonly string ApplicationVersion = ResolveApplicationVersion();
+
+    public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
+
+    public ObservableCollection<SensorGroupViewModel> CpuSensorGroups { get; } = [];
+
+    public ObservableCollection<CoreItemViewModel> CpuCores { get; } = [];
+
+    public ObservableCollection<MetricItemViewModel> MemoryMetrics { get; } = [];
+
+    public ObservableCollection<GpuDeviceViewModel> Gpus { get; } = [];
+
+    public ObservableCollection<StorageDeviceViewModel> StorageDevices { get; } = [];
+
+    public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
+
+    public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
+
+    public string? StatusToolTip { get => _statusToolTip; set => SetProperty(ref _statusToolTip, value); }
+
+    public IBrush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
+
+    public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
+
+    public string UpdatedText { get => _updatedText; set => SetProperty(ref _updatedText, value); }
+
+    public string VersionText => $"v{ApplicationVersion}";
+
+    public string CpuNameText { get => _cpuNameText; set => SetProperty(ref _cpuNameText, value); }
+
+    public string CpuLoadSummaryText { get => _cpuLoadSummaryText; set => SetProperty(ref _cpuLoadSummaryText, value); }
+
+    public string ClockText { get => _clockText; set => SetProperty(ref _clockText, value); }
+
+    public string CpuPackagePowerText { get => _cpuPackagePowerText; set => SetProperty(ref _cpuPackagePowerText, value); }
+
+    public string CpuPeakTempText { get => _cpuPeakTempText; set => SetProperty(ref _cpuPeakTempText, value); }
+
+    public string CoreCountText { get => _coreCountText; set => SetProperty(ref _coreCountText, value); }
+
+    public bool IsBenchmarkRunning
+    {
+        get => _isBenchmarkRunning;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkRunning, value))
+            {
+                RaisePropertyChanged(nameof(IsBenchmarkStartEnabled));
+                RaisePropertyChanged(nameof(IsBenchmarkCancelVisible));
+                RaisePropertyChanged(nameof(BenchmarkStartButtonText));
+                RaisePropertyChanged(nameof(AreBenchmarkSettingsEnabled));
+                RaisePropertyChanged(nameof(IsBenchmarkCustomWorkerEnabled));
+            }
+        }
+    }
+
+    public bool IsBenchmarkStartEnabled => !IsBenchmarkRunning;
+
+    public bool AreBenchmarkSettingsEnabled => !IsBenchmarkRunning;
+
+    public bool IsBenchmarkCancelVisible => IsBenchmarkRunning;
+
+    public string BenchmarkStartButtonText => IsBenchmarkRunning ? Localization.BenchmarkRunningButton : Localization.BenchmarkRunButton;
+
+    public string BenchmarkStatusText { get => _benchmarkStatusText; set => SetProperty(ref _benchmarkStatusText, value); }
+
+    public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetProperty(ref _benchmarkScoreText, value); }
+
+    public string BenchmarkThroughputText { get => _benchmarkThroughputText; set => SetProperty(ref _benchmarkThroughputText, value); }
+
+    public string BenchmarkThreadsText { get => _benchmarkThreadsText; set => SetProperty(ref _benchmarkThreadsText, value); }
+
+    public string BenchmarkDurationText { get => _benchmarkDurationText; set => SetProperty(ref _benchmarkDurationText, value); }
+
+    public string BenchmarkProgressText { get => _benchmarkProgressText; set => SetProperty(ref _benchmarkProgressText, value); }
+
+    public double BenchmarkProgressValue { get => _benchmarkProgressValue; set => SetProperty(ref _benchmarkProgressValue, value); }
+
+    public int SelectedBenchmarkModeIndex
+    {
+        get => _selectedBenchmarkModeIndex;
+        set
+        {
+            int modeIndex = Math.Clamp(value, 0, 2);
+            if (SetProperty(ref _selectedBenchmarkModeIndex, modeIndex))
+            {
+                RaisePropertyChanged(nameof(IsBenchmarkCustomWorkerEnabled));
+                if (!_isSyncingBenchmarkSettings && modeIndex != 2)
+                {
+                    _isSyncingBenchmarkSettings = true;
+                    BenchmarkCustomWorkerCount = BenchmarkModeWorkerCount(modeIndex);
+                    _isSyncingBenchmarkSettings = false;
+                }
+
+                RefreshBenchmarkDisplay();
+            }
+        }
+    }
+
+    public decimal BenchmarkDurationSeconds
+    {
+        get => _benchmarkDurationSeconds;
+        set
+        {
+            if (SetProperty(ref _benchmarkDurationSeconds, Math.Clamp(value, 2, 120)))
+            {
+                RefreshBenchmarkDisplay();
+            }
+        }
+    }
+
+    public decimal BenchmarkCustomWorkerCount
+    {
+        get => _benchmarkCustomWorkerCount;
+        set
+        {
+            decimal workerCount = Math.Clamp(value, 1, BenchmarkMaxWorkerCount);
+            if (SetProperty(ref _benchmarkCustomWorkerCount, workerCount))
+            {
+                if (!_isSyncingBenchmarkSettings)
+                {
+                    int roundedWorkers = Math.Clamp((int)Math.Round(workerCount), 1, CpuBenchmarkRunner.MaxWorkerCount);
+                    int matchingMode = BenchmarkModeIndexForWorkerCount(roundedWorkers);
+                    if (matchingMode != SelectedBenchmarkModeIndex)
+                    {
+                        _isSyncingBenchmarkSettings = true;
+                        SelectedBenchmarkModeIndex = matchingMode;
+                        _isSyncingBenchmarkSettings = false;
+                    }
+                }
+
+                RefreshBenchmarkDisplay();
+            }
+        }
+    }
+
+    public decimal BenchmarkMaxWorkerCount => CpuBenchmarkRunner.MaxWorkerCount;
+
+    public bool IsBenchmarkCustomWorkerEnabled => !IsBenchmarkRunning;
+
+    public string MemoryUsageText { get => _memoryUsageText; set => SetProperty(ref _memoryUsageText, value); }
+
+    public string MemoryCapacityText { get => _memoryCapacityText; set => SetProperty(ref _memoryCapacityText, value); }
+
+    public string MemoryTempText { get => _memoryTempText; set => SetProperty(ref _memoryTempText, value); }
+
+    public bool IsStartupOverlayVisible { get => _isStartupOverlayVisible; set => SetProperty(ref _isStartupOverlayVisible, value); }
+
+    public double StartupOverlayOpacity { get => _startupOverlayOpacity; set => SetProperty(ref _startupOverlayOpacity, value); }
+
+    public string StartupStatusText { get => _startupStatusText; set => SetProperty(ref _startupStatusText, value); }
+
+    public int SelectedChartRangeIndex { get => _selectedChartRangeIndex; set => SetProperty(ref _selectedChartRangeIndex, value); }
+
+    public int SelectedUpdateIntervalIndex { get => _selectedUpdateIntervalIndex; set => SetProperty(ref _selectedUpdateIntervalIndex, value); }
+
+    public int SelectedThemeIndex { get => _selectedThemeIndex; set => SetProperty(ref _selectedThemeIndex, value); }
+
+    public int SelectedLanguageIndex { get => _selectedLanguageIndex; set => SetProperty(ref _selectedLanguageIndex, value); }
+
+    public bool IsSidebarCompact
+    {
+        get => _isSidebarCompact;
+        set
+        {
+            if (SetProperty(ref _isSidebarCompact, value))
+            {
+                IsSidebarExpanded = !value;
+                SidebarToggleToolTip = value ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+            }
+        }
+    }
+
+    public bool IsSidebarExpanded { get => _isSidebarExpanded; private set => SetProperty(ref _isSidebarExpanded, value); }
+
+    public string SidebarToggleToolTip { get => _sidebarToggleToolTip; private set => SetProperty(ref _sidebarToggleToolTip, value); }
+
+    public Thickness SidebarMargin { get => _sidebarMargin; set => SetProperty(ref _sidebarMargin, value); }
+
+    public void RefreshWaitingText()
+    {
+        HardwareSummaryText = Localization.WaitingForHardwareSensors;
+        StatusText = Localization.WaitingForSensors;
+        StartupStatusText = Localization.OpeningSensorBackend;
+        RefreshLocalizedChrome();
+    }
+
+    public void RefreshLocalizedChrome()
+    {
+        SidebarToggleToolTip = IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+        RaisePropertyChanged(nameof(BenchmarkStartButtonText));
+        RefreshBenchmarkDisplay();
+        if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0 && BenchmarkScoreText == "--")
+        {
+            BenchmarkStatusText = Localization.BenchmarkReady;
+        }
+    }
+
+    public int ResolveBenchmarkWorkerCount()
+    {
+        return SelectedBenchmarkModeIndex switch
+        {
+            0 => 1,
+            1 => CpuBenchmarkRunner.MaxWorkerCount,
+            _ => Math.Clamp((int)Math.Round(BenchmarkCustomWorkerCount), 1, CpuBenchmarkRunner.MaxWorkerCount)
+        };
+    }
+
+    public TimeSpan ResolveBenchmarkDuration()
+    {
+        return TimeSpan.FromSeconds(Math.Clamp((int)Math.Round(BenchmarkDurationSeconds), 2, 120));
+    }
+
+    public string ResolveBenchmarkModeText()
+    {
+        return Localization.BenchmarkModeText(SelectedBenchmarkModeIndex);
+    }
+
+    private void RefreshBenchmarkDisplay()
+    {
+        int workers = ResolveBenchmarkWorkerCount();
+        int durationSeconds = (int)Math.Round(ResolveBenchmarkDuration().TotalSeconds);
+        BenchmarkThreadsText = Localization.BenchmarkThreadCount(workers);
+        BenchmarkDurationText = Localization.BenchmarkDurationRun(durationSeconds);
+    }
+
+    private static int BenchmarkModeWorkerCount(int modeIndex)
+    {
+        return modeIndex switch
+        {
+            0 => 1,
+            1 => CpuBenchmarkRunner.MaxWorkerCount,
+            _ => Math.Clamp(CpuBenchmarkRunner.MaxWorkerCount, 1, CpuBenchmarkRunner.MaxWorkerCount)
+        };
+    }
+
+    private static int BenchmarkModeIndexForWorkerCount(int workerCount)
+    {
+        if (workerCount == 1)
+        {
+            return 0;
+        }
+
+        if (workerCount == CpuBenchmarkRunner.MaxWorkerCount)
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
+    private static string ResolveApplicationVersion()
+    {
+        Assembly assembly = typeof(MainWindowViewModel).Assembly;
+        string? informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        string? version = string.IsNullOrWhiteSpace(informationalVersion)
+            ? assembly.GetName().Version?.ToString(3)
+            : informationalVersion.Split('+')[0];
+
+        return string.IsNullOrWhiteSpace(version) ? "1.0.0" : version;
     }
 }
 
@@ -51,7 +360,7 @@ public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardIte
 
     public void Update(MetricReading reading)
     {
-        Label = reading.Label;
+        Label = Localization.MetricLabel(reading.Name, reading.Kind);
         ValueText = reading.ValueText;
     }
 
@@ -119,10 +428,10 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
 
     private void ApplySummary(SensorGroupReading reading)
     {
-        MetricReading[] metrics = reading.Metrics.ToArray();
-        if (metrics.Length == 0)
+        IReadOnlyList<MetricReading> metrics = reading.Metrics;
+        if (metrics.Count == 0)
         {
-            SetSummary("--", "--", "--", "--", "Sensors", "0");
+            SetSummary("--", "--", "--", "--", Localization.SummaryLabel("sensors"), "0");
             return;
         }
 
@@ -130,44 +439,44 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
         {
             case "temperature":
                 SetSummary(
-                    "Peak",
-                    MetricFormatter.FormatTemperature(metrics.Max(metric => metric.Value)),
-                    "Avg",
-                    MetricFormatter.FormatTemperature(metrics.Average(metric => metric.Value)),
-                    "Sensors",
-                    metrics.Length.ToString());
+                    Localization.SummaryLabel("peak"),
+                    MetricFormatter.FormatTemperature(MaxMetric(metrics)),
+                    Localization.SummaryLabel("avg"),
+                    MetricFormatter.FormatTemperature(AverageMetric(metrics)),
+                    Localization.SummaryLabel("sensors"),
+                    metrics.Count.ToString());
                 break;
             case "power":
                 MetricReading? package = metrics.FirstOrDefault(metric => metric.Name.Contains("Package", StringComparison.OrdinalIgnoreCase))
                     ?? metrics.FirstOrDefault(metric => metric.Name.Contains("Total", StringComparison.OrdinalIgnoreCase));
                 SetSummary(
-                    package is null ? "Total" : "Package",
-                    package?.ValueText ?? MetricFormatter.FormatPower(metrics.Sum(metric => metric.Value)),
-                    "Peak rail",
-                    MetricFormatter.FormatPower(metrics.Max(metric => metric.Value)),
-                    "Sensors",
-                    metrics.Length.ToString());
+                    package is null ? Localization.SummaryLabel("total") : Localization.SummaryLabel("package"),
+                    package?.ValueText ?? MetricFormatter.FormatPower(SumMetric(metrics)),
+                    Localization.SummaryLabel("peakRail"),
+                    MetricFormatter.FormatPower(MaxMetric(metrics)),
+                    Localization.SummaryLabel("sensors"),
+                    metrics.Count.ToString());
                 break;
             case "clock":
                 SetSummary(
-                    "Avg",
-                    FormatClock(metrics.Average(metric => metric.Value)),
-                    "Max",
-                    FormatClock(metrics.Max(metric => metric.Value)),
-                    "Sensors",
-                    metrics.Length.ToString());
+                    Localization.SummaryLabel("avg"),
+                    FormatClock(AverageMetric(metrics)),
+                    Localization.SummaryLabel("max"),
+                    FormatClock(MaxMetric(metrics)),
+                    Localization.SummaryLabel("sensors"),
+                    metrics.Count.ToString());
                 break;
             case "voltage":
                 SetSummary(
-                    "Max",
-                    FormatVoltage(metrics.Max(metric => metric.Value)),
-                    "Avg",
-                    FormatVoltage(metrics.Average(metric => metric.Value)),
-                    "Sensors",
-                    metrics.Length.ToString());
+                    Localization.SummaryLabel("max"),
+                    FormatVoltage(MaxMetric(metrics)),
+                    Localization.SummaryLabel("avg"),
+                    FormatVoltage(AverageMetric(metrics)),
+                    Localization.SummaryLabel("sensors"),
+                    metrics.Count.ToString());
                 break;
             default:
-                SetSummary("Primary", metrics[0].ValueText, "Sensors", metrics.Length.ToString(), "--", "--");
+                SetSummary(Localization.SummaryLabel("primary"), metrics[0].ValueText, Localization.SummaryLabel("sensors"), metrics.Count.ToString(), "--", "--");
                 break;
         }
     }
@@ -193,6 +502,30 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
         : $"{valueMHz:0} MHz";
 
     private static string FormatVoltage(double value) => $"{value:0.###} V";
+
+    private static float MaxMetric(IReadOnlyList<MetricReading> metrics)
+    {
+        float max = metrics[0].Value;
+        for (int i = 1; i < metrics.Count; i++)
+        {
+            max = Math.Max(max, metrics[i].Value);
+        }
+
+        return max;
+    }
+
+    private static float SumMetric(IReadOnlyList<MetricReading> metrics)
+    {
+        float sum = 0;
+        for (int i = 0; i < metrics.Count; i++)
+        {
+            sum += metrics[i].Value;
+        }
+
+        return sum;
+    }
+
+    private static float AverageMetric(IReadOnlyList<MetricReading> metrics) => SumMetric(metrics) / metrics.Count;
 }
 
 internal static class DashboardStatus
@@ -201,7 +534,7 @@ internal static class DashboardStatus
     {
         if (metrics.Count == 0)
         {
-            return "no sensors";
+            return Localization.NoSensors;
         }
 
         string thermal = ThermalStatus(metrics, 85, 75);
@@ -211,40 +544,86 @@ internal static class DashboardStatus
         }
 
         int warnings = metrics.Count(IsGaugeWarning);
-        return warnings > 0 ? $"{warnings} warning" : $"{metrics.Count} sensors";
+        return warnings > 0 ? Localization.WarningCount(warnings) : Localization.SensorCount(metrics.Count);
     }
 
-    public static string DeviceStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
+    public static string DeviceStatus(
+        IReadOnlyList<MetricReading> primaryMetrics,
+        IReadOnlyList<MetricReading> secondaryMetrics,
+        float hotThreshold,
+        float warmThreshold)
     {
-        MetricReading[] readings = metrics.ToArray();
-        if (readings.Length == 0)
+        int count = primaryMetrics.Count + secondaryMetrics.Count;
+        if (count == 0)
         {
-            return "no sensors";
+            return Localization.NoSensors;
         }
 
-        string thermal = ThermalStatus(readings, hotThreshold, warmThreshold);
+        string thermal = ThermalStatus(primaryMetrics, secondaryMetrics, hotThreshold, warmThreshold);
         if (!string.IsNullOrEmpty(thermal))
         {
             return thermal;
         }
 
-        int warnings = readings.Count(IsGaugeWarning);
-        return warnings > 0 ? $"{warnings} warning" : "normal";
+        int warnings = CountGaugeWarnings(primaryMetrics) + CountGaugeWarnings(secondaryMetrics);
+        return warnings > 0 ? Localization.WarningCount(warnings) : Localization.Normal;
     }
 
-    private static string ThermalStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
+    private static string ThermalStatus(IReadOnlyList<MetricReading> metrics, float hotThreshold, float warmThreshold)
     {
-        MetricReading[] temperatures = metrics
-            .Where(metric => metric.Kind.Equals("Temperature", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        int hot = temperatures.Count(metric => metric.Value >= hotThreshold);
+        int hot = CountTemperaturesAtOrAbove(metrics, hotThreshold);
         if (hot > 0)
         {
-            return $"{hot} hot";
+            return Localization.HotCount(hot);
         }
 
-        int warm = temperatures.Count(metric => metric.Value >= warmThreshold);
-        return warm > 0 ? $"{warm} warm" : string.Empty;
+        int warm = CountTemperaturesAtOrAbove(metrics, warmThreshold);
+        return warm > 0 ? Localization.WarmCount(warm) : string.Empty;
+    }
+
+    private static string ThermalStatus(
+        IReadOnlyList<MetricReading> primaryMetrics,
+        IReadOnlyList<MetricReading> secondaryMetrics,
+        float hotThreshold,
+        float warmThreshold)
+    {
+        int hot = CountTemperaturesAtOrAbove(primaryMetrics, hotThreshold) + CountTemperaturesAtOrAbove(secondaryMetrics, hotThreshold);
+        if (hot > 0)
+        {
+            return Localization.HotCount(hot);
+        }
+
+        int warm = CountTemperaturesAtOrAbove(primaryMetrics, warmThreshold) + CountTemperaturesAtOrAbove(secondaryMetrics, warmThreshold);
+        return warm > 0 ? Localization.WarmCount(warm) : string.Empty;
+    }
+
+    private static int CountTemperaturesAtOrAbove(IReadOnlyList<MetricReading> metrics, float threshold)
+    {
+        int count = 0;
+        for (int i = 0; i < metrics.Count; i++)
+        {
+            MetricReading metric = metrics[i];
+            if (metric.Kind.Equals("Temperature", StringComparison.OrdinalIgnoreCase) && metric.Value >= threshold)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountGaugeWarnings(IReadOnlyList<MetricReading> metrics)
+    {
+        int count = 0;
+        for (int i = 0; i < metrics.Count; i++)
+        {
+            if (IsGaugeWarning(metrics[i]))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static bool IsGaugeWarning(MetricReading metric)
@@ -267,32 +646,7 @@ public sealed record OverviewReading(
     string SecondaryText,
     string DetailText,
     double GaugeValue,
-    SolidColorBrush AccentBrush);
-
-internal sealed class SparklineHistory(double width, double height)
-{
-    private readonly Queue<double> _values = new();
-
-    public PointCollection Add(double value)
-    {
-        _values.Enqueue(Math.Clamp(value, 0, 100));
-        while (_values.Count > ChartHistorySettings.MaxSamples)
-        {
-            _values.Dequeue();
-        }
-
-        PointCollection points = [];
-        double step = _values.Count == 1 ? width : width / (_values.Count - 1);
-        int index = 0;
-        foreach (double sample in _values)
-        {
-            points.Add(new Point(index * step, height - sample / 100d * height));
-            index++;
-        }
-
-        return points;
-    }
-}
+    IBrush AccentBrush);
 
 public static class ChartHistorySettings
 {
@@ -308,18 +662,17 @@ public static class ChartHistorySettings
 
 public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
 {
-    private readonly SparklineHistory _history = new(60, 32);
     private string _title = string.Empty;
     private string _primaryText = "--";
     private string _secondaryText = "--";
     private string _detailText = "--";
-    private SolidColorBrush _accentBrush = null!;
-    private PointCollection _sparklinePoints = [];
+    private IBrush _accentBrush = DashboardBrushes.Blue;
+    private double _gaugeValue;
+    private bool _isCompact;
 
     public OverviewItemViewModel(OverviewReading reading)
     {
         Key = reading.Key;
-        _accentBrush = reading.AccentBrush;
         Update(reading);
     }
 
@@ -333,9 +686,23 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
 
     public string DetailText { get => _detailText; private set => SetProperty(ref _detailText, value); }
 
-    public SolidColorBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
+    public IBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
 
-    public PointCollection SparklinePoints { get => _sparklinePoints; private set => SetProperty(ref _sparklinePoints, value); }
+    public double GaugeValue { get => _gaugeValue; private set => SetProperty(ref _gaugeValue, value); }
+
+    public bool IsCompact
+    {
+        get => _isCompact;
+        set
+        {
+            if (SetProperty(ref _isCompact, value))
+            {
+                RaisePropertyChanged(nameof(IsExpandedView));
+            }
+        }
+    }
+
+    public bool IsExpandedView => !IsCompact;
 
     public void Update(OverviewReading reading)
     {
@@ -344,17 +711,17 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
         SecondaryText = reading.SecondaryText;
         DetailText = reading.DetailText;
         AccentBrush = reading.AccentBrush;
-
-        SparklinePoints = _history.Add(reading.GaugeValue);
+        GaugeValue = reading.GaugeValue;
     }
 }
 
 public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
-    private readonly SparklineHistory _history = new(120, 56);
+    private static readonly IBrush[] LoadBrushCache = BuildLoadBrushCache();
+
     private string _loadText = "--";
-    private SolidColorBrush _loadBrush = new(Colors.DeepSkyBlue);
-    private PointCollection _sparklinePoints = [];
+    private IBrush _loadBrush = DashboardBrushes.Blue;
+    private double _loadPercent;
 
     public CoreItemViewModel(CoreReading reading)
     {
@@ -366,25 +733,37 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
 
     public string LoadText { get => _loadText; private set => SetProperty(ref _loadText, value); }
 
-    public SolidColorBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
+    public IBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
 
-    public PointCollection SparklinePoints { get => _sparklinePoints; private set => SetProperty(ref _sparklinePoints, value); }
+    public double LoadPercent { get => _loadPercent; private set => SetProperty(ref _loadPercent, value); }
 
     public void Update(CoreReading reading)
     {
         LoadText = reading.LoadText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
-
-        SparklinePoints = _history.Add(reading.LoadPercent);
+        LoadPercent = reading.LoadPercent;
     }
 
-    private static SolidColorBrush BuildLoadBrush(int loadPercent)
+    private static IBrush BuildLoadBrush(int loadPercent) => LoadBrushCache[Math.Clamp(loadPercent, 0, LoadBrushCache.Length - 1)];
+
+    private static IBrush[] BuildLoadBrushCache()
+    {
+        IBrush[] brushes = new IBrush[101];
+        for (int loadPercent = 0; loadPercent < brushes.Length; loadPercent++)
+        {
+            brushes[loadPercent] = BuildLoadBrushCore(loadPercent);
+        }
+
+        return brushes;
+    }
+
+    private static IBrush BuildLoadBrushCore(int loadPercent)
     {
         double t = Math.Clamp(loadPercent, 0, 100) / 100d;
         byte red = (byte)Math.Round(Lerp(0x37, 0xF9, t));
         byte green = (byte)Math.Round(Lerp(0xB7, 0x70, t));
         byte blue = (byte)Math.Round(Lerp(0xE8, 0x66, t));
-        return new SolidColorBrush(ColorHelper.FromArgb(255, red, green, blue));
+        return new SolidColorBrush(Color.FromArgb(255, red, green, blue));
     }
 
     private static double Lerp(double start, double end, double amount) => start + ((end - start) * amount);
@@ -432,7 +811,8 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem
         TemperatureText = reading.TemperatureText;
         PowerText = reading.PowerText;
         StatusText = DashboardStatus.DeviceStatus(
-            reading.TemperatureSensors.Concat(reading.LoadSensors),
+            reading.TemperatureSensors,
+            reading.LoadSensors,
             85,
             75);
         DashboardCollection.SyncItems(
@@ -483,7 +863,8 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem, IDashboard
         Name = reading.Name;
         UsageText = reading.UsageText;
         StatusText = DashboardStatus.DeviceStatus(
-            reading.TemperatureSensors.Concat(reading.UsageSensors),
+            reading.TemperatureSensors,
+            reading.UsageSensors,
             60,
             50);
         DashboardCollection.SyncItems(
@@ -516,12 +897,12 @@ public static class DashboardCollection
         Action<TView, TData> update)
         where TKey : notnull
     {
-        TData[] incoming = data.ToArray();
-        bool sameShape = collection.Count == incoming.Length;
+        IReadOnlyList<TData> incoming = data as IReadOnlyList<TData> ?? data.ToArray();
+        bool sameShape = collection.Count == incoming.Count;
 
         if (sameShape)
         {
-            for (int i = 0; i < incoming.Length; i++)
+            for (int i = 0; i < incoming.Count; i++)
             {
                 if (!EqualityComparer<TKey>.Default.Equals(viewKey(collection[i]), dataKey(incoming[i])))
                 {
@@ -542,9 +923,25 @@ public static class DashboardCollection
             return;
         }
 
-        for (int i = 0; i < incoming.Length; i++)
+        for (int i = 0; i < incoming.Count; i++)
         {
             update(collection[i], incoming[i]);
         }
     }
+}
+
+internal static class DashboardBrushes
+{
+    public static readonly IBrush Blue = Solid("#37B7E8");
+    public static readonly IBrush Red = Solid("#F97066");
+    public static readonly IBrush Green = Solid("#32D583");
+    public static readonly IBrush Amber = Solid("#FDB022");
+    public static readonly IBrush Purple = Solid("#C77DFF");
+    public static readonly IBrush OrangeRed = Solid("#FF5A4F");
+    public static readonly IBrush LimeGreen = Solid("#32D583");
+    public static readonly IBrush CoreCellBackground = Solid("#202733");
+    public static readonly IBrush CoreCellBorder = Solid("#455060");
+    public static readonly IBrush CorePillBackground = Solid("#28303C");
+
+    private static IBrush Solid(string color) => new SolidColorBrush(Color.Parse(color));
 }

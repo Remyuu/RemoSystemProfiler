@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <!-- Edit software version numbers here only.
+         SoftwareVersion is the user-facing version shown by the app.
+         SoftwarePackageVersion must stay four numeric parts for Windows manifests. -->
+    <SoftwareVersion>1.0.2</SoftwareVersion>
+    <SoftwarePackageVersion>1.0.0.0</SoftwarePackageVersion>
+
+    <Version>$(SoftwareVersion)</Version>
+    <PackageVersion>$(SoftwareVersion)</PackageVersion>
+    <InformationalVersion>$(SoftwareVersion)</InformationalVersion>
+    <AssemblyVersion>$(SoftwarePackageVersion)</AssemblyVersion>
+    <FileVersion>$(SoftwarePackageVersion)</FileVersion>
+    <ApplicationDisplayVersion>$(SoftwareVersion)</ApplicationDisplayVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

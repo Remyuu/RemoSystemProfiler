@@ -1,4 +1,4 @@
-namespace RemoSystemProfiler;
+namespace RemoSystemProfiler.Core;
 
 public sealed record SystemSnapshot(
     DateTimeOffset SampledAt,
@@ -73,7 +73,7 @@ public sealed record MemoryDeviceReading(
     IReadOnlyList<MetricReading> TemperatureSensors,
     IReadOnlyList<MetricReading> DataSensors)
 {
-    public IReadOnlyList<MetricReading> Metrics => UsageSensors.Concat(DataSensors).Concat(TemperatureSensors).ToArray();
+    public IReadOnlyList<MetricReading> Metrics { get; } = MetricReadingCollection.Combine(UsageSensors, DataSensors, TemperatureSensors);
 
     public string UsageText => UsageSensors.FirstOrDefault()?.ValueText ?? "--";
 
@@ -171,11 +171,7 @@ public sealed record StorageDeviceReading(
     IReadOnlyList<MetricReading> ThroughputSensors,
     IReadOnlyList<MetricReading> DataSensors)
 {
-    public IReadOnlyList<MetricReading> Metrics => UsageSensors
-        .Concat(TemperatureSensors)
-        .Concat(ThroughputSensors)
-        .Concat(DataSensors)
-        .ToArray();
+    public IReadOnlyList<MetricReading> Metrics { get; } = MetricReadingCollection.Combine(UsageSensors, TemperatureSensors, ThroughputSensors, DataSensors);
 
     public string UsageText => UsageSensors.FirstOrDefault()?.ValueText ?? "--";
 
@@ -211,6 +207,35 @@ public sealed record MetricReading(
     double GaugeValue)
 {
     public string Label => $"{Name} ({Kind})";
+}
+
+internal static class MetricReadingCollection
+{
+    public static IReadOnlyList<MetricReading> Combine(params IReadOnlyList<MetricReading>[] groups)
+    {
+        int count = 0;
+        foreach (IReadOnlyList<MetricReading> group in groups)
+        {
+            count += group.Count;
+        }
+
+        if (count == 0)
+        {
+            return [];
+        }
+
+        MetricReading[] metrics = new MetricReading[count];
+        int offset = 0;
+        foreach (IReadOnlyList<MetricReading> group in groups)
+        {
+            for (int i = 0; i < group.Count; i++)
+            {
+                metrics[offset++] = group[i];
+            }
+        }
+
+        return metrics;
+    }
 }
 
 public static class MetricFormatter

@@ -1,0 +1,60 @@
+using System.Text.Json;
+
+namespace RemoSystemProfiler;
+
+internal sealed record DashboardSettings(
+    int ChartRangeIndex = 0,
+    int UpdateIntervalIndex = 1,
+    int ThemeIndex = 0,
+    int LanguageIndex = 0);
+
+internal static class DashboardSettingsStore
+{
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    public static DashboardSettings Load()
+    {
+        try
+        {
+            string path = SettingsPath;
+            if (!File.Exists(path))
+            {
+                return new DashboardSettings();
+            }
+
+            DashboardSettings? settings = JsonSerializer.Deserialize<DashboardSettings>(File.ReadAllText(path), SerializerOptions);
+            return settings is null ? new DashboardSettings() : Normalize(settings);
+        }
+        catch
+        {
+            return new DashboardSettings();
+        }
+    }
+
+    public static void Save(DashboardSettings settings)
+    {
+        try
+        {
+            string path = SettingsPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(Normalize(settings), SerializerOptions));
+        }
+        catch
+        {
+            // Settings persistence should never interrupt hardware monitoring.
+        }
+    }
+
+    private static DashboardSettings Normalize(DashboardSettings settings) => settings with
+    {
+        ChartRangeIndex = Math.Clamp(settings.ChartRangeIndex, 0, 3),
+        UpdateIntervalIndex = Math.Clamp(settings.UpdateIntervalIndex, 0, 3),
+        ThemeIndex = Math.Clamp(settings.ThemeIndex, 0, 2),
+        LanguageIndex = Math.Clamp(settings.LanguageIndex, 0, 3)
+    };
+
+    private static string SettingsPath => Path.Combine(AppContext.BaseDirectory, "dashboard-settings.json");
+}

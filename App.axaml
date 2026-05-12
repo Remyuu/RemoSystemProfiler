@@ -1,0 +1,135 @@
+<Application
+    x:Class="RemoSystemProfiler.App"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Styles>
+        <FluentTheme DensityStyle="Compact" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#B812161C" />
+                    <LinearGradientBrush x:Key="DashboardBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#72111B20" />
+                        <GradientStop Offset="0.48" Color="#5413181E" />
+                        <GradientStop Offset="1" Color="#6810161C" />
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
+                    <SolidColorBrush x:Key="PanelHoverBrush" Color="#E0222934" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
+                    <SolidColorBrush x:Key="PanelStrongHoverBrush" Color="#E82B3441" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#D828303B" />
+                    <SolidColorBrush x:Key="PanelSoftHoverBrush" Color="#E0303946" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#26455060" />
+                    <SolidColorBrush x:Key="PanelHoverStrokeBrush" Color="#59455060" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#B0202733" />
+                    <SolidColorBrush x:Key="WindowEdgeBrush" Color="#60455060" />
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
+                    <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                    <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#1C222B" />
+                        <GradientStop Offset="1" Color="#001C222B" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#001C222B" />
+                        <GradientStop Offset="1" Color="#1C222B" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#171C24" />
+                        <GradientStop Offset="1" Color="#00171C24" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00171C24" />
+                        <GradientStop Offset="1" Color="#171C24" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#B812161C" />
+                    <LinearGradientBrush x:Key="DashboardBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#72111B20" />
+                        <GradientStop Offset="0.48" Color="#5413181E" />
+                        <GradientStop Offset="1" Color="#6810161C" />
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#B0171C24" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#D81C222B" />
+                    <SolidColorBrush x:Key="PanelHoverBrush" Color="#E0222934" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#E0242B36" />
+                    <SolidColorBrush x:Key="PanelStrongHoverBrush" Color="#E82B3441" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#D828303B" />
+                    <SolidColorBrush x:Key="PanelSoftHoverBrush" Color="#E0303946" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#26455060" />
+                    <SolidColorBrush x:Key="PanelHoverStrokeBrush" Color="#59455060" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#B0202733" />
+                    <SolidColorBrush x:Key="WindowEdgeBrush" Color="#60455060" />
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
+                    <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                    <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#1C222B" />
+                        <GradientStop Offset="1" Color="#001C222B" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#001C222B" />
+                        <GradientStop Offset="1" Color="#1C222B" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#171C24" />
+                        <GradientStop Offset="1" Color="#00171C24" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00171C24" />
+                        <GradientStop Offset="1" Color="#171C24" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#DDF5F7FA" />
+                    <LinearGradientBrush x:Key="DashboardBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#F7FFFFFF" />
+                        <GradientStop Offset="0.48" Color="#EAF6F8FB" />
+                        <GradientStop Offset="1" Color="#F2EEF3F8" />
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="SidebarBrush" Color="#DDEEF2F7" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="#F2FFFFFF" />
+                    <SolidColorBrush x:Key="PanelHoverBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="PanelStrongBrush" Color="#F2F8FAFC" />
+                    <SolidColorBrush x:Key="PanelStrongHoverBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="PanelSoftBrush" Color="#EAF3F6FA" />
+                    <SolidColorBrush x:Key="PanelSoftHoverBrush" Color="#F6FFFFFF" />
+                    <SolidColorBrush x:Key="PanelStrokeBrush" Color="#38B8C2CF" />
+                    <SolidColorBrush x:Key="PanelHoverStrokeBrush" Color="#66A6B1C0" />
+                    <SolidColorBrush x:Key="ChartBackgroundBrush" Color="#DFFAFCFF" />
+                    <SolidColorBrush x:Key="WindowEdgeBrush" Color="#8AD1D8E2" />
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="MutedTextBrush" Color="#475467" />
+                    <SolidColorBrush x:Key="SubtleTextBrush" Color="#667085" />
+                    <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#FFFFFF" />
+                        <GradientStop Offset="1" Color="#00FFFFFF" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="PanelFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00FFFFFF" />
+                        <GradientStop Offset="1" Color="#FFFFFF" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#EEF2F7" />
+                        <GradientStop Offset="1" Color="#00EEF2F7" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="SidebarFadeBottomBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#00EEF2F7" />
+                        <GradientStop Offset="1" Color="#EEF2F7" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <SolidColorBrush x:Key="BlueBrush" Color="#37B7E8" />
+            <SolidColorBrush x:Key="RedBrush" Color="#F97066" />
+            <SolidColorBrush x:Key="GreenBrush" Color="#32D583" />
+            <SolidColorBrush x:Key="AmberBrush" Color="#FDB022" />
+            <SolidColorBrush x:Key="PurpleBrush" Color="#C77DFF" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

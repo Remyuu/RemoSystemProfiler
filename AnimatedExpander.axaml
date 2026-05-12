@@ -1,0 +1,95 @@
+<UserControl
+    x:Class="RemoSystemProfiler.AnimatedExpander"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Name="Root"
+    HorizontalAlignment="Stretch">
+
+    <UserControl.Styles>
+        <Style Selector="Button.expander-chevron">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="Button.expander-chevron.header-hover">
+            <Setter Property="Background" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+        </Style>
+        <Style Selector="Button.expander-chevron.header-pressed">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid HorizontalAlignment="Stretch" RowDefinitions="Auto,Auto">
+        <Border
+            x:Name="HeaderSurface"
+            HorizontalAlignment="Stretch"
+            Padding="10,7"
+            Background="{DynamicResource PanelSoftBrush}"
+            BorderBrush="{DynamicResource PanelStrokeBrush}"
+            BorderThickness="1"
+            CornerRadius="4,4,0,0"
+            PointerEntered="HeaderSurface_PointerEntered"
+            PointerExited="HeaderSurface_PointerExited"
+            PointerPressed="HeaderSurface_PointerPressed"
+            PointerReleased="HeaderSurface_PointerReleased">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <ContentPresenter
+                    HorizontalAlignment="Stretch"
+                    Content="{Binding Header, ElementName=Root}" />
+                <Button
+                    x:Name="ChevronButton"
+                    Grid.Column="1"
+                    Classes="expander-chevron"
+                    IsHitTestVisible="False">
+                    <Path
+                        x:Name="Chevron"
+                        Width="16"
+                        Height="16"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Data="M 3 5 L 8 10 L 13 5"
+                        RenderTransformOrigin="50%,50%"
+                        Stroke="{DynamicResource AccentTextBrush}"
+                        StrokeThickness="1.7"
+                        Stretch="None">
+                        <Path.RenderTransform>
+                            <RotateTransform Angle="0">
+                                <RotateTransform.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Angle" Duration="0:0:0.18" />
+                                    </Transitions>
+                                </RotateTransform.Transitions>
+                            </RotateTransform>
+                        </Path.RenderTransform>
+                    </Path>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Border
+            x:Name="BodyHost"
+            Grid.Row="1"
+            MaxHeight="0"
+            Opacity="0"
+            ClipToBounds="True"
+            Background="{DynamicResource PanelSoftBrush}"
+            BorderBrush="{DynamicResource PanelStrokeBrush}"
+            BorderThickness="1,0,1,1"
+            CornerRadius="0,0,4,4"
+            IsVisible="False">
+            <ContentPresenter
+                x:Name="BodyPresenter"
+                Margin="8"
+                HorizontalAlignment="Stretch"
+                Content="{Binding Body, ElementName=Root}" />
+        </Border>
+    </Grid>
+</UserControl>

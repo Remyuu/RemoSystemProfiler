@@ -1,0 +1,1035 @@
+<Window
+    x:Class="RemoSystemProfiler.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:RemoSystemProfiler"
+    x:DataType="local:MainWindowViewModel"
+    Title=""
+    Icon="avares://RemoSystemProfiler/cat_icon_optimized.ico"
+    Width="1100"
+    Height="720"
+    MinWidth="760"
+    MinHeight="540"
+    ExtendClientAreaTitleBarHeightHint="32"
+    ExtendClientAreaToDecorationsHint="True"
+    TransparencyLevelHint="Mica, AcrylicBlur, Blur"
+    WindowStartupLocation="CenterScreen"
+    Background="Transparent">
+
+    <Window.Styles>
+        <Style Selector="Border.panel">
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="Border.panel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="Border.soft-panel">
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="Border.soft-panel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="Border.metric-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="Border.overview-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelHoverBrush}" />
+        </Style>
+        <Style Selector="Border.compact-overview-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelHoverBrush}" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.small-value">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.hot-value">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.emphasis">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.status-pill">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource AmberBrush}" />
+        </Style>
+        <Style Selector="Button.link">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource BlueBrush}" />
+        </Style>
+        <Style Selector="Button.icon-button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="Button.icon-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelStrongHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="Button.icon-button:pressed">
+            <Setter Property="Background" Value="{DynamicResource ChartBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.glass-pill">
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#28FFFFFF" />
+            <Setter Property="BorderBrush" Value="#44FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.glass-pill:pointerover">
+            <Setter Property="Background" Value="#3AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#66FFFFFF" />
+        </Style>
+        <Style Selector="Button.glass-pill:pressed">
+            <Setter Property="Background" Value="#20FFFFFF" />
+        </Style>
+        <Style Selector="Button.tool-action">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.tool-action:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelStrongHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
+        <Style Selector="FlyoutPresenter">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ItemsControl.stretch-items ContentPresenter">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Expander.dashboard-expander">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Expander.dashboard-expander /template/ ToggleButton">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Expander.dashboard-expander /template/ ToggleButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+        </Style>
+        <Style Selector="Expander.dashboard-expander /template/ ToggleButton:pressed">
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+        </Style>
+        <Style Selector="Expander.dashboard-expander /template/ ToggleButton:checked">
+            <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Window.Resources>
+        <DataTemplate x:Key="MetricRowTemplate" x:DataType="local:MetricItemViewModel">
+            <Border
+                Classes="metric-row"
+                HorizontalAlignment="Stretch"
+                MinHeight="28"
+                Padding="8,4"
+                Background="{DynamicResource PanelSoftBrush}"
+                BorderBrush="{DynamicResource PanelStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="4">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBlock
+                        Classes="label"
+                        Text="{Binding Label}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="1"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        Text="{Binding ValueText}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OverviewTemplate" x:DataType="local:OverviewItemViewModel">
+            <Border
+                Classes="overview-card"
+                HorizontalAlignment="Stretch"
+                MinHeight="56"
+                Padding="6"
+                Background="{DynamicResource PanelBrush}"
+                BorderBrush="{Binding AccentBrush}"
+                BorderThickness="2,1,1,1"
+                CornerRadius="5"
+                ToolTip.Tip="{Binding DetailText}">
+                <Grid>
+                    <Grid
+                        ColumnDefinitions="66,*"
+                        ColumnSpacing="9"
+                        IsVisible="{Binding IsExpandedView}">
+                        <Border
+                            Width="62"
+                            Height="38"
+                            Background="{DynamicResource ChartBackgroundBrush}"
+                            BorderBrush="{DynamicResource PanelStrokeBrush}"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <local:Sparkline
+                                Margin="4"
+                                Stroke="{Binding AccentBrush}"
+                                StrokeThickness="2"
+                                Value="{Binding GaugeValue}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="1">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock
+                                    Classes="emphasis"
+                                    FontSize="16"
+                                    Text="{Binding Title}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Classes="small-value"
+                                    Text="{Binding PrimaryText}" />
+                            </Grid>
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{DynamicResource MutedTextBrush}"
+                                Text="{Binding SecondaryText}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                FontSize="11"
+                                Foreground="{DynamicResource SubtleTextBrush}"
+                                Text="{Binding DetailText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                    <local:ThermometerGauge
+                        Width="18"
+                        Height="46"
+                        HorizontalAlignment="Center"
+                        Fill="{Binding AccentBrush}"
+                        IsVisible="{Binding IsCompact}"
+                        StrokeBrush="{DynamicResource PanelStrokeBrush}"
+                        TrackBrush="{DynamicResource ChartBackgroundBrush}"
+                        Value="{Binding GaugeValue}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="SensorGroupTemplate" x:DataType="local:SensorGroupViewModel">
+            <local:AnimatedExpander
+                Width="{Binding $parent[ItemsControl].Bounds.Width}"
+                IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                <local:AnimatedExpander.Header>
+                    <Grid
+                        HorizontalAlignment="Stretch"
+                        RowDefinitions="Auto,Auto"
+                        RowSpacing="6">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBlock Classes="emphasis" FontSize="13" Text="{Binding Title}" />
+                            <Border
+                                Grid.Column="1"
+                                Padding="6,1"
+                                Background="{DynamicResource PanelStrongBrush}"
+                                BorderBrush="{DynamicResource PanelStrokeBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock Classes="status-pill" Text="{Binding StatusText}" />
+                            </Border>
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                            <StackPanel>
+                                <TextBlock Classes="label" Text="{Binding SummaryOneLabel}" />
+                                <TextBlock Classes="small-value" Text="{Binding SummaryOneText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Classes="label" Text="{Binding SummaryTwoLabel}" />
+                                <TextBlock Classes="small-value" Text="{Binding SummaryTwoText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Classes="label" Text="{Binding SummaryThreeLabel}" />
+                                <TextBlock Classes="small-value" Text="{Binding SummaryThreeText}" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </local:AnimatedExpander.Header>
+                <local:AnimatedExpander.Body>
+                    <ItemsControl
+                        Classes="stretch-items"
+                        ItemTemplate="{StaticResource MetricRowTemplate}"
+                        ItemsSource="{Binding Metrics}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </local:AnimatedExpander.Body>
+            </local:AnimatedExpander>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GpuTemplate" x:DataType="local:GpuDeviceViewModel">
+            <Border
+                Classes="soft-panel"
+                Width="{Binding $parent[ItemsControl].Bounds.Width}"
+                HorizontalAlignment="Stretch"
+                Padding="4">
+                <local:AnimatedExpander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                    <local:AnimatedExpander.Header>
+                        <Grid
+                            HorizontalAlignment="Stretch"
+                            RowDefinitions="Auto,Auto"
+                            RowSpacing="3">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock
+                                    Classes="emphasis"
+                                    FontSize="12"
+                                    Text="{Binding Name}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <Border
+                                    Grid.Column="1"
+                                    Padding="5,1"
+                                    Background="{DynamicResource PanelStrongBrush}"
+                                    BorderBrush="{DynamicResource PanelStrokeBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="3">
+                                    <TextBlock Classes="status-pill" FontSize="10" Text="{Binding StatusText}" />
+                                </Border>
+                            </Grid>
+                            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                <StackPanel>
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Load}" />
+                                    <TextBlock Classes="small-value" Text="{Binding LoadText}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Temp}" />
+                                    <TextBlock Classes="hot-value" Text="{Binding TemperatureText}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Power}" />
+                                    <TextBlock Classes="small-value" Text="{Binding PowerText}" />
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </local:AnimatedExpander.Header>
+                    <local:AnimatedExpander.Body>
+                        <StackPanel Spacing="5">
+                            <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding PowerSensors}" />
+                            <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding TemperatureSensors}" />
+                            <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding MemorySensors}" />
+                        </StackPanel>
+                    </local:AnimatedExpander.Body>
+                </local:AnimatedExpander>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="StorageTemplate" x:DataType="local:StorageDeviceViewModel">
+            <Border
+                Classes="soft-panel"
+                Width="{Binding $parent[ItemsControl].Bounds.Width}"
+                HorizontalAlignment="Stretch"
+                Padding="4">
+                <local:AnimatedExpander IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                    <local:AnimatedExpander.Header>
+                        <Grid
+                            HorizontalAlignment="Stretch"
+                            ColumnDefinitions="*,Auto,Auto"
+                            ColumnSpacing="8">
+                            <TextBlock
+                                Classes="emphasis"
+                                FontSize="12"
+                                Text="{Binding Name}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Classes="small-value"
+                                HorizontalAlignment="Right"
+                                Text="{Binding UsageText}" />
+                            <Border
+                                Grid.Column="2"
+                                Padding="5,1"
+                                Background="{DynamicResource PanelStrongBrush}"
+                                BorderBrush="{DynamicResource PanelStrokeBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                                <TextBlock Classes="status-pill" FontSize="10" Text="{Binding StatusText}" />
+                            </Border>
+                        </Grid>
+                    </local:AnimatedExpander.Header>
+                    <local:AnimatedExpander.Body>
+                        <ItemsControl Classes="stretch-items" ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding Metrics}" />
+                    </local:AnimatedExpander.Body>
+                </local:AnimatedExpander>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Border
+        Background="{DynamicResource AppBackgroundBrush}"
+        BorderBrush="{DynamicResource WindowEdgeBrush}"
+        BorderThickness="1">
+        <Grid RowDefinitions="32,*">
+            <Grid
+                Grid.Row="0"
+                Background="Transparent">
+                <Border
+                    Padding="12,0,148,0"
+                    Background="Transparent"
+                    DoubleTapped="TitleBar_DoubleTapped"
+                    PointerPressed="TitleBar_PointerPressed" />
+                <StackPanel
+                    Margin="10,0,148,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="7"
+                    IsHitTestVisible="False">
+                    <Border
+                        Width="18"
+                        Height="18"
+                        ClipToBounds="True"
+                        CornerRadius="4">
+                        <Image
+                            Source="avares://RemoSystemProfiler/cropped-New_HeadIcon.jpg"
+                            Stretch="UniformToFill" />
+                    </Border>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        Text="{DynamicResource Ui_WindowTitle}" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1">
+        <Grid x:Name="ShellGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="56" MaxWidth="420" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                x:Name="SidebarRoot"
+                Background="{DynamicResource SidebarBrush}"
+                BorderBrush="{DynamicResource PanelStrokeBrush}"
+                BorderThickness="0,0,1,0"
+                SizeChanged="SidebarRoot_SizeChanged">
+                <Grid Margin="{Binding SidebarMargin}" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="9">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" MinHeight="34">
+                        <Button
+                            Classes="icon-button"
+                            Click="SidebarToggle_Click"
+                            HorizontalAlignment="Left"
+                            ToolTip.Tip="{Binding SidebarToggleToolTip}"
+                            VerticalAlignment="Top">
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Data="M 3 4 H 15 M 3 9 H 15 M 3 14 H 15"
+                                Stroke="{DynamicResource AccentTextBrush}"
+                                StrokeLineCap="Round"
+                                StrokeThickness="1.8"
+                                Stretch="Uniform" />
+                        </Button>
+                        <StackPanel
+                            Grid.Column="1"
+                            IsVisible="{Binding IsSidebarExpanded}"
+                            Spacing="1">
+                            <TextBlock Classes="emphasis" FontSize="18" Text="{DynamicResource Ui_Performance}" />
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{DynamicResource SubtleTextBrush}"
+                                Text="{Binding HardwareSummaryText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Border
+                        Grid.Row="1"
+                        Classes="panel"
+                        IsVisible="{Binding IsSidebarExpanded}">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                            <Ellipse
+                                Width="8"
+                                Height="8"
+                                Margin="0,2,0,0"
+                                VerticalAlignment="Top"
+                                Fill="{Binding StatusBrush}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                FontSize="12"
+                                Foreground="{DynamicResource MutedTextBrush}"
+                                MaxLines="3"
+                                Text="{Binding StatusText}"
+                                TextWrapping="Wrap"
+                                ToolTip.Tip="{Binding StatusToolTip}" />
+                            <Button
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Classes="link"
+                                Click="PawnIoLink_Click"
+                                Content="{DynamicResource Ui_InstallPawnIo}"
+                                IsVisible="{Binding IsPawnIoDownloadVisible}" />
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2">
+                        <local:ScrollFadeHost
+                            BottomFade="{DynamicResource SidebarFadeBottomBrush}"
+                            TopFade="{DynamicResource SidebarFadeTopBrush}">
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                <ItemsControl ItemTemplate="{StaticResource OverviewTemplate}" ItemsSource="{Binding OverviewItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="6" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </local:ScrollFadeHost>
+                    </Grid>
+
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto" MinHeight="34">
+                        <Button
+                            Classes="icon-button"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Bottom"
+                            ToolTip.Tip="{DynamicResource Ui_Settings}">
+                            <Viewbox Width="18" Height="18" Stretch="Uniform">
+                                <Canvas Width="24" Height="24">
+                                    <Path
+                                        Data="M19.43 12.98C19.47 12.66 19.5 12.34 19.5 12C19.5 11.66 19.47 11.33 19.42 11.02L21.54 9.37C21.73 9.22 21.78 8.95 21.66 8.73L19.66 5.27C19.54 5.05 19.28 4.96 19.05 5.05L16.56 6.05C16.04 5.65 15.5 5.32 14.87 5.07L14.5 2.42C14.46 2.18 14.25 2 14 2H10C9.75 2 9.54 2.18 9.5 2.42L9.13 5.07C8.5 5.32 7.96 5.66 7.44 6.05L4.95 5.05C4.72 4.96 4.46 5.05 4.34 5.27L2.34 8.73C2.21 8.95 2.27 9.22 2.46 9.37L4.58 11.02C4.53 11.33 4.5 11.67 4.5 12C4.5 12.33 4.53 12.66 4.58 12.98L2.46 14.63C2.27 14.78 2.22 15.05 2.34 15.27L4.34 18.73C4.46 18.95 4.72 19.04 4.95 18.95L7.44 17.95C7.96 18.35 8.5 18.68 9.13 18.93L9.5 21.58C9.54 21.82 9.75 22 10 22H14C14.25 22 14.46 21.82 14.5 21.58L14.87 18.93C15.5 18.68 16.04 18.34 16.56 17.95L19.05 18.95C19.28 19.04 19.54 18.95 19.66 18.73L21.66 15.27C21.78 15.05 21.73 14.78 21.54 14.63L19.43 12.98ZM12 15.5C10.07 15.5 8.5 13.93 8.5 12C8.5 10.07 10.07 8.5 12 8.5C13.93 8.5 15.5 10.07 15.5 12C15.5 13.93 13.93 15.5 12 15.5Z"
+                                        Fill="{DynamicResource AccentTextBrush}" />
+                                </Canvas>
+                            </Viewbox>
+                            <Button.Flyout>
+                                <Flyout Placement="RightEdgeAlignedBottom" HorizontalOffset="8">
+                                    <Border
+                                        Padding="18"
+                                        Background="{DynamicResource PanelBrush}"
+                                        BorderBrush="{DynamicResource PanelStrokeBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8">
+                                        <local:AnimatedFlyoutPanel Width="280" Spacing="10">
+                                            <TextBlock x:Name="FlyoutDashboardTitle" Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
+                                            <StackPanel Spacing="4">
+                                                <TextBlock x:Name="FlyoutChartRangeLabel" Classes="label" Text="{DynamicResource Ui_ChartRange}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedChartRangeIndex}"
+                                                    SelectionChanged="ChartRangePicker_SelectionChanged">
+                                                    <ComboBoxItem x:Name="FlyoutRangeTenSecondsItem" Content="{DynamicResource Ui_RangeTenSeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeThirtySecondsItem" Content="{DynamicResource Ui_RangeThirtySeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeOneMinuteItem" Content="{DynamicResource Ui_RangeOneMinute}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeFiveMinutesItem" Content="{DynamicResource Ui_RangeFiveMinutes}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock x:Name="FlyoutUpdateIntervalLabel" Classes="label" Text="{DynamicResource Ui_UpdateInterval}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedUpdateIntervalIndex}"
+                                                    SelectionChanged="UpdateIntervalPicker_SelectionChanged">
+                                                    <ComboBoxItem x:Name="FlyoutIntervalHalfSecondItem" Content="{DynamicResource Ui_IntervalHalfSecond}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalOneSecondItem" Content="{DynamicResource Ui_IntervalOneSecond}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalTwoSecondsItem" Content="{DynamicResource Ui_IntervalTwoSeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalFiveSecondsItem" Content="{DynamicResource Ui_IntervalFiveSeconds}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock x:Name="FlyoutThemeLabel" Classes="label" Text="{DynamicResource Ui_Theme}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedThemeIndex}"
+                                                    SelectionChanged="ThemePicker_SelectionChanged">
+                                                    <ComboBoxItem x:Name="FlyoutThemeSystemItem" Content="{DynamicResource Ui_ThemeSystem}" />
+                                                    <ComboBoxItem x:Name="FlyoutThemeLightItem" Content="{DynamicResource Ui_ThemeLight}" />
+                                                    <ComboBoxItem x:Name="FlyoutThemeDarkItem" Content="{DynamicResource Ui_ThemeDark}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock x:Name="FlyoutLanguageLabel" Classes="label" Text="{DynamicResource Ui_Language}" />
+                                                <ComboBox
+                                                    SelectedIndex="{Binding SelectedLanguageIndex}"
+                                                    SelectionChanged="LanguagePicker_SelectionChanged">
+                                                    <ComboBoxItem x:Name="FlyoutEnglishItem" Content="{DynamicResource Ui_English}" />
+                                                    <ComboBoxItem x:Name="FlyoutChineseItem" Content="{DynamicResource Ui_Chinese}" />
+                                                    <ComboBoxItem x:Name="FlyoutJapaneseItem" Content="{DynamicResource Ui_Japanese}" />
+                                                    <ComboBoxItem x:Name="FlyoutTraditionalChineseItem" Content="{DynamicResource Ui_TraditionalChinese}" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
+                                            <local:AnimatedExpander>
+                                                <local:AnimatedExpander.Header>
+                                                    <TextBlock x:Name="FlyoutAboutTitle" Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_About}" />
+                                                </local:AnimatedExpander.Header>
+                                                <local:AnimatedExpander.Body>
+                                                    <StackPanel Spacing="8">
+                                                        <StackPanel Spacing="1">
+                                                            <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
+                                                            <TextBlock x:Name="FlyoutAppSubtitleText" FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="{DynamicResource Ui_AppSubtitle}" />
+                                                        </StackPanel>
+                                                        <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
+                                                            <TextBlock x:Name="FlyoutVersionLabel" Classes="label" Text="{DynamicResource Ui_Version}" />
+                                                            <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
+                                                            <TextBlock x:Name="FlyoutWebsiteLabel" Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
+                                                            <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
+                                                            <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
+                                                            <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
+                                                        </Grid>
+                                                        <TextBlock
+                                                            x:Name="FlyoutBuiltWithText"
+                                                            FontSize="11"
+                                                            Foreground="{DynamicResource MutedTextBrush}"
+                                                            Text="{DynamicResource Ui_BuiltWith}"
+                                                            TextWrapping="Wrap" />
+                                                        <TextBlock
+                                                            x:Name="FlyoutLicenseNoticeText"
+                                                            FontSize="11"
+                                                            Foreground="{DynamicResource SubtleTextBrush}"
+                                                            Text="{DynamicResource Ui_LicenseNotice}"
+                                                            TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </local:AnimatedExpander.Body>
+                                            </local:AnimatedExpander>
+                                        </local:AnimatedFlyoutPanel>
+                                    </Border>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <GridSplitter
+                Grid.Column="1"
+                Width="8"
+                Background="Transparent"
+                ResizeDirection="Columns" />
+
+            <Border
+                Grid.Column="2"
+                Background="{DynamicResource DashboardBackgroundBrush}">
+            <Grid ClipToBounds="True">
+            <ScrollViewer
+                x:Name="DashboardScrollViewer"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Disabled"
+                SizeChanged="DashboardScrollViewer_SizeChanged">
+            <Grid>
+            <Grid RowDefinitions="Auto,Auto">
+            <Grid
+                x:Name="DashboardContent"
+                Height="674"
+                Margin="14,4,14,10"
+                RowDefinitions="Auto,2*,3*"
+                RowSpacing="8"
+                RenderTransformOrigin="50%,0%">
+                <Grid.RenderTransform>
+                    <TranslateTransform Y="0" />
+                </Grid.RenderTransform>
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="34"
+                        FontWeight="SemiLight"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        Text="CPU" />
+                    <Button
+                        Grid.Column="1"
+                        Classes="glass-pill"
+                        Click="BenchmarkToggle_Click"
+                        Content="⚡"
+                        ToolTip.Tip="{DynamicResource Ui_Benchmark}"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        Grid.Column="3"
+                        MaxWidth="430"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        FontSize="19"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        Text="{Binding CpuNameText}"
+                        TextAlignment="Right"
+                        TextTrimming="CharacterEllipsis" />
+                </Grid>
+
+                <Border Grid.Row="1" MinHeight="148" Classes="panel">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="7">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="label" Text="{DynamicResource Ui_LogicalProcessors}" />
+                            <TextBlock Grid.Column="1" Classes="label" Text="100%" />
+                        </Grid>
+                        <local:CpuCoreGrid
+                            Grid.Row="1"
+                            CellBackground="{DynamicResource ChartBackgroundBrush}"
+                            CellBorderBrush="{DynamicResource PanelStrokeBrush}"
+                            Cores="{Binding CpuCores}"
+                            PillBackground="{DynamicResource PanelStrongBrush}"
+                            TextBrush="{DynamicResource AccentTextBrush}" />
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="2" MinHeight="260" ColumnDefinitions="25*,35*,40*" ColumnSpacing="9">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="7">
+                        <Border Classes="panel">
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+                                <StackPanel>
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Utilization}" />
+                                    <TextBlock Classes="value" Text="{Binding CpuLoadSummaryText}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Speed}" />
+                                    <TextBlock Classes="value" Text="{Binding ClockText}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_PackagePower}" />
+                                    <TextBlock Classes="small-value" FontSize="15" Text="{Binding CpuPackagePowerText}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_PeakTemp}" />
+                                    <TextBlock Classes="hot-value" FontSize="15" Text="{Binding CpuPeakTempText}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_CoresThreads}" />
+                                    <TextBlock Classes="small-value" FontSize="15" Text="{Binding CoreCountText}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Classes="panel">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Memory}" />
+                                    <TextBlock Grid.Column="1" Classes="small-value" Text="{Binding MemoryUsageText}" />
+                                </Grid>
+                                <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="5">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock Classes="label" Text="{Binding MemoryCapacityText}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" FontSize="12" Foreground="{StaticResource RedBrush}" Text="{Binding MemoryTempText}" />
+                                    </Grid>
+                                    <local:ScrollFadeHost
+                                        Grid.Row="1"
+                                        BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                        TopFade="{DynamicResource PanelFadeTopBrush}">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                            <ItemsControl ItemTemplate="{StaticResource MetricRowTemplate}" ItemsSource="{Binding MemoryMetrics}" />
+                                        </ScrollViewer>
+                                    </local:ScrollFadeHost>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Column="1" Classes="panel">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                            <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_CpuSensors}" />
+                            <local:ScrollFadeHost
+                                Grid.Row="1"
+                                BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                TopFade="{DynamicResource PanelFadeTopBrush}">
+                                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                    <ItemsControl ItemTemplate="{StaticResource SensorGroupTemplate}" ItemsSource="{Binding CpuSensorGroups}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </local:ScrollFadeHost>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Column="2" RowDefinitions="11*,9*" RowSpacing="7">
+                        <Border Classes="panel">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                                <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_GpuDevices}" />
+                                <local:ScrollFadeHost
+                                    Grid.Row="1"
+                                    BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                    TopFade="{DynamicResource PanelFadeTopBrush}">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                        <ItemsControl ItemTemplate="{StaticResource GpuTemplate}" ItemsSource="{Binding Gpus}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="6" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </local:ScrollFadeHost>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="1" Classes="panel">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                                <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_StorageDevices}" />
+                                <local:ScrollFadeHost
+                                    Grid.Row="1"
+                                    BottomFade="{DynamicResource PanelFadeBottomBrush}"
+                                    TopFade="{DynamicResource PanelFadeTopBrush}">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                                        <ItemsControl ItemTemplate="{StaticResource StorageTemplate}" ItemsSource="{Binding StorageDevices}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="6" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </local:ScrollFadeHost>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+            <Border Grid.Row="1" Height="284" Opacity="0" />
+            </Grid>
+
+                <Grid
+                    x:Name="BenchmarkCurtainHost"
+                    Height="284"
+                    Margin="14,0,14,0"
+                    VerticalAlignment="Top"
+                    ClipToBounds="True"
+                    IsHitTestVisible="False"
+                    IsVisible="False"
+                    Opacity="0"
+                    Panel.ZIndex="8">
+                    <Border
+                        x:Name="BenchmarkCurtain"
+                        Padding="14,12"
+                        Background="{DynamicResource PanelBrush}"
+                        BorderBrush="{DynamicResource PanelHoverStrokeBrush}"
+                        BorderThickness="1"
+                        CornerRadius="0,0,7,7"
+                        RenderTransformOrigin="50%,0%">
+                        <Border.RenderTransform>
+                            <TranslateTransform Y="-284" />
+                        </Border.RenderTransform>
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Classes="emphasis" FontSize="15" Text="{DynamicResource Ui_CpuBenchmark}" />
+                                    <TextBlock
+                                        Classes="label"
+                                        Text="{Binding BenchmarkStatusText}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    Spacing="8">
+                                    <Button
+                                        Classes="tool-action"
+                                        Click="CpuBenchmarkRun_Click"
+                                        Content="{Binding BenchmarkStartButtonText}"
+                                        IsEnabled="{Binding IsBenchmarkStartEnabled}" />
+                                    <Button
+                                        Classes="tool-action"
+                                        Click="CpuBenchmarkCancel_Click"
+                                        Content="{DynamicResource Ui_Cancel}"
+                                        IsVisible="{Binding IsBenchmarkCancelVisible}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Mode}" />
+                                    <ComboBox
+                                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                                        SelectedIndex="{Binding SelectedBenchmarkModeIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="{DynamicResource Ui_SingleCore}" />
+                                        <ComboBoxItem Content="{DynamicResource Ui_MultiCore}" />
+                                        <ComboBoxItem Content="{DynamicResource Ui_Custom}" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Seconds}" />
+                                    <NumericUpDown
+                                        Minimum="2"
+                                        Maximum="120"
+                                        Increment="1"
+                                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                                        Value="{Binding BenchmarkDurationSeconds, Mode=TwoWay}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="3">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Cores}" />
+                                    <NumericUpDown
+                                        Minimum="1"
+                                        Maximum="{Binding BenchmarkMaxWorkerCount}"
+                                        Increment="1"
+                                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                                        Value="{Binding BenchmarkCustomWorkerCount, Mode=TwoWay}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                                <Border Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Score}" />
+                                        <TextBlock Classes="value" FontSize="22" Text="{Binding BenchmarkScoreText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="1" Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Throughput}" />
+                                        <TextBlock Classes="small-value" Text="{Binding BenchmarkThroughputText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Threads}" />
+                                        <TextBlock Classes="small-value" Text="{Binding BenchmarkThreadsText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="3" Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Duration}" />
+                                        <TextBlock Classes="small-value" Text="{Binding BenchmarkDurationText}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid Grid.Row="3" RowDefinitions="Auto,Auto" RowSpacing="5">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Progress}" />
+                                    <TextBlock Grid.Column="1" Classes="label" Text="{Binding BenchmarkProgressText}" />
+                                </Grid>
+                                <ProgressBar
+                                    Grid.Row="1"
+                                    Height="5"
+                                    Minimum="0"
+                                    Maximum="100"
+                                    Value="{Binding BenchmarkProgressValue}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+            </ScrollViewer>
+            </Grid>
+            </Border>
+        </Grid>
+
+        <Grid
+            Background="#D8070A0F"
+            IsVisible="{Binding IsStartupOverlayVisible}"
+            Opacity="{Binding StartupOverlayOpacity}">
+            <StackPanel
+                Width="764"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="30">
+                <Border
+                    Width="252"
+                    Height="108"
+                    HorizontalAlignment="Center"
+                    Padding="26,22"
+                    Background="#8A1C2530"
+                    BorderBrush="{DynamicResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <local:LoadingPulseBars
+                        IsVisible="{Binding IsStartupOverlayVisible}"
+                        PrimaryBrush="{StaticResource BlueBrush}"
+                        SecondaryBrush="{StaticResource GreenBrush}"
+                        TertiaryBrush="{StaticResource AmberBrush}"
+                        TrackBrush="{DynamicResource PanelStrongBrush}" />
+                </Border>
+
+                <StackPanel Spacing="8">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="38"
+                        FontWeight="SemiLight"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        MaxWidth="764"
+                        Text="{DynamicResource Ui_StartupTitle}"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="18"
+                        Foreground="{DynamicResource MutedTextBrush}"
+                        MaxWidth="720"
+                        Text="{DynamicResource Ui_StartupSubtitle}"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Border
+                    HorizontalAlignment="Stretch"
+                    Padding="17,13"
+                    Background="#661C222B"
+                    BorderBrush="{DynamicResource PanelStrokeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="13">
+                        <Ellipse
+                            Width="12"
+                            Height="12"
+                            Margin="0,4,0,0"
+                            VerticalAlignment="Top"
+                            Fill="{StaticResource AmberBrush}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            FontSize="16"
+                            Foreground="{DynamicResource MutedTextBrush}"
+                            Text="{Binding StartupStatusText}"
+                            TextWrapping="Wrap" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -1,14 +1,15 @@
+using LibreHardwareMonitor.Hardware;
+using Microsoft.Win32.SafeHandles;
+using RemoSystemProfiler.Core;
 using System.Management;
-using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
-using Microsoft.Win32.SafeHandles;
-using LibreHardwareMonitor.Hardware;
+using System.Text.RegularExpressions;
 using LhmPawnIo = LibreHardwareMonitor.PawnIo.PawnIo;
 
-namespace RemoSystemProfiler;
+namespace RemoSystemProfiler.Backends.Windows;
 
-public sealed class HardwareMonitorReader : IDisposable
+public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 {
     private static readonly Regex CoreNumberRegex = new(@"Core\s*#?\s*(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -21,10 +22,13 @@ public sealed class HardwareMonitorReader : IDisposable
         IsMotherboardEnabled = true
     };
     private readonly PdhCpuFrequencyReader _cpuFrequencyReader = new();
+    private readonly WindowsLogicalProcessorLoadReader _logicalProcessorLoadReader = new();
 
     private bool _opened;
 
     private sealed record CpuTopology(int PhysicalCores, int LogicalProcessors);
+
+    public string Name => "Windows LibreHardwareMonitor";
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -181,8 +185,10 @@ public sealed class HardwareMonitorReader : IDisposable
         }
 
         ISensor[] sensors = ActiveSensors(cpu);
-        IReadOnlyList<CoreReading> cores = BuildCoreReadings(sensors);
-        CpuTopology topology = ReadCpuTopology(cores.Count);
+        IReadOnlyList<CoreReading> sensorCores = BuildCoreReadings(sensors);
+        CpuTopology topology = ReadCpuTopology(sensorCores.Count);
+        IReadOnlyList<CoreReading> cores = _logicalProcessorLoadReader.ReadLoadPercentages(topology.LogicalProcessors)
+            ?? NormalizeCoreReadings(sensorCores, topology.LogicalProcessors);
         float averageLoad = FindSensor(sensors, SensorType.Load, "CPU Total")?.Value
             ?? FindSensor(sensors, SensorType.Load, "Total")?.Value
             ?? Average(cores.Select(core => (float)core.LoadPercent));
@@ -352,11 +358,18 @@ public sealed class HardwareMonitorReader : IDisposable
     private static IReadOnlyList<CoreReading> BuildCoreReadings(IReadOnlyList<ISensor> sensors)
     {
         Dictionary<int, int> loads = new();
+        HashSet<int> usedIndexes = [];
         int fallbackIndex = 0;
         foreach (ISensor sensor in SensorsOfType(sensors, SensorType.Load).Where(IsCoreNamed).OrderBy(sensor => sensor.Index).ThenBy(sensor => sensor.Name))
         {
             int index = TryGetCoreIndex(sensor.Name) ?? fallbackIndex;
-            fallbackIndex++;
+            if (usedIndexes.Contains(index))
+            {
+                index = NextAvailableCoreIndex(usedIndexes, ref fallbackIndex);
+            }
+
+            usedIndexes.Add(index);
+            fallbackIndex = Math.Max(fallbackIndex, index + 1);
             loads[index] = (int)Math.Round(Math.Clamp(sensor.Value.GetValueOrDefault(), 0, 100));
         }
 
@@ -364,6 +377,50 @@ public sealed class HardwareMonitorReader : IDisposable
             .OrderBy(pair => pair.Key)
             .Select(pair => new CoreReading(pair.Key, pair.Value))
             .ToArray();
+    }
+
+    private static IReadOnlyList<CoreReading> NormalizeCoreReadings(IReadOnlyList<CoreReading> readings, int logicalProcessorCount)
+    {
+        if (logicalProcessorCount <= 0 || readings.Count == logicalProcessorCount)
+        {
+            return readings;
+        }
+
+        if (logicalProcessorCount <= readings.Count)
+        {
+            return readings
+                .OrderBy(reading => reading.Index)
+                .Take(logicalProcessorCount)
+                .Select((reading, index) => new CoreReading(index, reading.LoadPercent))
+                .ToArray();
+        }
+
+        if (readings.Count == 0)
+        {
+            return Enumerable.Range(0, logicalProcessorCount)
+                .Select(index => new CoreReading(index, 0))
+                .ToArray();
+        }
+
+        CoreReading[] ordered = readings.OrderBy(reading => reading.Index).ToArray();
+        CoreReading[] normalized = new CoreReading[logicalProcessorCount];
+        for (int index = 0; index < normalized.Length; index++)
+        {
+            int sourceIndex = Math.Min(ordered.Length - 1, (int)(index * ordered.Length / (double)logicalProcessorCount));
+            normalized[index] = new CoreReading(index, ordered[sourceIndex].LoadPercent);
+        }
+
+        return normalized;
+    }
+
+    private static int NextAvailableCoreIndex(HashSet<int> usedIndexes, ref int fallbackIndex)
+    {
+        while (usedIndexes.Contains(fallbackIndex))
+        {
+            fallbackIndex++;
+        }
+
+        return fallbackIndex++;
     }
 
     private static IReadOnlyList<MetricReading> BuildMetricReadings(
@@ -585,23 +642,4 @@ public sealed class HardwareMonitorReader : IDisposable
     {
         return (float)(bytes / 1024d / 1024d / 1024d);
     }
-}
-
-public readonly record struct HardwareMonitorReadResult(
-    bool IsAvailable,
-    SystemSnapshot? Snapshot,
-    string Message,
-    bool RequiresAdministrator,
-    SensorDriverStatus DriverStatus)
-{
-    public static HardwareMonitorReadResult Available(SystemSnapshot snapshot, bool requiresAdministrator) =>
-        new(
-            true,
-            snapshot,
-            requiresAdministrator ? "Run as administrator for full hardware sensors" : snapshot.DriverStatus.SummaryText,
-            requiresAdministrator,
-            snapshot.DriverStatus);
-
-    public static HardwareMonitorReadResult Unavailable(string message, SensorDriverStatus driverStatus) =>
-        new(false, null, message, false, driverStatus);
 }
