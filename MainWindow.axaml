@@ -165,72 +165,65 @@
             <Border
                 Classes="overview-card"
                 HorizontalAlignment="Stretch"
-                MinHeight="68"
-                Padding="9,7"
+                MinHeight="56"
+                Padding="6"
                 Background="{DynamicResource PanelBrush}"
                 BorderBrush="{Binding AccentBrush}"
                 BorderThickness="2,1,1,1"
-                CornerRadius="5">
-                <Grid ColumnDefinitions="66,*" ColumnSpacing="9">
-                    <Border
-                        Width="62"
-                        Height="38"
-                        Background="{DynamicResource ChartBackgroundBrush}"
-                        BorderBrush="{DynamicResource PanelStrokeBrush}"
-                        BorderThickness="1"
-                        CornerRadius="3">
-                        <local:Sparkline
-                            Margin="4"
-                            Stroke="{Binding AccentBrush}"
-                            StrokeThickness="2"
-                            Value="{Binding GaugeValue}" />
-                    </Border>
-                    <StackPanel Grid.Column="1" Spacing="1">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                            <TextBlock
-                                Classes="emphasis"
-                                FontSize="16"
-                                Text="{Binding Title}"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                Grid.Column="1"
-                                Classes="small-value"
-                                Text="{Binding PrimaryText}" />
-                        </Grid>
-                        <TextBlock
-                            FontSize="12"
-                            Foreground="{DynamicResource MutedTextBrush}"
-                            Text="{Binding SecondaryText}"
-                            TextTrimming="CharacterEllipsis" />
-                        <TextBlock
-                            FontSize="11"
-                            Foreground="{DynamicResource SubtleTextBrush}"
-                            Text="{Binding DetailText}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </DataTemplate>
-
-        <DataTemplate x:Key="CompactOverviewTemplate" x:DataType="local:OverviewItemViewModel">
-            <Border
-                Classes="compact-overview-card"
-                HorizontalAlignment="Stretch"
-                MinHeight="56"
-                Padding="4"
-                Background="{DynamicResource PanelBrush}"
-                BorderBrush="{Binding AccentBrush}"
-                BorderThickness="1"
                 CornerRadius="5"
                 ToolTip.Tip="{Binding DetailText}">
-                <local:ThermometerGauge
-                    Width="18"
-                    Height="46"
-                    HorizontalAlignment="Center"
-                    Fill="{Binding AccentBrush}"
-                    StrokeBrush="{DynamicResource PanelStrokeBrush}"
-                    TrackBrush="{DynamicResource ChartBackgroundBrush}"
-                    Value="{Binding GaugeValue}" />
+                <Grid>
+                    <Grid
+                        ColumnDefinitions="66,*"
+                        ColumnSpacing="9"
+                        IsVisible="{Binding IsExpandedView}">
+                        <Border
+                            Width="62"
+                            Height="38"
+                            Background="{DynamicResource ChartBackgroundBrush}"
+                            BorderBrush="{DynamicResource PanelStrokeBrush}"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                            <local:Sparkline
+                                Margin="4"
+                                Stroke="{Binding AccentBrush}"
+                                StrokeThickness="2"
+                                Value="{Binding GaugeValue}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="1">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock
+                                    Classes="emphasis"
+                                    FontSize="16"
+                                    Text="{Binding Title}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Classes="small-value"
+                                    Text="{Binding PrimaryText}" />
+                            </Grid>
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{DynamicResource MutedTextBrush}"
+                                Text="{Binding SecondaryText}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                FontSize="11"
+                                Foreground="{DynamicResource SubtleTextBrush}"
+                                Text="{Binding DetailText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                    <local:ThermometerGauge
+                        Width="18"
+                        Height="46"
+                        HorizontalAlignment="Center"
+                        Fill="{Binding AccentBrush}"
+                        IsVisible="{Binding IsCompact}"
+                        StrokeBrush="{DynamicResource PanelStrokeBrush}"
+                        TrackBrush="{DynamicResource ChartBackgroundBrush}"
+                        Value="{Binding GaugeValue}" />
+                </Grid>
             </Border>
         </DataTemplate>
 
@@ -495,24 +488,9 @@
                     <Grid Grid.Row="2">
                         <local:ScrollFadeHost
                             BottomFade="{DynamicResource SidebarFadeBottomBrush}"
-                            IsVisible="{Binding IsSidebarExpanded}"
                             TopFade="{DynamicResource SidebarFadeTopBrush}">
                             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
                                 <ItemsControl ItemTemplate="{StaticResource OverviewTemplate}" ItemsSource="{Binding OverviewItems}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Spacing="6" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </local:ScrollFadeHost>
-                        <local:ScrollFadeHost
-                            BottomFade="{DynamicResource SidebarFadeBottomBrush}"
-                            IsVisible="{Binding IsSidebarCompact}"
-                            TopFade="{DynamicResource SidebarFadeTopBrush}">
-                            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
-                                <ItemsControl ItemTemplate="{StaticResource CompactOverviewTemplate}" ItemsSource="{Binding OverviewItems}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Spacing="6" />
@@ -812,6 +790,7 @@
                     BorderThickness="1"
                     CornerRadius="8">
                     <local:LoadingPulseBars
+                        IsVisible="{Binding IsStartupOverlayVisible}"
                         PrimaryBrush="{StaticResource BlueBrush}"
                         SecondaryBrush="{StaticResource GreenBrush}"
                         TertiaryBrush="{StaticResource AmberBrush}"

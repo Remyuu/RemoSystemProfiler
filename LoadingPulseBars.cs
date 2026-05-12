@@ -21,6 +21,7 @@ public sealed class LoadingPulseBars : Control
 
     private readonly DispatcherTimer _timer = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
+    private bool _isAttached;
 
     static LoadingPulseBars()
     {
@@ -29,13 +30,22 @@ public sealed class LoadingPulseBars : Control
             PrimaryBrushProperty,
             SecondaryBrushProperty,
             TertiaryBrushProperty);
+        IsVisibleProperty.Changed.AddClassHandler<LoadingPulseBars>((control, _) => control.UpdateTimerState());
     }
 
     public LoadingPulseBars()
     {
         _timer.Tick += Timer_Tick;
-        AttachedToVisualTree += (_, _) => _timer.Start();
-        DetachedFromVisualTree += (_, _) => _timer.Stop();
+        AttachedToVisualTree += (_, _) =>
+        {
+            _isAttached = true;
+            UpdateTimerState();
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _isAttached = false;
+            _timer.Stop();
+        };
     }
 
     public IBrush? TrackBrush
@@ -112,5 +122,16 @@ public sealed class LoadingPulseBars : Control
     private void Timer_Tick(object? sender, EventArgs e)
     {
         InvalidateVisual();
+    }
+
+    private void UpdateTimerState()
+    {
+        if (_isAttached && IsVisible)
+        {
+            _timer.Start();
+            return;
+        }
+
+        _timer.Stop();
     }
 }

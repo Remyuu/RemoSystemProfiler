@@ -1,10 +1,10 @@
+using LibreHardwareMonitor.Hardware;
+using Microsoft.Win32.SafeHandles;
+using RemoSystemProfiler.Core;
 using System.Management;
-using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
-using Microsoft.Win32.SafeHandles;
-using LibreHardwareMonitor.Hardware;
-using RemoSystemProfiler.Core;
+using System.Text.RegularExpressions;
 using LhmPawnIo = LibreHardwareMonitor.PawnIo.PawnIo;
 
 namespace RemoSystemProfiler.Backends.Windows;

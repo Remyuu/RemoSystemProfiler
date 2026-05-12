@@ -1,10 +1,10 @@
+using Avalonia;
+using Avalonia.Media;
+using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Avalonia;
-using Avalonia.Media;
-using RemoSystemProfiler.Core;
 
 namespace RemoSystemProfiler;
 
@@ -257,8 +257,8 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
 
     private void ApplySummary(SensorGroupReading reading)
     {
-        MetricReading[] metrics = reading.Metrics.ToArray();
-        if (metrics.Length == 0)
+        IReadOnlyList<MetricReading> metrics = reading.Metrics;
+        if (metrics.Count == 0)
         {
             SetSummary("--", "--", "--", "--", Localization.SummaryLabel("sensors"), "0");
             return;
@@ -269,43 +269,43 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
             case "temperature":
                 SetSummary(
                     Localization.SummaryLabel("peak"),
-                    MetricFormatter.FormatTemperature(metrics.Max(metric => metric.Value)),
+                    MetricFormatter.FormatTemperature(MaxMetric(metrics)),
                     Localization.SummaryLabel("avg"),
-                    MetricFormatter.FormatTemperature(metrics.Average(metric => metric.Value)),
+                    MetricFormatter.FormatTemperature(AverageMetric(metrics)),
                     Localization.SummaryLabel("sensors"),
-                    metrics.Length.ToString());
+                    metrics.Count.ToString());
                 break;
             case "power":
                 MetricReading? package = metrics.FirstOrDefault(metric => metric.Name.Contains("Package", StringComparison.OrdinalIgnoreCase))
                     ?? metrics.FirstOrDefault(metric => metric.Name.Contains("Total", StringComparison.OrdinalIgnoreCase));
                 SetSummary(
                     package is null ? Localization.SummaryLabel("total") : Localization.SummaryLabel("package"),
-                    package?.ValueText ?? MetricFormatter.FormatPower(metrics.Sum(metric => metric.Value)),
+                    package?.ValueText ?? MetricFormatter.FormatPower(SumMetric(metrics)),
                     Localization.SummaryLabel("peakRail"),
-                    MetricFormatter.FormatPower(metrics.Max(metric => metric.Value)),
+                    MetricFormatter.FormatPower(MaxMetric(metrics)),
                     Localization.SummaryLabel("sensors"),
-                    metrics.Length.ToString());
+                    metrics.Count.ToString());
                 break;
             case "clock":
                 SetSummary(
                     Localization.SummaryLabel("avg"),
-                    FormatClock(metrics.Average(metric => metric.Value)),
+                    FormatClock(AverageMetric(metrics)),
                     Localization.SummaryLabel("max"),
-                    FormatClock(metrics.Max(metric => metric.Value)),
+                    FormatClock(MaxMetric(metrics)),
                     Localization.SummaryLabel("sensors"),
-                    metrics.Length.ToString());
+                    metrics.Count.ToString());
                 break;
             case "voltage":
                 SetSummary(
                     Localization.SummaryLabel("max"),
-                    FormatVoltage(metrics.Max(metric => metric.Value)),
+                    FormatVoltage(MaxMetric(metrics)),
                     Localization.SummaryLabel("avg"),
-                    FormatVoltage(metrics.Average(metric => metric.Value)),
+                    FormatVoltage(AverageMetric(metrics)),
                     Localization.SummaryLabel("sensors"),
-                    metrics.Length.ToString());
+                    metrics.Count.ToString());
                 break;
             default:
-                SetSummary(Localization.SummaryLabel("primary"), metrics[0].ValueText, Localization.SummaryLabel("sensors"), metrics.Length.ToString(), "--", "--");
+                SetSummary(Localization.SummaryLabel("primary"), metrics[0].ValueText, Localization.SummaryLabel("sensors"), metrics.Count.ToString(), "--", "--");
                 break;
         }
     }
@@ -331,6 +331,30 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
         : $"{valueMHz:0} MHz";
 
     private static string FormatVoltage(double value) => $"{value:0.###} V";
+
+    private static float MaxMetric(IReadOnlyList<MetricReading> metrics)
+    {
+        float max = metrics[0].Value;
+        for (int i = 1; i < metrics.Count; i++)
+        {
+            max = Math.Max(max, metrics[i].Value);
+        }
+
+        return max;
+    }
+
+    private static float SumMetric(IReadOnlyList<MetricReading> metrics)
+    {
+        float sum = 0;
+        for (int i = 0; i < metrics.Count; i++)
+        {
+            sum += metrics[i].Value;
+        }
+
+        return sum;
+    }
+
+    private static float AverageMetric(IReadOnlyList<MetricReading> metrics) => SumMetric(metrics) / metrics.Count;
 }
 
 internal static class DashboardStatus
@@ -352,37 +376,83 @@ internal static class DashboardStatus
         return warnings > 0 ? Localization.WarningCount(warnings) : Localization.SensorCount(metrics.Count);
     }
 
-    public static string DeviceStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
+    public static string DeviceStatus(
+        IReadOnlyList<MetricReading> primaryMetrics,
+        IReadOnlyList<MetricReading> secondaryMetrics,
+        float hotThreshold,
+        float warmThreshold)
     {
-        MetricReading[] readings = metrics.ToArray();
-        if (readings.Length == 0)
+        int count = primaryMetrics.Count + secondaryMetrics.Count;
+        if (count == 0)
         {
             return Localization.NoSensors;
         }
 
-        string thermal = ThermalStatus(readings, hotThreshold, warmThreshold);
+        string thermal = ThermalStatus(primaryMetrics, secondaryMetrics, hotThreshold, warmThreshold);
         if (!string.IsNullOrEmpty(thermal))
         {
             return thermal;
         }
 
-        int warnings = readings.Count(IsGaugeWarning);
+        int warnings = CountGaugeWarnings(primaryMetrics) + CountGaugeWarnings(secondaryMetrics);
         return warnings > 0 ? Localization.WarningCount(warnings) : Localization.Normal;
     }
 
-    private static string ThermalStatus(IEnumerable<MetricReading> metrics, float hotThreshold, float warmThreshold)
+    private static string ThermalStatus(IReadOnlyList<MetricReading> metrics, float hotThreshold, float warmThreshold)
     {
-        MetricReading[] temperatures = metrics
-            .Where(metric => metric.Kind.Equals("Temperature", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        int hot = temperatures.Count(metric => metric.Value >= hotThreshold);
+        int hot = CountTemperaturesAtOrAbove(metrics, hotThreshold);
         if (hot > 0)
         {
             return Localization.HotCount(hot);
         }
 
-        int warm = temperatures.Count(metric => metric.Value >= warmThreshold);
+        int warm = CountTemperaturesAtOrAbove(metrics, warmThreshold);
         return warm > 0 ? Localization.WarmCount(warm) : string.Empty;
+    }
+
+    private static string ThermalStatus(
+        IReadOnlyList<MetricReading> primaryMetrics,
+        IReadOnlyList<MetricReading> secondaryMetrics,
+        float hotThreshold,
+        float warmThreshold)
+    {
+        int hot = CountTemperaturesAtOrAbove(primaryMetrics, hotThreshold) + CountTemperaturesAtOrAbove(secondaryMetrics, hotThreshold);
+        if (hot > 0)
+        {
+            return Localization.HotCount(hot);
+        }
+
+        int warm = CountTemperaturesAtOrAbove(primaryMetrics, warmThreshold) + CountTemperaturesAtOrAbove(secondaryMetrics, warmThreshold);
+        return warm > 0 ? Localization.WarmCount(warm) : string.Empty;
+    }
+
+    private static int CountTemperaturesAtOrAbove(IReadOnlyList<MetricReading> metrics, float threshold)
+    {
+        int count = 0;
+        for (int i = 0; i < metrics.Count; i++)
+        {
+            MetricReading metric = metrics[i];
+            if (metric.Kind.Equals("Temperature", StringComparison.OrdinalIgnoreCase) && metric.Value >= threshold)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountGaugeWarnings(IReadOnlyList<MetricReading> metrics)
+    {
+        int count = 0;
+        for (int i = 0; i < metrics.Count; i++)
+        {
+            if (IsGaugeWarning(metrics[i]))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static bool IsGaugeWarning(MetricReading metric)
@@ -427,6 +497,7 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
     private string _detailText = "--";
     private IBrush _accentBrush = DashboardBrushes.Blue;
     private double _gaugeValue;
+    private bool _isCompact;
 
     public OverviewItemViewModel(OverviewReading reading)
     {
@@ -448,6 +519,20 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
 
     public double GaugeValue { get => _gaugeValue; private set => SetProperty(ref _gaugeValue, value); }
 
+    public bool IsCompact
+    {
+        get => _isCompact;
+        set
+        {
+            if (SetProperty(ref _isCompact, value))
+            {
+                RaisePropertyChanged(nameof(IsExpandedView));
+            }
+        }
+    }
+
+    public bool IsExpandedView => !IsCompact;
+
     public void Update(OverviewReading reading)
     {
         Title = reading.Title;
@@ -461,6 +546,8 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
 
 public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
+    private static readonly IBrush[] LoadBrushCache = BuildLoadBrushCache();
+
     private string _loadText = "--";
     private IBrush _loadBrush = DashboardBrushes.Blue;
     private double _loadPercent;
@@ -486,7 +573,20 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
         LoadPercent = reading.LoadPercent;
     }
 
-    private static IBrush BuildLoadBrush(int loadPercent)
+    private static IBrush BuildLoadBrush(int loadPercent) => LoadBrushCache[Math.Clamp(loadPercent, 0, LoadBrushCache.Length - 1)];
+
+    private static IBrush[] BuildLoadBrushCache()
+    {
+        IBrush[] brushes = new IBrush[101];
+        for (int loadPercent = 0; loadPercent < brushes.Length; loadPercent++)
+        {
+            brushes[loadPercent] = BuildLoadBrushCore(loadPercent);
+        }
+
+        return brushes;
+    }
+
+    private static IBrush BuildLoadBrushCore(int loadPercent)
     {
         double t = Math.Clamp(loadPercent, 0, 100) / 100d;
         byte red = (byte)Math.Round(Lerp(0x37, 0xF9, t));
@@ -540,7 +640,8 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem
         TemperatureText = reading.TemperatureText;
         PowerText = reading.PowerText;
         StatusText = DashboardStatus.DeviceStatus(
-            reading.TemperatureSensors.Concat(reading.LoadSensors),
+            reading.TemperatureSensors,
+            reading.LoadSensors,
             85,
             75);
         DashboardCollection.SyncItems(
@@ -591,7 +692,8 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem, IDashboard
         Name = reading.Name;
         UsageText = reading.UsageText;
         StatusText = DashboardStatus.DeviceStatus(
-            reading.TemperatureSensors.Concat(reading.UsageSensors),
+            reading.TemperatureSensors,
+            reading.UsageSensors,
             60,
             50);
         DashboardCollection.SyncItems(
@@ -624,12 +726,12 @@ public static class DashboardCollection
         Action<TView, TData> update)
         where TKey : notnull
     {
-        TData[] incoming = data.ToArray();
-        bool sameShape = collection.Count == incoming.Length;
+        IReadOnlyList<TData> incoming = data as IReadOnlyList<TData> ?? data.ToArray();
+        bool sameShape = collection.Count == incoming.Count;
 
         if (sameShape)
         {
-            for (int i = 0; i < incoming.Length; i++)
+            for (int i = 0; i < incoming.Count; i++)
             {
                 if (!EqualityComparer<TKey>.Default.Equals(viewKey(collection[i]), dataKey(incoming[i])))
                 {
@@ -650,7 +752,7 @@ public static class DashboardCollection
             return;
         }
 
-        for (int i = 0; i < incoming.Length; i++)
+        for (int i = 0; i < incoming.Count; i++)
         {
             update(collection[i], incoming[i]);
         }

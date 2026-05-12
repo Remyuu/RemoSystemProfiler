@@ -1,5 +1,5 @@
-using System.Runtime.InteropServices;
 using RemoSystemProfiler.Core;
+using System.Runtime.InteropServices;
 
 namespace RemoSystemProfiler.Backends.Windows;
 

@@ -1,6 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -9,6 +6,9 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using RemoSystemProfiler.Backends.Windows;
 using RemoSystemProfiler.Core;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
 
 namespace RemoSystemProfiler;
 
@@ -29,6 +29,8 @@ public sealed partial class MainWindow : Window
     private readonly IHardwareMonitorBackend _backend = new WindowsHardwareMonitorBackend();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly MainWindowViewModel _viewModel = new();
+    private readonly List<OverviewReading> _overviewBuffer = new(capacity: 8);
+    private bool _isApplyingStoredSettings = true;
     private Task? _pollingTask;
     private int _pollIntervalMilliseconds = 1000;
     private double _lastExpandedSidebarWidth = SidebarExpandedWidth;
@@ -42,10 +44,13 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        ApplyStoredDashboardSettings(DashboardSettingsStore.Load());
         InitializeComponent();
         DataContext = _viewModel;
         Opened += OnOpened;
         Closed += OnClosed;
+        ApplyDashboardSelectionEffects();
+        _isApplyingStoredSettings = false;
         SizeChanged += OnWindowSizeChanged;
         _viewModel.UpdatedText = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
     }
@@ -122,7 +127,7 @@ public sealed partial class MainWindow : Window
         {
             while (!token.IsCancellationRequested)
             {
-                await ReadAndDispatchAsync(token).ConfigureAwait(false);
+                ReadAndDispatch(token);
                 await Task.Delay(TimeSpan.FromMilliseconds(_pollIntervalMilliseconds), token).ConfigureAwait(false);
             }
         }
@@ -132,9 +137,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task ReadAndDispatchAsync(CancellationToken token)
+    private void ReadAndDispatch(CancellationToken token)
     {
-        HardwareMonitorReadResult result = await Task.Run(_backend.Read, token).ConfigureAwait(false);
+        HardwareMonitorReadResult result = _backend.Read();
         if (token.IsCancellationRequested)
         {
             return;
@@ -293,71 +298,56 @@ public sealed partial class MainWindow : Window
 
     private void ShowOverview(SystemSnapshot snapshot)
     {
-        List<OverviewReading> readings = [];
+        _overviewBuffer.Clear();
         if (snapshot.Cpu is { } cpu)
         {
-            readings.Add(new("cpu", "CPU", cpu.AverageLoadText, cpu.ClockText, cpu.PackagePowerText, cpu.AverageLoadPercent, DashboardBrushes.Blue));
+            _overviewBuffer.Add(new("cpu", "CPU", cpu.AverageLoadText, cpu.ClockText, cpu.PackagePowerText, cpu.AverageLoadPercent, DashboardBrushes.Blue));
         }
 
         if (snapshot.Memory is { } memory)
         {
-            readings.Add(new("memory", Localization.OverviewMemory, memory.UsageText, memory.CapacityText, memory.TemperatureText, memory.UsageGauge, DashboardBrushes.Green));
+            _overviewBuffer.Add(new("memory", Localization.OverviewMemory, memory.UsageText, memory.CapacityText, memory.TemperatureText, memory.UsageGauge, DashboardBrushes.Green));
         }
 
         for (int i = 0; i < snapshot.Gpus.Count; i++)
         {
             GpuDeviceReading gpu = snapshot.Gpus[i];
-            readings.Add(new($"gpu:{gpu.Name}", Localization.OverviewGpu(i), gpu.LoadText, gpu.Name, $"{gpu.PowerText} | {gpu.TemperatureText}", gpu.LoadGauge, DashboardBrushes.Purple));
+            _overviewBuffer.Add(new($"gpu:{gpu.Name}", Localization.OverviewGpu(i), gpu.LoadText, gpu.Name, $"{gpu.PowerText} | {gpu.TemperatureText}", gpu.LoadGauge, DashboardBrushes.Purple));
         }
 
         for (int i = 0; i < snapshot.StorageDevices.Count; i++)
         {
             StorageDeviceReading storage = snapshot.StorageDevices[i];
-            readings.Add(new($"storage:{storage.Name}", Localization.OverviewDisk(i), storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, DashboardBrushes.Amber));
+            _overviewBuffer.Add(new($"storage:{storage.Name}", Localization.OverviewDisk(i), storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, DashboardBrushes.Amber));
         }
 
-        SyncDeviceCollection(_viewModel.OverviewItems, readings, reading => reading.Key, reading => new OverviewItemViewModel(reading));
+        SyncDeviceCollection(_viewModel.OverviewItems, _overviewBuffer, reading => reading.Key, reading => new OverviewItemViewModel(reading) { IsCompact = _viewModel.IsSidebarCompact });
+        ApplyOverviewLayoutMode();
     }
 
     private void ThemePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        RequestedThemeVariant = _viewModel.SelectedThemeIndex switch
-        {
-            1 => ThemeVariant.Light,
-            2 => ThemeVariant.Dark,
-            _ => ThemeVariant.Default
-        };
+        ApplyThemeSelection();
+        SaveDashboardSettings();
     }
 
     private void ChartRangePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        int selected = _viewModel.SelectedChartRangeIndex;
-        if (selected >= 0 && selected < ChartRangesSeconds.Length)
-        {
-            ChartHistorySettings.DisplaySeconds = ChartRangesSeconds[selected];
-        }
+        ApplyChartRangeSelection();
+        SaveDashboardSettings();
     }
 
     private void UpdateIntervalPicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        int selected = _viewModel.SelectedUpdateIntervalIndex;
-        if (selected >= 0 && selected < UpdateIntervalsSeconds.Length)
-        {
-            _pollIntervalMilliseconds = (int)Math.Round(UpdateIntervalsSeconds[selected] * 1000d);
-            ChartHistorySettings.SampleIntervalSeconds = _pollIntervalMilliseconds / 1000d;
-        }
+        ApplyUpdateIntervalSelection();
+        SaveDashboardSettings();
     }
 
     private void LanguagePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (!Localization.SetLanguageFromIndex(_viewModel.SelectedLanguageIndex))
+        if (!ApplyLanguageSelection())
         {
             return;
-        }
-
-        if (Application.Current?.Resources is { } resources)
-        {
-            Localization.ApplyToResources(resources);
         }
 
         _viewModel.RefreshLocalizedChrome();
@@ -369,6 +359,77 @@ public sealed partial class MainWindow : Window
         {
             _viewModel.RefreshWaitingText();
         }
+        SaveDashboardSettings();
+    }
+
+    private void ApplyStoredDashboardSettings(DashboardSettings settings)
+    {
+        _viewModel.SelectedChartRangeIndex = settings.ChartRangeIndex;
+        _viewModel.SelectedUpdateIntervalIndex = settings.UpdateIntervalIndex;
+        _viewModel.SelectedThemeIndex = settings.ThemeIndex;
+        _viewModel.SelectedLanguageIndex = settings.LanguageIndex;
+        ApplyLanguageSelection();
+    }
+
+    private void ApplyDashboardSelectionEffects()
+    {
+        ApplyThemeSelection();
+        ApplyChartRangeSelection();
+        ApplyUpdateIntervalSelection();
+    }
+
+    private void ApplyThemeSelection()
+    {
+        RequestedThemeVariant = _viewModel.SelectedThemeIndex switch
+        {
+            1 => ThemeVariant.Light,
+            2 => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
+    }
+
+    private void ApplyChartRangeSelection()
+    {
+        int selected = _viewModel.SelectedChartRangeIndex;
+        if (selected >= 0 && selected < ChartRangesSeconds.Length)
+        {
+            ChartHistorySettings.DisplaySeconds = ChartRangesSeconds[selected];
+        }
+    }
+
+    private void ApplyUpdateIntervalSelection()
+    {
+        int selected = _viewModel.SelectedUpdateIntervalIndex;
+        if (selected >= 0 && selected < UpdateIntervalsSeconds.Length)
+        {
+            _pollIntervalMilliseconds = (int)Math.Round(UpdateIntervalsSeconds[selected] * 1000d);
+            ChartHistorySettings.SampleIntervalSeconds = _pollIntervalMilliseconds / 1000d;
+        }
+    }
+
+    private bool ApplyLanguageSelection()
+    {
+        bool changed = Localization.SetLanguageFromIndex(_viewModel.SelectedLanguageIndex);
+        if (changed && Application.Current?.Resources is { } resources)
+        {
+            Localization.ApplyToResources(resources);
+        }
+
+        return changed;
+    }
+
+    private void SaveDashboardSettings()
+    {
+        if (_isApplyingStoredSettings)
+        {
+            return;
+        }
+
+        DashboardSettingsStore.Save(new DashboardSettings(
+            _viewModel.SelectedChartRangeIndex,
+            _viewModel.SelectedUpdateIntervalIndex,
+            _viewModel.SelectedThemeIndex,
+            _viewModel.SelectedLanguageIndex));
     }
 
     private async void SidebarToggle_Click(object? sender, RoutedEventArgs e)
@@ -493,6 +554,15 @@ public sealed partial class MainWindow : Window
     {
         _viewModel.IsSidebarCompact = compact;
         _viewModel.SidebarMargin = new Avalonia.Thickness(8, 10);
+        ApplyOverviewLayoutMode();
+    }
+
+    private void ApplyOverviewLayoutMode()
+    {
+        for (int i = 0; i < _viewModel.OverviewItems.Count; i++)
+        {
+            _viewModel.OverviewItems[i].IsCompact = _viewModel.IsSidebarCompact;
+        }
     }
 
     private static SensorGroupReading[] BuildCpuSensorGroups(CpuDeviceReading? cpu) =>

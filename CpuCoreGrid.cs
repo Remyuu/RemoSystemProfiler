@@ -1,10 +1,10 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
 using System.Collections;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Media;
 
 namespace RemoSystemProfiler;
 

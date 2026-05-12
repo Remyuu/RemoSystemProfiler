@@ -1,0 +1,43 @@
+<Project>
+  <Target Name="PrepareVersionedManifests"
+          BeforeTargets="_SetEmbeddedWin32ManifestProperties;_CalculateInputsForGenerateCurrentProjectAppxManifest"
+          Condition="'$(MSBuildProjectName)' == 'RemoSystemProfiler' and '$(SoftwarePackageVersion)' != ''">
+    <PropertyGroup>
+      <Win32ManifestPath>$(MSBuildProjectDirectory)\app.manifest</Win32ManifestPath>
+      <WindowsPackageManifestPath>$(MSBuildProjectDirectory)\Package.appxmanifest</WindowsPackageManifestPath>
+      <VersionedWin32Manifest>$(IntermediateOutputPath)app.versioned.manifest</VersionedWin32Manifest>
+      <VersionedPackageManifest>$(IntermediateOutputPath)Package.versioned.appxmanifest</VersionedPackageManifest>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+
+    <Copy Condition="Exists('$(Win32ManifestPath)')"
+          SourceFiles="$(Win32ManifestPath)"
+          DestinationFiles="$(VersionedWin32Manifest)" />
+    <XmlPoke Condition="Exists('$(VersionedWin32Manifest)')"
+             XmlInputPath="$(VersionedWin32Manifest)"
+             Query="/*[local-name()='assembly']/*[local-name()='assemblyIdentity']/@version"
+             Value="$(SoftwarePackageVersion)" />
+
+    <Copy Condition="'$(WindowsPackageType)' != 'None' and Exists('$(WindowsPackageManifestPath)')"
+          SourceFiles="$(WindowsPackageManifestPath)"
+          DestinationFiles="$(VersionedPackageManifest)" />
+    <XmlPoke Condition="'$(WindowsPackageType)' != 'None' and Exists('$(VersionedPackageManifest)')"
+             XmlInputPath="$(VersionedPackageManifest)"
+             Query="/*[local-name()='Package']/*[local-name()='Identity']/@Version"
+             Value="$(SoftwarePackageVersion)" />
+
+    <PropertyGroup Condition="Exists('$(VersionedWin32Manifest)')">
+      <ApplicationManifest>$(VersionedWin32Manifest)</ApplicationManifest>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Manifest Condition="Exists('$(VersionedWin32Manifest)')" Remove="@(Manifest)" />
+      <Manifest Condition="Exists('$(VersionedWin32Manifest)')" Include="$(VersionedWin32Manifest)" />
+      <AppxManifest Condition="'$(WindowsPackageType)' != 'None' and Exists('$(VersionedPackageManifest)')" Remove="@(AppxManifest)" />
+      <AppxManifest Condition="'$(WindowsPackageType)' != 'None' and Exists('$(VersionedPackageManifest)')" Include="$(VersionedPackageManifest)" />
+      <FileWrites Condition="Exists('$(VersionedWin32Manifest)')" Include="$(VersionedWin32Manifest)" />
+      <FileWrites Condition="Exists('$(VersionedPackageManifest)')" Include="$(VersionedPackageManifest)" />
+    </ItemGroup>
+  </Target>
+</Project>
