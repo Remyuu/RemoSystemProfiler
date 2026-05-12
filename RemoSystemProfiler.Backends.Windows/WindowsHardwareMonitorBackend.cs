@@ -1,4 +1,5 @@
 using LibreHardwareMonitor.Hardware;
+using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using RemoSystemProfiler.Core;
 using System.Management;
@@ -127,13 +128,16 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
     {
         try
         {
-            bool installed = LhmPawnIo.IsInstalled;
+            bool lhmInstalled = LhmPawnIo.IsInstalled;
+            bool installRecordFound = HasPawnIoInstallRecord();
+            bool installed = lhmInstalled || installRecordFound;
             bool loaded = CanOpenPawnIoDevice();
-            string? version = LhmPawnIo.Version?.ToString();
-            string message = (installed, loaded) switch
+            string? version = ReadPawnIoVersion();
+            string message = (installed, loaded, lhmInstalled) switch
             {
-                (true, true) => string.IsNullOrWhiteSpace(version) ? "PawnIO ready" : $"PawnIO {version}",
-                (true, false) => "PawnIO installed but not loaded; restart as administrator",
+                (true, true, _) => string.IsNullOrWhiteSpace(version) ? "PawnIO ready" : $"PawnIO {version}",
+                (true, false, true) => "PawnIO installed but not loaded; restart as administrator",
+                (true, false, false) => "PawnIO installation found but the driver is unavailable; uninstall PawnIO, then install again",
                 _ => "PawnIO missing; install it for motherboard, fan, and low-level sensors"
             };
 
@@ -143,6 +147,67 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         {
             return new SensorDriverStatus(false, false, null, $"PawnIO status unavailable: {ex.Message}");
         }
+    }
+
+    private static string? ReadPawnIoVersion()
+    {
+        try
+        {
+            return LhmPawnIo.Version?.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool HasPawnIoInstallRecord()
+    {
+        return HasPawnIoServiceKey()
+            || HasPawnIoUninstallEntry(RegistryView.Registry64)
+            || HasPawnIoUninstallEntry(RegistryView.Registry32);
+    }
+
+    private static bool HasPawnIoServiceKey()
+    {
+        try
+        {
+            using RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\PawnIO");
+            return key is not null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasPawnIoUninstallEntry(RegistryView view)
+    {
+        try
+        {
+            using RegistryKey baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+            using RegistryKey? uninstallKey = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
+            if (uninstallKey is null)
+            {
+                return false;
+            }
+
+            foreach (string subKeyName in uninstallKey.GetSubKeyNames())
+            {
+                using RegistryKey? appKey = uninstallKey.OpenSubKey(subKeyName);
+                if (appKey?.GetValue("DisplayName") is string displayName
+                    && displayName.Contains("PawnIO", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
     }
 
     private static bool CanOpenPawnIoDevice()

@@ -9,7 +9,7 @@
     Width="1100"
     Height="720"
     MinWidth="760"
-    MinHeight="540"
+    MinHeight="480"
     ExtendClientAreaTitleBarHeightHint="32"
     ExtendClientAreaToDecorationsHint="True"
     TransparencyLevelHint="Mica, AcrylicBlur, Blur"
@@ -123,6 +123,28 @@
         </Style>
         <Style Selector="Button.glass-pill:pressed">
             <Setter Property="Background" Value="#20FFFFFF" />
+        </Style>
+        <Style Selector="Button.view-toggle">
+            <Setter Property="MinWidth" Value="42" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.view-toggle:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelStrongHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+        </Style>
+        <Style Selector="Button.view-toggle:pressed">
+            <Setter Property="Background" Value="{DynamicResource ChartBackgroundBrush}" />
         </Style>
         <Style Selector="Button.tool-action">
             <Setter Property="Height" Value="28" />
@@ -621,8 +643,62 @@
                                                             <TextBlock x:Name="FlyoutWebsiteLabel" Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
                                                             <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
                                                             <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
-                                                            <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
+                                                            <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu/RemoSystemProfiler" />
                                                         </Grid>
+                                                        <StackPanel Spacing="5">
+                                                            <Button
+                                                                x:Name="FlyoutCheckUpdatesButton"
+                                                                Click="CheckUpdates_Click"
+                                                                Content="{DynamicResource Ui_CheckForUpdates}"
+                                                                IsEnabled="{Binding IsUpdateCheckAvailable}" />
+                                                            <TextBlock
+                                                                FontSize="11"
+                                                                Foreground="{DynamicResource MutedTextBrush}"
+                                                                Text="{Binding UpdateStatusText}"
+                                                                TextWrapping="Wrap" />
+                                                            <Button
+                                                                x:Name="FlyoutOpenReleaseButton"
+                                                                Classes="link"
+                                                                Click="OpenLatestRelease_Click"
+                                                                Content="{DynamicResource Ui_OpenRelease}"
+                                                                IsVisible="{Binding IsOpenReleaseVisible}" />
+                                                            <Button
+                                                                x:Name="FlyoutInstallUpdateButton"
+                                                                Click="InstallUpdate_Click"
+                                                                Content="{DynamicResource Ui_DownloadAndInstall}"
+                                                                IsEnabled="{Binding IsUpdateInstallAvailable}"
+                                                                IsVisible="{Binding IsInstallUpdateVisible}" />
+                                                            <Grid
+                                                                ColumnDefinitions="*,Auto"
+                                                                ColumnSpacing="8"
+                                                                IsVisible="{Binding IsUpdateProgressVisible}">
+                                                                <ProgressBar
+                                                                    Height="5"
+                                                                    VerticalAlignment="Center"
+                                                                    Value="{Binding UpdateProgressValue}" />
+                                                                <TextBlock
+                                                                    Grid.Column="1"
+                                                                    Classes="label"
+                                                                    MinWidth="84"
+                                                                    TextAlignment="Right"
+                                                                    Text="{Binding UpdateProgressText}" />
+                                                            </Grid>
+                                                            <TextBlock
+                                                                x:Name="FlyoutReleaseNotesLabel"
+                                                                Classes="label"
+                                                                IsVisible="{Binding IsReleaseNotesVisible}"
+                                                                Text="{DynamicResource Ui_ReleaseNotes}" />
+                                                            <ScrollViewer
+                                                                MaxHeight="120"
+                                                                VerticalScrollBarVisibility="Auto"
+                                                                IsVisible="{Binding IsReleaseNotesVisible}">
+                                                                <TextBlock
+                                                                    FontSize="11"
+                                                                    Foreground="{DynamicResource SubtleTextBrush}"
+                                                                    Text="{Binding ReleaseNotesText}"
+                                                                    TextWrapping="Wrap" />
+                                                            </ScrollViewer>
+                                                        </StackPanel>
                                                         <TextBlock
                                                             x:Name="FlyoutBuiltWithText"
                                                             FontSize="11"
@@ -702,17 +778,75 @@
 
                 <Border Grid.Row="1" MinHeight="148" Classes="panel">
                     <Grid RowDefinitions="Auto,*" RowSpacing="7">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Classes="label" Text="{DynamicResource Ui_LogicalProcessors}" />
-                            <TextBlock Grid.Column="1" Classes="label" Text="100%" />
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Classes="label"
+                                Text="{Binding CpuCoreGraphTitle}" />
+                            <Button
+                                Grid.Column="1"
+                                Classes="view-toggle"
+                                Click="CpuCoreGraphToggle_Click"
+                                Content="{Binding CpuCoreGraphToggleText}"
+                                ToolTip.Tip="{Binding CpuCoreGraphToggleToolTip}" />
+                            <TextBlock Grid.Column="3" Classes="label" Text="100%" />
                         </Grid>
-                        <local:CpuCoreGrid
+                        <Grid
                             Grid.Row="1"
-                            CellBackground="{DynamicResource ChartBackgroundBrush}"
-                            CellBorderBrush="{DynamicResource PanelStrokeBrush}"
-                            Cores="{Binding CpuCores}"
-                            PillBackground="{DynamicResource PanelStrongBrush}"
-                            TextBrush="{DynamicResource AccentTextBrush}" />
+                            Opacity="{Binding CpuLogicalGraphOpacity}"
+                            RenderTransformOrigin="50%,50%">
+                            <Grid.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+                                </Transitions>
+                            </Grid.Transitions>
+                            <Grid.RenderTransform>
+                                <ScaleTransform
+                                    ScaleX="{Binding CpuLogicalGraphScale}"
+                                    ScaleY="{Binding CpuLogicalGraphScale}">
+                                    <ScaleTransform.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="ScaleX" Duration="0:0:0.16" />
+                                            <DoubleTransition Property="ScaleY" Duration="0:0:0.16" />
+                                        </Transitions>
+                                    </ScaleTransform.Transitions>
+                                </ScaleTransform>
+                            </Grid.RenderTransform>
+                            <local:CpuCoreGrid
+                                CellBackground="{DynamicResource ChartBackgroundBrush}"
+                                CellBorderBrush="{DynamicResource PanelStrokeBrush}"
+                                Cores="{Binding CpuCores}"
+                                PillBackground="{DynamicResource PanelStrongBrush}"
+                                TextBrush="{DynamicResource AccentTextBrush}" />
+                        </Grid>
+                        <Grid
+                            Grid.Row="1"
+                            Opacity="{Binding CpuOverallGraphOpacity}"
+                            RenderTransformOrigin="50%,50%">
+                            <Grid.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+                                </Transitions>
+                            </Grid.Transitions>
+                            <Grid.RenderTransform>
+                                <ScaleTransform
+                                    ScaleX="{Binding CpuOverallGraphScale}"
+                                    ScaleY="{Binding CpuOverallGraphScale}">
+                                    <ScaleTransform.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="ScaleX" Duration="0:0:0.16" />
+                                            <DoubleTransition Property="ScaleY" Duration="0:0:0.16" />
+                                        </Transitions>
+                                    </ScaleTransform.Transitions>
+                                </ScaleTransform>
+                            </Grid.RenderTransform>
+                            <local:CpuCoreGrid
+                                CellBackground="{DynamicResource ChartBackgroundBrush}"
+                                CellBorderBrush="{DynamicResource PanelStrokeBrush}"
+                                Cores="{Binding CpuOverallUsage}"
+                                PillBackground="{DynamicResource PanelStrongBrush}"
+                                TextBrush="{DynamicResource AccentTextBrush}" />
+                        </Grid>
                     </Grid>
                 </Border>
 

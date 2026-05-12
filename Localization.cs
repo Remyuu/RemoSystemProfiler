@@ -44,11 +44,20 @@ public static class Localization
         ["Ui_Website"] = "Website",
         ["Ui_BuiltWith"] = "Built with Avalonia 12 and LibreHardwareMonitor.",
         ["Ui_LicenseNotice"] = "Third-party components retain their original licenses.",
+        ["Ui_CheckForUpdates"] = "Check for updates",
+        ["Ui_DownloadAndInstall"] = "Download and install",
+        ["Ui_OpenRelease"] = "Open release",
+        ["Ui_ReleaseNotes"] = "Release notes",
         ["Ui_InstallPawnIo"] = "Install PawnIO",
         ["Ui_Load"] = "Load",
         ["Ui_Temp"] = "Temp",
         ["Ui_Power"] = "Power",
         ["Ui_LogicalProcessors"] = "Logical processors",
+        ["Ui_OverallUtilization"] = "Overall utilization",
+        ["Ui_LogicalProcessorsShort"] = "Cores",
+        ["Ui_OverallUtilizationShort"] = "Total",
+        ["Ui_ShowLogicalProcessors"] = "Show logical processors",
+        ["Ui_ShowOverallUtilization"] = "Show overall utilization",
         ["Ui_Utilization"] = "Utilization",
         ["Ui_Speed"] = "Speed",
         ["Ui_PackagePower"] = "Package power",
@@ -108,11 +117,20 @@ public static class Localization
         ["Ui_Website"] = "网站",
         ["Ui_BuiltWith"] = "基于 Avalonia 12 和 LibreHardwareMonitor 构建。",
         ["Ui_LicenseNotice"] = "第三方组件保留其原始许可证。",
+        ["Ui_CheckForUpdates"] = "检查更新",
+        ["Ui_DownloadAndInstall"] = "下载并安装",
+        ["Ui_OpenRelease"] = "打开发布页",
+        ["Ui_ReleaseNotes"] = "更新日志",
         ["Ui_InstallPawnIo"] = "安装 PawnIO",
         ["Ui_Load"] = "负载",
         ["Ui_Temp"] = "温度",
         ["Ui_Power"] = "功耗",
         ["Ui_LogicalProcessors"] = "逻辑处理器",
+        ["Ui_OverallUtilization"] = "总体利用率",
+        ["Ui_LogicalProcessorsShort"] = "逻辑",
+        ["Ui_OverallUtilizationShort"] = "总体",
+        ["Ui_ShowLogicalProcessors"] = "切换到逻辑处理器",
+        ["Ui_ShowOverallUtilization"] = "切换到总体利用率",
         ["Ui_Utilization"] = "使用率",
         ["Ui_Speed"] = "频率",
         ["Ui_PackagePower"] = "封装功耗",
@@ -172,11 +190,20 @@ public static class Localization
         ["Ui_Website"] = "ウェブサイト",
         ["Ui_BuiltWith"] = "Avalonia 12 と LibreHardwareMonitor で構築。",
         ["Ui_LicenseNotice"] = "サードパーティコンポーネントは元のライセンスに従います。",
+        ["Ui_CheckForUpdates"] = "更新を確認",
+        ["Ui_DownloadAndInstall"] = "ダウンロードしてインストール",
+        ["Ui_OpenRelease"] = "リリースを開く",
+        ["Ui_ReleaseNotes"] = "リリースノート",
         ["Ui_InstallPawnIo"] = "PawnIO をインストール",
         ["Ui_Load"] = "負荷",
         ["Ui_Temp"] = "温度",
         ["Ui_Power"] = "電力",
         ["Ui_LogicalProcessors"] = "論理プロセッサ",
+        ["Ui_OverallUtilization"] = "全体使用率",
+        ["Ui_LogicalProcessorsShort"] = "論理",
+        ["Ui_OverallUtilizationShort"] = "全体",
+        ["Ui_ShowLogicalProcessors"] = "論理プロセッサを表示",
+        ["Ui_ShowOverallUtilization"] = "全体使用率を表示",
         ["Ui_Utilization"] = "使用率",
         ["Ui_Speed"] = "速度",
         ["Ui_PackagePower"] = "パッケージ電力",
@@ -236,11 +263,20 @@ public static class Localization
         ["Ui_Website"] = "網站",
         ["Ui_BuiltWith"] = "以 Avalonia 12 和 LibreHardwareMonitor 建置。",
         ["Ui_LicenseNotice"] = "第三方元件保留其原始授權。",
+        ["Ui_CheckForUpdates"] = "檢查更新",
+        ["Ui_DownloadAndInstall"] = "下載並安裝",
+        ["Ui_OpenRelease"] = "開啟發布頁",
+        ["Ui_ReleaseNotes"] = "更新日誌",
         ["Ui_InstallPawnIo"] = "安裝 PawnIO",
         ["Ui_Load"] = "負載",
         ["Ui_Temp"] = "溫度",
         ["Ui_Power"] = "功耗",
         ["Ui_LogicalProcessors"] = "邏輯處理器",
+        ["Ui_OverallUtilization"] = "總體使用率",
+        ["Ui_LogicalProcessorsShort"] = "邏輯",
+        ["Ui_OverallUtilizationShort"] = "總體",
+        ["Ui_ShowLogicalProcessors"] = "切換到邏輯處理器",
+        ["Ui_ShowOverallUtilization"] = "切換到總體使用率",
         ["Ui_Utilization"] = "使用率",
         ["Ui_Speed"] = "頻率",
         ["Ui_PackagePower"] = "封裝功耗",
@@ -442,6 +478,88 @@ public static class Localization
 
     public static string BenchmarkDurationRun(int seconds) => Text($"{seconds}s run", $"{seconds} 秒运行", $"{seconds} 秒実行", $"{seconds} 秒執行");
 
+    public static string UpdateIdle => Text(
+        "Use GitHub Releases to check for newer builds.",
+        "使用 GitHub Releases 检查是否有新版本。",
+        "GitHub Releases で新しいビルドを確認します。",
+        "使用 GitHub Releases 檢查是否有新版本。");
+
+    public static string UpdateChecking => Text("Checking GitHub Releases...", "正在检查 GitHub Releases...", "GitHub Releases を確認中...", "正在檢查 GitHub Releases...");
+
+    public static string UpdateDownloading => Text("Downloading update...", "正在下载更新...", "更新をダウンロード中...", "正在下載更新...");
+
+    public static string UpdatePreparing => Text("Preparing update...", "正在准备更新...", "更新を準備中...", "正在準備更新...");
+
+    public static string UpdateNoReleaseNotes => Text("No release notes were published.", "此版本没有发布日志。", "このリリースにはノートがありません。", "此版本沒有發布日誌。");
+
+    public static string UpdateCheckCanceled => Text("Update check canceled.", "更新检查已取消。", "更新確認をキャンセルしました。", "更新檢查已取消。");
+
+    public static string UpdateNoReleases => Text(
+        "No GitHub Releases were found.",
+        "没有找到 GitHub Releases。",
+        "GitHub Releases が見つかりません。",
+        "沒有找到 GitHub Releases。");
+
+    public static string UpdateNoDownloadAsset => Text(
+        "New version found, but this release has no downloadable update package.",
+        "发现新版本，但这个 release 没有可下载的更新包。",
+        "新しいバージョンがありますが、このリリースには更新パッケージがありません。",
+        "發現新版本，但這個 release 沒有可下載的更新包。");
+
+    public static string UpdateAvailable(string version) => Text(
+        $"New version available: {version}",
+        $"发现新版本：{version}",
+        $"新しいバージョンがあります: {version}",
+        $"發現新版本：{version}");
+
+    public static string UpdateAlreadyLatest(string version) => Text(
+        $"Up to date: {version}",
+        $"已是最新版本：{version}",
+        $"最新です: {version}",
+        $"已是最新版本：{version}");
+
+    public static string UpdateCheckFailed(string detail) => Text(
+        "Update check failed: " + detail,
+        "更新检查失败：" + detail,
+        "更新確認に失敗しました: " + detail,
+        "更新檢查失敗：" + detail);
+
+    public static string UpdateInstallFailed(string detail) => Text(
+        "Update failed: " + detail,
+        "更新失败：" + detail,
+        "更新に失敗しました: " + detail,
+        "更新失敗：" + detail);
+
+    public static string UpdateUnsupportedAsset(string name) => Text(
+        "Unsupported update package: " + name,
+        "不支持的更新包：" + name,
+        "サポートされていない更新パッケージ: " + name,
+        "不支援的更新包：" + name);
+
+    public static string UpdateInvalidPackage => Text(
+        "Downloaded update package is not a valid zip file.",
+        "下载的更新包不是有效的 zip 文件。",
+        "ダウンロードした更新パッケージは有効な zip ファイルではありません。",
+        "下載的更新包不是有效的 zip 檔案。");
+
+    public static string UpdateCannotFindExecutable => Text(
+        "Cannot find the current executable to restart after update.",
+        "无法找到当前程序，更新后不能自动重启。",
+        "更新後に再起動する現在の実行ファイルが見つかりません。",
+        "無法找到目前程式，更新後不能自動重新啟動。");
+
+    public static string UpdateWillRestart => Text(
+        "Update downloaded. The app will close, replace files, and restart.",
+        "更新已下载。程序将关闭、替换文件并重新启动。",
+        "更新をダウンロードしました。アプリを閉じてファイルを置き換え、再起動します。",
+        "更新已下載。程式將關閉、替換檔案並重新啟動。");
+
+    public static string UpdateInstallerStarted => Text(
+        "Installer downloaded. The app will close while the installer runs.",
+        "安装器已下载。安装器运行时程序将关闭。",
+        "インストーラーをダウンロードしました。インストーラー実行中はアプリを閉じます。",
+        "安裝程式已下載。安裝程式執行時程式將關閉。");
+
     public static string BenchmarkModeText(int modeIndex) => modeIndex switch
     {
         0 => Text("Single core", "单核", "シングルコア", "單核"),
@@ -470,6 +588,15 @@ public static class Localization
                 "PawnIO 已安装但未加载，请以管理员身份重启",
                 "PawnIO はインストール済みですが読み込まれていません。管理者として再起動してください",
                 "PawnIO 已安裝但未載入，請以系統管理員身分重新啟動");
+        }
+
+        if (message.Equals("PawnIO installation found but the driver is unavailable; uninstall PawnIO, then install again", StringComparison.OrdinalIgnoreCase))
+        {
+            return Text(
+                message,
+                "检测到 PawnIO 安装记录，但驱动不可用；请先卸载 PawnIO，然后重新安装。",
+                "PawnIO のインストール記録はありますが、ドライバーを利用できません。先に PawnIO をアンインストールしてから再インストールしてください。",
+                "偵測到 PawnIO 安裝記錄，但驅動程式不可用；請先解除安裝 PawnIO，然後重新安裝。");
         }
 
         if (message.Equals("PawnIO missing; install it for motherboard, fan, and low-level sensors", StringComparison.OrdinalIgnoreCase))

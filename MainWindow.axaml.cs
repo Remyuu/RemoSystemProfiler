@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using RemoSystemProfiler.Backends.Windows;
 using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
@@ -27,6 +28,7 @@ public sealed partial class MainWindow : Window
     private const double BenchmarkCurtainHeight = 284;
     private const int BenchmarkCurtainAnimationMilliseconds = 220;
     private const double DashboardContentVerticalMargin = 14;
+    private const double PressScale = 0.985;
 
     private static readonly int[] ChartRangesSeconds = [10, 30, 60, 300];
     private static readonly double[] UpdateIntervalsSeconds = [0.5, 1, 2, 5];
@@ -35,6 +37,7 @@ public sealed partial class MainWindow : Window
     private readonly CancellationTokenSource _shutdown = new();
     private readonly MainWindowViewModel _viewModel = new();
     private readonly List<OverviewReading> _overviewBuffer = new(capacity: 8);
+    private readonly Dictionary<Control, PressVisualState> _pressedVisualStates = [];
     private bool _isApplyingStoredSettings = true;
     private Task? _pollingTask;
     private int _pollIntervalMilliseconds = 1000;
@@ -47,6 +50,7 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _benchmarkCancellation;
     private TranslateTransform? _benchmarkCurtainTransform;
     private TranslateTransform? _dashboardContentTransform;
+    private GitHubReleaseAssetInfo? _pendingUpdateAsset;
     private Size _lastNormalWindowSize = new(InitialWindowWidth, InitialWindowHeight);
     private HardwareMonitorReadResult? _lastResult;
     private bool _isClosed;
@@ -60,6 +64,9 @@ public sealed partial class MainWindow : Window
         RefreshDashboardFlyoutLocalization();
         Opened += OnOpened;
         Closed += OnClosed;
+        AddHandler(InputElement.PointerPressedEvent, PressableControl_PointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(InputElement.PointerReleasedEvent, PressableControl_PointerReleased, RoutingStrategies.Tunnel);
+        AddHandler(InputElement.PointerCaptureLostEvent, PressableControl_PointerCaptureLost, RoutingStrategies.Tunnel);
         ApplyDashboardSelectionEffects();
         _isApplyingStoredSettings = false;
         SizeChanged += OnWindowSizeChanged;
@@ -71,6 +78,115 @@ public sealed partial class MainWindow : Window
             ?? new TranslateTransform();
         DashboardContent.RenderTransform = _dashboardContentTransform;
         UpdateDashboardContentHeight(DashboardScrollViewer.Bounds.Height);
+    }
+
+    private void PressableControl_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        PointerPoint point = e.GetCurrentPoint(this);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        Control? control = FindPressableControl(e.Source);
+        if (control is null || _pressedVisualStates.ContainsKey(control))
+        {
+            return;
+        }
+
+        _pressedVisualStates[control] = new PressVisualState(control.RenderTransform, control.RenderTransformOrigin);
+        control.RenderTransformOrigin = RelativePoint.Center;
+        Point offset = ResolvePressOffset(control);
+        TransformGroup transform = new();
+        if (control.RenderTransform is Transform originalTransform)
+        {
+            transform.Children.Add(originalTransform);
+        }
+
+        transform.Children.Add(new ScaleTransform(PressScale, PressScale));
+        transform.Children.Add(new TranslateTransform(offset.X, offset.Y));
+        control.RenderTransform = transform;
+    }
+
+    private void PressableControl_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (FindPressableControl(e.Source) is { } control)
+        {
+            RestorePressedVisual(control);
+        }
+    }
+
+    private void PressableControl_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (FindPressableControl(e.Source) is { } control)
+        {
+            RestorePressedVisual(control);
+            return;
+        }
+
+        RestoreAllPressedVisuals();
+    }
+
+    private void RestorePressedVisual(Control control)
+    {
+        if (!_pressedVisualStates.Remove(control, out PressVisualState? state) || state is null)
+        {
+            return;
+        }
+
+        control.RenderTransform = state.RenderTransform;
+        control.RenderTransformOrigin = state.RenderTransformOrigin;
+    }
+
+    private void RestoreAllPressedVisuals()
+    {
+        foreach ((Control control, PressVisualState state) in _pressedVisualStates.ToArray())
+        {
+            control.RenderTransform = state.RenderTransform;
+            control.RenderTransformOrigin = state.RenderTransformOrigin;
+        }
+
+        _pressedVisualStates.Clear();
+    }
+
+    private Point ResolvePressOffset(Control control)
+    {
+        Point center = control.TranslatePoint(new Point(control.Bounds.Width * 0.5, control.Bounds.Height * 0.5), this)
+            ?? new Point(Bounds.Width * 0.5, Bounds.Height * 0.5);
+        double x = (Bounds.Width * 0.5) - center.X;
+        double y = (Bounds.Height * 0.5) - center.Y;
+        double length = Math.Sqrt(x * x + y * y);
+        if (length < 1)
+        {
+            return new Point(0, 0.8);
+        }
+
+        double offsetX = Math.Clamp(x / length * 1.1, -1.1, 1.1);
+        double offsetY = Math.Clamp(0.45 + y / length * 0.85, -0.6, 1.25);
+        return new Point(offsetX, offsetY);
+    }
+
+    private static Control? FindPressableControl(object? source)
+    {
+        for (Visual? current = source as Visual; current is not null; current = current.GetVisualParent() as Visual)
+        {
+            if (current is Button button && button.IsEnabled)
+            {
+                return button;
+            }
+
+            if (current is ComboBox comboBox && comboBox.IsEnabled)
+            {
+                return comboBox;
+            }
+
+            if (current is NumericUpDown numericUpDown && numericUpDown.IsEnabled)
+            {
+                return numericUpDown;
+            }
+        }
+
+        return null;
     }
 
     private void OnOpened(object? sender, EventArgs e)
@@ -242,6 +358,7 @@ public sealed partial class MainWindow : Window
             _viewModel.ClockText = "--";
             SyncDeviceCollection(_viewModel.CpuSensorGroups, BuildCpuSensorGroups(null), reading => reading.Key, reading => new SensorGroupViewModel(reading));
             SyncDeviceCollection(_viewModel.CpuCores, Array.Empty<CoreReading>(), core => core.Index, core => new CoreItemViewModel(core));
+            SyncDeviceCollection(_viewModel.CpuOverallUsage, Array.Empty<CoreReading>(), core => core.Index, core => new CoreItemViewModel(core));
             return;
         }
 
@@ -253,6 +370,11 @@ public sealed partial class MainWindow : Window
         _viewModel.ClockText = cpu.ClockText;
         SyncDeviceCollection(_viewModel.CpuSensorGroups, BuildCpuSensorGroups(cpu), reading => reading.Key, reading => new SensorGroupViewModel(reading));
         SyncDeviceCollection(_viewModel.CpuCores, cpu.Cores, core => core.Index, core => new CoreItemViewModel(core));
+        SyncDeviceCollection(
+            _viewModel.CpuOverallUsage,
+            [new CoreReading(-1, Math.Clamp((int)Math.Round(cpu.AverageLoadPercent), 0, 100))],
+            core => core.Index,
+            core => new CoreItemViewModel(core));
     }
 
     private void ShowMemory(MemoryDeviceReading? memory)
@@ -376,6 +498,11 @@ public sealed partial class MainWindow : Window
         SaveDashboardSettings();
     }
 
+    private void CpuCoreGraphToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.IsCpuOverallView = !_viewModel.IsCpuOverallView;
+    }
+
     private void LanguagePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (!ApplyLanguageSelection())
@@ -482,8 +609,16 @@ public sealed partial class MainWindow : Window
         FlyoutAppSubtitleText.Text = Localization.Resource("Ui_AppSubtitle");
         FlyoutVersionLabel.Text = Localization.Resource("Ui_Version");
         FlyoutWebsiteLabel.Text = Localization.Resource("Ui_Website");
+        FlyoutCheckUpdatesButton.Content = Localization.Resource("Ui_CheckForUpdates");
+        FlyoutInstallUpdateButton.Content = Localization.Resource("Ui_DownloadAndInstall");
+        FlyoutOpenReleaseButton.Content = Localization.Resource("Ui_OpenRelease");
+        FlyoutReleaseNotesLabel.Text = Localization.Resource("Ui_ReleaseNotes");
         FlyoutBuiltWithText.Text = Localization.Resource("Ui_BuiltWith");
         FlyoutLicenseNoticeText.Text = Localization.Resource("Ui_LicenseNotice");
+        if (!_viewModel.IsUpdateCheckRunning && !_viewModel.IsReleaseNotesVisible)
+        {
+            _viewModel.UpdateStatusText = Localization.UpdateIdle;
+        }
     }
 
     private void SaveDashboardSettings()
@@ -837,7 +972,133 @@ public sealed partial class MainWindow : Window
 
     private void WebsiteLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://remoooo.com");
 
-    private void GithubLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://github.com/Remyuu");
+    private void GithubLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://github.com/Remyuu/RemoSystemProfiler");
+
+    private async void CheckUpdates_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsUpdateCheckRunning)
+        {
+            return;
+        }
+
+        _viewModel.IsUpdateCheckRunning = true;
+        _viewModel.IsOpenReleaseVisible = false;
+        _viewModel.IsInstallUpdateVisible = false;
+        _viewModel.IsUpdateProgressVisible = false;
+        _viewModel.UpdateProgressValue = 0;
+        _viewModel.UpdateProgressText = "0%";
+        _viewModel.IsReleaseNotesVisible = false;
+        _viewModel.ReleaseNotesText = string.Empty;
+        _viewModel.UpdateStatusText = Localization.UpdateChecking;
+        _pendingUpdateAsset = null;
+
+        GitHubReleaseCheckResult result = await GitHubReleaseChecker.CheckLatestAsync(_viewModel.CurrentVersion, _shutdown.Token);
+        if (_isClosed)
+        {
+            return;
+        }
+
+        _viewModel.IsUpdateCheckRunning = false;
+        if (!result.IsSuccess)
+        {
+            _viewModel.UpdateStatusText = Localization.UpdateCheckFailed(result.ErrorMessage ?? "Unknown error");
+            return;
+        }
+
+        if (!result.HasRelease || result.Release is null)
+        {
+            _viewModel.UpdateStatusText = Localization.UpdateNoReleases;
+            return;
+        }
+
+        _viewModel.LatestReleaseUrl = result.Release.Url;
+        _viewModel.ReleaseNotesText = result.Release.Notes;
+        _viewModel.IsReleaseNotesVisible = true;
+        _viewModel.IsOpenReleaseVisible = true;
+        _pendingUpdateAsset = result.IsUpdateAvailable ? result.Release.DownloadAsset : null;
+        _viewModel.IsInstallUpdateVisible = _pendingUpdateAsset is not null;
+        _viewModel.UpdateStatusText = result.IsUpdateAvailable && _pendingUpdateAsset is null
+            ? Localization.UpdateNoDownloadAsset
+            : result.IsUpdateAvailable
+            ? Localization.UpdateAvailable(result.Release.Version)
+            : Localization.UpdateAlreadyLatest(_viewModel.VersionText);
+    }
+
+    private void OpenLatestRelease_Click(object? sender, RoutedEventArgs e) => OpenUri(_viewModel.LatestReleaseUrl);
+
+    private async void InstallUpdate_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_pendingUpdateAsset is null || _viewModel.IsUpdateInstallRunning)
+        {
+            return;
+        }
+
+        _viewModel.IsUpdateInstallRunning = true;
+        _viewModel.IsUpdateProgressVisible = true;
+        _viewModel.UpdateProgressValue = 0;
+        _viewModel.UpdateProgressText = "0%";
+        _viewModel.UpdateStatusText = Localization.UpdateDownloading;
+
+        try
+        {
+            Progress<DownloadProgressInfo> progress = new(UpdateDownloadProgress);
+            UpdateInstallResult result = await AppUpdater.DownloadAndStartUpdateAsync(_pendingUpdateAsset, progress, _shutdown.Token);
+            if (_isClosed)
+            {
+                return;
+            }
+
+            _viewModel.UpdateStatusText = Localization.UpdatePreparing;
+            _viewModel.UpdateStatusText = result.Message;
+            _viewModel.IsUpdateInstallRunning = false;
+            _viewModel.IsUpdateProgressVisible = result.IsSuccess && result.ShouldCloseApplication;
+            if (result.IsSuccess && result.ShouldCloseApplication)
+            {
+                Close();
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Closing the app already cancels in-flight update work.
+        }
+        catch (Exception ex)
+        {
+            _viewModel.IsUpdateInstallRunning = false;
+            _viewModel.IsUpdateProgressVisible = false;
+            _viewModel.UpdateStatusText = Localization.UpdateInstallFailed(ex.Message);
+        }
+    }
+
+    private void UpdateDownloadProgress(DownloadProgressInfo value)
+    {
+        double progress = Math.Clamp(value.Percent, 0, 100);
+        _viewModel.UpdateProgressValue = progress;
+        _viewModel.UpdateProgressText = $"{progress:0}% · {FormatDownloadSpeed(value.BytesPerSecond)}";
+        _viewModel.UpdateStatusText = progress >= 100
+            ? Localization.UpdatePreparing
+            : Localization.UpdateDownloading;
+    }
+
+    private static string FormatDownloadSpeed(double bytesPerSecond)
+    {
+        if (bytesPerSecond <= 0)
+        {
+            return "-- MB/s";
+        }
+
+        string[] units = ["B/s", "KB/s", "MB/s", "GB/s"];
+        double value = bytesPerSecond;
+        int unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return unitIndex == 0
+            ? $"{value:0} {units[unitIndex]}"
+            : $"{value:0.0} {units[unitIndex]}";
+    }
 
     private static void OpenUri(string uri)
     {
@@ -869,4 +1130,6 @@ public sealed partial class MainWindow : Window
         _backend.Dispose();
         _shutdown.Dispose();
     }
+
+    private sealed record PressVisualState(ITransform? RenderTransform, RelativePoint RenderTransformOrigin);
 }
