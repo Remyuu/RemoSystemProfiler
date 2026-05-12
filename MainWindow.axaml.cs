@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using RemoSystemProfiler.Backends.Windows;
 using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
@@ -27,6 +28,7 @@ public sealed partial class MainWindow : Window
     private const double BenchmarkCurtainHeight = 284;
     private const int BenchmarkCurtainAnimationMilliseconds = 220;
     private const double DashboardContentVerticalMargin = 14;
+    private const double PressScale = 0.985;
 
     private static readonly int[] ChartRangesSeconds = [10, 30, 60, 300];
     private static readonly double[] UpdateIntervalsSeconds = [0.5, 1, 2, 5];
@@ -35,6 +37,7 @@ public sealed partial class MainWindow : Window
     private readonly CancellationTokenSource _shutdown = new();
     private readonly MainWindowViewModel _viewModel = new();
     private readonly List<OverviewReading> _overviewBuffer = new(capacity: 8);
+    private readonly Dictionary<Control, PressVisualState> _pressedVisualStates = [];
     private bool _isApplyingStoredSettings = true;
     private Task? _pollingTask;
     private int _pollIntervalMilliseconds = 1000;
@@ -61,6 +64,9 @@ public sealed partial class MainWindow : Window
         RefreshDashboardFlyoutLocalization();
         Opened += OnOpened;
         Closed += OnClosed;
+        AddHandler(InputElement.PointerPressedEvent, PressableControl_PointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(InputElement.PointerReleasedEvent, PressableControl_PointerReleased, RoutingStrategies.Tunnel);
+        AddHandler(InputElement.PointerCaptureLostEvent, PressableControl_PointerCaptureLost, RoutingStrategies.Tunnel);
         ApplyDashboardSelectionEffects();
         _isApplyingStoredSettings = false;
         SizeChanged += OnWindowSizeChanged;
@@ -72,6 +78,115 @@ public sealed partial class MainWindow : Window
             ?? new TranslateTransform();
         DashboardContent.RenderTransform = _dashboardContentTransform;
         UpdateDashboardContentHeight(DashboardScrollViewer.Bounds.Height);
+    }
+
+    private void PressableControl_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        PointerPoint point = e.GetCurrentPoint(this);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        Control? control = FindPressableControl(e.Source);
+        if (control is null || _pressedVisualStates.ContainsKey(control))
+        {
+            return;
+        }
+
+        _pressedVisualStates[control] = new PressVisualState(control.RenderTransform, control.RenderTransformOrigin);
+        control.RenderTransformOrigin = RelativePoint.Center;
+        Point offset = ResolvePressOffset(control);
+        TransformGroup transform = new();
+        if (control.RenderTransform is Transform originalTransform)
+        {
+            transform.Children.Add(originalTransform);
+        }
+
+        transform.Children.Add(new ScaleTransform(PressScale, PressScale));
+        transform.Children.Add(new TranslateTransform(offset.X, offset.Y));
+        control.RenderTransform = transform;
+    }
+
+    private void PressableControl_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (FindPressableControl(e.Source) is { } control)
+        {
+            RestorePressedVisual(control);
+        }
+    }
+
+    private void PressableControl_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (FindPressableControl(e.Source) is { } control)
+        {
+            RestorePressedVisual(control);
+            return;
+        }
+
+        RestoreAllPressedVisuals();
+    }
+
+    private void RestorePressedVisual(Control control)
+    {
+        if (!_pressedVisualStates.Remove(control, out PressVisualState? state) || state is null)
+        {
+            return;
+        }
+
+        control.RenderTransform = state.RenderTransform;
+        control.RenderTransformOrigin = state.RenderTransformOrigin;
+    }
+
+    private void RestoreAllPressedVisuals()
+    {
+        foreach ((Control control, PressVisualState state) in _pressedVisualStates.ToArray())
+        {
+            control.RenderTransform = state.RenderTransform;
+            control.RenderTransformOrigin = state.RenderTransformOrigin;
+        }
+
+        _pressedVisualStates.Clear();
+    }
+
+    private Point ResolvePressOffset(Control control)
+    {
+        Point center = control.TranslatePoint(new Point(control.Bounds.Width * 0.5, control.Bounds.Height * 0.5), this)
+            ?? new Point(Bounds.Width * 0.5, Bounds.Height * 0.5);
+        double x = (Bounds.Width * 0.5) - center.X;
+        double y = (Bounds.Height * 0.5) - center.Y;
+        double length = Math.Sqrt(x * x + y * y);
+        if (length < 1)
+        {
+            return new Point(0, 0.8);
+        }
+
+        double offsetX = Math.Clamp(x / length * 1.1, -1.1, 1.1);
+        double offsetY = Math.Clamp(0.45 + y / length * 0.85, -0.6, 1.25);
+        return new Point(offsetX, offsetY);
+    }
+
+    private static Control? FindPressableControl(object? source)
+    {
+        for (Visual? current = source as Visual; current is not null; current = current.GetVisualParent() as Visual)
+        {
+            if (current is Button button && button.IsEnabled)
+            {
+                return button;
+            }
+
+            if (current is ComboBox comboBox && comboBox.IsEnabled)
+            {
+                return comboBox;
+            }
+
+            if (current is NumericUpDown numericUpDown && numericUpDown.IsEnabled)
+            {
+                return numericUpDown;
+            }
+        }
+
+        return null;
     }
 
     private void OnOpened(object? sender, EventArgs e)
@@ -1015,4 +1130,6 @@ public sealed partial class MainWindow : Window
         _backend.Dispose();
         _shutdown.Dispose();
     }
+
+    private sealed record PressVisualState(ITransform? RenderTransform, RelativePoint RenderTransformOrigin);
 }
