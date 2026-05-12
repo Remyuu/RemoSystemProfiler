@@ -4,6 +4,8 @@ Remo System Profiler is a small Windows app for checking your PC’s hardware st
 
 Remo System Profiler 是一个小型 Windows 硬件监视工具，用来实时查看当前电脑的状态。它会把 CPU、内存、GPU、硬盘、温度、负载、功耗和传感器信息放在一个紧凑的窗口里。
 
+<img width="1723" height="1126" alt="image" src="https://github.com/user-attachments/assets/eba496ad-5596-4918-86d4-8b93edd1aea2" />
+
 The app is built with Avalonia and .NET 8. Hardware data on Windows is read through a lightweight backend based on LibreHardwareMonitor. The UI mainly focuses on showing the dashboard clearly.
 
 这个应用使用 Avalonia 和 .NET 8 开发。Windows 上的硬件数据由一个轻量后端读取，底层用的是 LibreHardwareMonitor。界面部分主要负责把信息清楚地展示出来。
