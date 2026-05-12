@@ -102,6 +102,43 @@
         <Style Selector="Button.icon-button:pressed">
             <Setter Property="Background" Value="{DynamicResource ChartBackgroundBrush}" />
         </Style>
+        <Style Selector="Button.glass-pill">
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#28FFFFFF" />
+            <Setter Property="BorderBrush" Value="#44FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.glass-pill:pointerover">
+            <Setter Property="Background" Value="#3AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#66FFFFFF" />
+        </Style>
+        <Style Selector="Button.glass-pill:pressed">
+            <Setter Property="Background" Value="#20FFFFFF" />
+        </Style>
+        <Style Selector="Button.tool-action">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="{DynamicResource PanelStrongBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.tool-action:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelStrongHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelHoverStrokeBrush}" />
+        </Style>
         <Style Selector="FlyoutPresenter">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -615,20 +652,40 @@
             <Border
                 Grid.Column="2"
                 Background="{DynamicResource DashboardBackgroundBrush}">
+            <Grid ClipToBounds="True">
+            <ScrollViewer
+                x:Name="DashboardScrollViewer"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Disabled"
+                SizeChanged="DashboardScrollViewer_SizeChanged">
+            <Grid>
+            <Grid RowDefinitions="Auto,Auto">
             <Grid
+                x:Name="DashboardContent"
+                Height="674"
                 Margin="14,4,14,10"
                 RowDefinitions="Auto,2*,3*"
-                RowSpacing="8">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                    <StackPanel Spacing="0">
-                        <TextBlock
-                            FontSize="34"
-                            FontWeight="SemiLight"
-                            Foreground="{DynamicResource AccentTextBrush}"
-                            Text="CPU" />
-                    </StackPanel>
+                RowSpacing="8"
+                RenderTransformOrigin="50%,0%">
+                <Grid.RenderTransform>
+                    <TranslateTransform Y="0" />
+                </Grid.RenderTransform>
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
                     <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="34"
+                        FontWeight="SemiLight"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        Text="CPU" />
+                    <Button
                         Grid.Column="1"
+                        Classes="glass-pill"
+                        Click="BenchmarkToggle_Click"
+                        Content="⚡"
+                        ToolTip.Tip="{DynamicResource Ui_Benchmark}"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        Grid.Column="3"
                         MaxWidth="430"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
@@ -767,6 +824,133 @@
                         </Border>
                     </Grid>
                 </Grid>
+            </Grid>
+            <Border Grid.Row="1" Height="284" Opacity="0" />
+            </Grid>
+
+                <Grid
+                    x:Name="BenchmarkCurtainHost"
+                    Height="284"
+                    Margin="14,0,14,0"
+                    VerticalAlignment="Top"
+                    ClipToBounds="True"
+                    IsHitTestVisible="False"
+                    IsVisible="False"
+                    Opacity="0"
+                    Panel.ZIndex="8">
+                    <Border
+                        x:Name="BenchmarkCurtain"
+                        Padding="14,12"
+                        Background="{DynamicResource PanelBrush}"
+                        BorderBrush="{DynamicResource PanelHoverStrokeBrush}"
+                        BorderThickness="1"
+                        CornerRadius="0,0,7,7"
+                        RenderTransformOrigin="50%,0%">
+                        <Border.RenderTransform>
+                            <TranslateTransform Y="-284" />
+                        </Border.RenderTransform>
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Classes="emphasis" FontSize="15" Text="{DynamicResource Ui_CpuBenchmark}" />
+                                    <TextBlock
+                                        Classes="label"
+                                        Text="{Binding BenchmarkStatusText}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    Spacing="8">
+                                    <Button
+                                        Classes="tool-action"
+                                        Click="CpuBenchmarkRun_Click"
+                                        Content="{Binding BenchmarkStartButtonText}"
+                                        IsEnabled="{Binding IsBenchmarkStartEnabled}" />
+                                    <Button
+                                        Classes="tool-action"
+                                        Click="CpuBenchmarkCancel_Click"
+                                        Content="{DynamicResource Ui_Cancel}"
+                                        IsVisible="{Binding IsBenchmarkCancelVisible}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Mode}" />
+                                    <ComboBox
+                                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                                        SelectedIndex="{Binding SelectedBenchmarkModeIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="{DynamicResource Ui_SingleCore}" />
+                                        <ComboBoxItem Content="{DynamicResource Ui_MultiCore}" />
+                                        <ComboBoxItem Content="{DynamicResource Ui_Custom}" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Seconds}" />
+                                    <NumericUpDown
+                                        Minimum="2"
+                                        Maximum="120"
+                                        Increment="1"
+                                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                                        Value="{Binding BenchmarkDurationSeconds, Mode=TwoWay}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="3">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Cores}" />
+                                    <NumericUpDown
+                                        Minimum="1"
+                                        Maximum="{Binding BenchmarkMaxWorkerCount}"
+                                        Increment="1"
+                                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                                        Value="{Binding BenchmarkCustomWorkerCount, Mode=TwoWay}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                                <Border Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Score}" />
+                                        <TextBlock Classes="value" FontSize="22" Text="{Binding BenchmarkScoreText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="1" Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Throughput}" />
+                                        <TextBlock Classes="small-value" Text="{Binding BenchmarkThroughputText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Threads}" />
+                                        <TextBlock Classes="small-value" Text="{Binding BenchmarkThreadsText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="3" Classes="soft-panel">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_Duration}" />
+                                        <TextBlock Classes="small-value" Text="{Binding BenchmarkDurationText}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid Grid.Row="3" RowDefinitions="Auto,Auto" RowSpacing="5">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="label" Text="{DynamicResource Ui_Progress}" />
+                                    <TextBlock Grid.Column="1" Classes="label" Text="{Binding BenchmarkProgressText}" />
+                                </Grid>
+                                <ProgressBar
+                                    Grid.Row="1"
+                                    Height="5"
+                                    Minimum="0"
+                                    Maximum="100"
+                                    Value="{Binding BenchmarkProgressValue}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+            </ScrollViewer>
             </Grid>
             </Border>
         </Grid>

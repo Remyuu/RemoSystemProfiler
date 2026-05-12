@@ -44,6 +44,18 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _cpuPackagePowerText = "--";
     private string _cpuPeakTempText = "--";
     private string _coreCountText = "--";
+    private bool _isBenchmarkRunning;
+    private string _benchmarkStatusText = Localization.BenchmarkReady;
+    private string _benchmarkScoreText = "--";
+    private string _benchmarkThroughputText = "--";
+    private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(CpuBenchmarkRunner.MaxWorkerCount);
+    private string _benchmarkDurationText = Localization.BenchmarkDurationRun(CpuBenchmarkRunner.DefaultDurationSeconds);
+    private string _benchmarkProgressText = "0%";
+    private double _benchmarkProgressValue;
+    private int _selectedBenchmarkModeIndex = 1;
+    private decimal _benchmarkDurationSeconds = CpuBenchmarkRunner.DefaultDurationSeconds;
+    private decimal _benchmarkCustomWorkerCount = CpuBenchmarkRunner.MaxWorkerCount;
+    private bool _isSyncingBenchmarkSettings;
     private string _memoryUsageText = "--";
     private string _memoryCapacityText = "--";
     private string _memoryTempText = "";
@@ -98,6 +110,106 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string CoreCountText { get => _coreCountText; set => SetProperty(ref _coreCountText, value); }
 
+    public bool IsBenchmarkRunning
+    {
+        get => _isBenchmarkRunning;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkRunning, value))
+            {
+                RaisePropertyChanged(nameof(IsBenchmarkStartEnabled));
+                RaisePropertyChanged(nameof(IsBenchmarkCancelVisible));
+                RaisePropertyChanged(nameof(BenchmarkStartButtonText));
+                RaisePropertyChanged(nameof(AreBenchmarkSettingsEnabled));
+                RaisePropertyChanged(nameof(IsBenchmarkCustomWorkerEnabled));
+            }
+        }
+    }
+
+    public bool IsBenchmarkStartEnabled => !IsBenchmarkRunning;
+
+    public bool AreBenchmarkSettingsEnabled => !IsBenchmarkRunning;
+
+    public bool IsBenchmarkCancelVisible => IsBenchmarkRunning;
+
+    public string BenchmarkStartButtonText => IsBenchmarkRunning ? Localization.BenchmarkRunningButton : Localization.BenchmarkRunButton;
+
+    public string BenchmarkStatusText { get => _benchmarkStatusText; set => SetProperty(ref _benchmarkStatusText, value); }
+
+    public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetProperty(ref _benchmarkScoreText, value); }
+
+    public string BenchmarkThroughputText { get => _benchmarkThroughputText; set => SetProperty(ref _benchmarkThroughputText, value); }
+
+    public string BenchmarkThreadsText { get => _benchmarkThreadsText; set => SetProperty(ref _benchmarkThreadsText, value); }
+
+    public string BenchmarkDurationText { get => _benchmarkDurationText; set => SetProperty(ref _benchmarkDurationText, value); }
+
+    public string BenchmarkProgressText { get => _benchmarkProgressText; set => SetProperty(ref _benchmarkProgressText, value); }
+
+    public double BenchmarkProgressValue { get => _benchmarkProgressValue; set => SetProperty(ref _benchmarkProgressValue, value); }
+
+    public int SelectedBenchmarkModeIndex
+    {
+        get => _selectedBenchmarkModeIndex;
+        set
+        {
+            int modeIndex = Math.Clamp(value, 0, 2);
+            if (SetProperty(ref _selectedBenchmarkModeIndex, modeIndex))
+            {
+                RaisePropertyChanged(nameof(IsBenchmarkCustomWorkerEnabled));
+                if (!_isSyncingBenchmarkSettings && modeIndex != 2)
+                {
+                    _isSyncingBenchmarkSettings = true;
+                    BenchmarkCustomWorkerCount = BenchmarkModeWorkerCount(modeIndex);
+                    _isSyncingBenchmarkSettings = false;
+                }
+
+                RefreshBenchmarkDisplay();
+            }
+        }
+    }
+
+    public decimal BenchmarkDurationSeconds
+    {
+        get => _benchmarkDurationSeconds;
+        set
+        {
+            if (SetProperty(ref _benchmarkDurationSeconds, Math.Clamp(value, 2, 120)))
+            {
+                RefreshBenchmarkDisplay();
+            }
+        }
+    }
+
+    public decimal BenchmarkCustomWorkerCount
+    {
+        get => _benchmarkCustomWorkerCount;
+        set
+        {
+            decimal workerCount = Math.Clamp(value, 1, BenchmarkMaxWorkerCount);
+            if (SetProperty(ref _benchmarkCustomWorkerCount, workerCount))
+            {
+                if (!_isSyncingBenchmarkSettings)
+                {
+                    int roundedWorkers = Math.Clamp((int)Math.Round(workerCount), 1, CpuBenchmarkRunner.MaxWorkerCount);
+                    int matchingMode = BenchmarkModeIndexForWorkerCount(roundedWorkers);
+                    if (matchingMode != SelectedBenchmarkModeIndex)
+                    {
+                        _isSyncingBenchmarkSettings = true;
+                        SelectedBenchmarkModeIndex = matchingMode;
+                        _isSyncingBenchmarkSettings = false;
+                    }
+                }
+
+                RefreshBenchmarkDisplay();
+            }
+        }
+    }
+
+    public decimal BenchmarkMaxWorkerCount => CpuBenchmarkRunner.MaxWorkerCount;
+
+    public bool IsBenchmarkCustomWorkerEnabled => !IsBenchmarkRunning;
+
     public string MemoryUsageText { get => _memoryUsageText; set => SetProperty(ref _memoryUsageText, value); }
 
     public string MemoryCapacityText { get => _memoryCapacityText; set => SetProperty(ref _memoryCapacityText, value); }
@@ -148,6 +260,65 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public void RefreshLocalizedChrome()
     {
         SidebarToggleToolTip = IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+        RaisePropertyChanged(nameof(BenchmarkStartButtonText));
+        RefreshBenchmarkDisplay();
+        if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0 && BenchmarkScoreText == "--")
+        {
+            BenchmarkStatusText = Localization.BenchmarkReady;
+        }
+    }
+
+    public int ResolveBenchmarkWorkerCount()
+    {
+        return SelectedBenchmarkModeIndex switch
+        {
+            0 => 1,
+            1 => CpuBenchmarkRunner.MaxWorkerCount,
+            _ => Math.Clamp((int)Math.Round(BenchmarkCustomWorkerCount), 1, CpuBenchmarkRunner.MaxWorkerCount)
+        };
+    }
+
+    public TimeSpan ResolveBenchmarkDuration()
+    {
+        return TimeSpan.FromSeconds(Math.Clamp((int)Math.Round(BenchmarkDurationSeconds), 2, 120));
+    }
+
+    public string ResolveBenchmarkModeText()
+    {
+        return Localization.BenchmarkModeText(SelectedBenchmarkModeIndex);
+    }
+
+    private void RefreshBenchmarkDisplay()
+    {
+        int workers = ResolveBenchmarkWorkerCount();
+        int durationSeconds = (int)Math.Round(ResolveBenchmarkDuration().TotalSeconds);
+        BenchmarkThreadsText = Localization.BenchmarkThreadCount(workers);
+        BenchmarkDurationText = Localization.BenchmarkDurationRun(durationSeconds);
+    }
+
+    private static int BenchmarkModeWorkerCount(int modeIndex)
+    {
+        return modeIndex switch
+        {
+            0 => 1,
+            1 => CpuBenchmarkRunner.MaxWorkerCount,
+            _ => Math.Clamp(CpuBenchmarkRunner.MaxWorkerCount, 1, CpuBenchmarkRunner.MaxWorkerCount)
+        };
+    }
+
+    private static int BenchmarkModeIndexForWorkerCount(int workerCount)
+    {
+        if (workerCount == 1)
+        {
+            return 0;
+        }
+
+        if (workerCount == CpuBenchmarkRunner.MaxWorkerCount)
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     private static string ResolveApplicationVersion()

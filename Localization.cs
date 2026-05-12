@@ -54,6 +54,21 @@ public static class Localization
         ["Ui_CpuSensors"] = "CPU sensors",
         ["Ui_GpuDevices"] = "GPU devices",
         ["Ui_StorageDevices"] = "Storage devices",
+        ["Ui_Benchmark"] = "Benchmark",
+        ["Ui_CpuBenchmark"] = "CPU benchmark",
+        ["Ui_Mode"] = "Mode",
+        ["Ui_Seconds"] = "Seconds",
+        ["Ui_Cores"] = "Cores",
+        ["Ui_Score"] = "Score",
+        ["Ui_Throughput"] = "Throughput",
+        ["Ui_Threads"] = "Threads",
+        ["Ui_Duration"] = "Duration",
+        ["Ui_Progress"] = "Progress",
+        ["Ui_Run"] = "Run",
+        ["Ui_Cancel"] = "Cancel",
+        ["Ui_SingleCore"] = "Single core",
+        ["Ui_MultiCore"] = "Multi core",
+        ["Ui_Custom"] = "Custom",
         ["Ui_StartupTitle"] = "Connecting to hardware backend",
         ["Ui_StartupSubtitle"] = "Initializing LibreHardwareMonitor and enumerating devices"
     };
@@ -101,6 +116,21 @@ public static class Localization
         ["Ui_CpuSensors"] = "CPU 传感器",
         ["Ui_GpuDevices"] = "GPU 设备",
         ["Ui_StorageDevices"] = "存储设备",
+        ["Ui_Benchmark"] = "跑分",
+        ["Ui_CpuBenchmark"] = "CPU 跑分",
+        ["Ui_Mode"] = "模式",
+        ["Ui_Seconds"] = "秒数",
+        ["Ui_Cores"] = "核心",
+        ["Ui_Score"] = "分数",
+        ["Ui_Throughput"] = "吞吐",
+        ["Ui_Threads"] = "线程",
+        ["Ui_Duration"] = "时长",
+        ["Ui_Progress"] = "进度",
+        ["Ui_Run"] = "运行",
+        ["Ui_Cancel"] = "取消",
+        ["Ui_SingleCore"] = "单核",
+        ["Ui_MultiCore"] = "多核",
+        ["Ui_Custom"] = "自定义",
         ["Ui_StartupTitle"] = "正在连接硬件后端",
         ["Ui_StartupSubtitle"] = "正在初始化 LibreHardwareMonitor 并枚举设备"
     };
@@ -237,6 +267,47 @@ public static class Localization
     public static string HotCount(int count) => CurrentLanguage == UiLanguage.Chinese ? $"{count} 个过热" : $"{count} hot";
 
     public static string WarmCount(int count) => CurrentLanguage == UiLanguage.Chinese ? $"{count} 个偏热" : $"{count} warm";
+
+    public static string BenchmarkReady => CurrentLanguage == UiLanguage.Chinese ? "就绪" : "Ready";
+
+    public static string BenchmarkRunButton => CurrentLanguage == UiLanguage.Chinese ? "运行" : "Run";
+
+    public static string BenchmarkRunningButton => CurrentLanguage == UiLanguage.Chinese ? "运行中" : "Running";
+
+    public static string BenchmarkCanceled => CurrentLanguage == UiLanguage.Chinese ? "已取消" : "Canceled";
+
+    public static string BenchmarkCanceling => CurrentLanguage == UiLanguage.Chinese ? "正在取消跑分" : "Canceling benchmark";
+
+    public static string BenchmarkCompletedAt(string timeText) => CurrentLanguage == UiLanguage.Chinese ? $"完成于 {timeText}" : $"Completed at {timeText}";
+
+    public static string BenchmarkFailed(string message) => CurrentLanguage == UiLanguage.Chinese ? $"跑分失败：{message}" : $"Benchmark failed: {message}";
+
+    public static string BenchmarkRunningMode(string modeText) => CurrentLanguage == UiLanguage.Chinese ? $"正在运行{modeText}跑分" : $"Running {modeText.ToLowerInvariant()} benchmark";
+
+    public static string BenchmarkRunningProgress(double elapsedSeconds, double durationSeconds) =>
+        CurrentLanguage == UiLanguage.Chinese
+            ? $"运行中 {elapsedSeconds:0.0} 秒 / {durationSeconds:0} 秒"
+            : $"Running {elapsedSeconds:0.0}s / {durationSeconds:0}s";
+
+    public static string BenchmarkThreadCount(int count) => CurrentLanguage == UiLanguage.Chinese
+        ? $"{count} 线程"
+        : $"{count} thread{(count == 1 ? string.Empty : "s")}";
+
+    public static string BenchmarkDurationRun(int seconds) => CurrentLanguage == UiLanguage.Chinese ? $"{seconds} 秒运行" : $"{seconds}s run";
+
+    public static string BenchmarkModeText(int modeIndex) => CurrentLanguage == UiLanguage.Chinese
+        ? modeIndex switch
+        {
+            0 => "单核",
+            1 => "多核",
+            _ => "自定义"
+        }
+        : modeIndex switch
+        {
+            0 => "Single core",
+            1 => "Multi core",
+            _ => "Custom"
+        };
 
     public static string DriverSummary(SensorDriverStatus status)
     {

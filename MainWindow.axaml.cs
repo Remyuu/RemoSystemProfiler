@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using RemoSystemProfiler.Backends.Windows;
@@ -22,6 +24,9 @@ public sealed partial class MainWindow : Window
     private const double InitialWindowHeight = 720;
     private const int StartupOverlayFadeMilliseconds = 320;
     private const int StartupOverlayCompletionHoldMilliseconds = 180;
+    private const double BenchmarkCurtainHeight = 284;
+    private const int BenchmarkCurtainAnimationMilliseconds = 220;
+    private const double DashboardContentVerticalMargin = 14;
 
     private static readonly int[] ChartRangesSeconds = [10, 30, 60, 300];
     private static readonly double[] UpdateIntervalsSeconds = [0.5, 1, 2, 5];
@@ -37,6 +42,11 @@ public sealed partial class MainWindow : Window
     private bool _isApplyingSidebarWidth;
     private bool _isAnimatingSidebarWidth;
     private CancellationTokenSource? _sidebarWidthAnimation;
+    private bool _isBenchmarkCurtainOpen;
+    private CancellationTokenSource? _benchmarkCurtainAnimation;
+    private CancellationTokenSource? _benchmarkCancellation;
+    private TranslateTransform? _benchmarkCurtainTransform;
+    private TranslateTransform? _dashboardContentTransform;
     private Size _lastNormalWindowSize = new(InitialWindowWidth, InitialWindowHeight);
     private HardwareMonitorReadResult? _lastResult;
     private bool _isClosed;
@@ -53,6 +63,13 @@ public sealed partial class MainWindow : Window
         _isApplyingStoredSettings = false;
         SizeChanged += OnWindowSizeChanged;
         _viewModel.UpdatedText = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        _benchmarkCurtainTransform = BenchmarkCurtain.RenderTransform as TranslateTransform
+            ?? new TranslateTransform { Y = -BenchmarkCurtainHeight };
+        BenchmarkCurtain.RenderTransform = _benchmarkCurtainTransform;
+        _dashboardContentTransform = DashboardContent.RenderTransform as TranslateTransform
+            ?? new TranslateTransform();
+        DashboardContent.RenderTransform = _dashboardContentTransform;
+        UpdateDashboardContentHeight(DashboardScrollViewer.Bounds.Height);
     }
 
     private void OnOpened(object? sender, EventArgs e)
@@ -67,6 +84,21 @@ public sealed partial class MainWindow : Window
         {
             _lastNormalWindowSize = e.NewSize;
         }
+    }
+
+    private void DashboardScrollViewer_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        UpdateDashboardContentHeight(e.NewSize.Height);
+    }
+
+    private void UpdateDashboardContentHeight(double scrollViewportHeight)
+    {
+        if (scrollViewportHeight <= 0)
+        {
+            return;
+        }
+
+        DashboardContent.Height = Math.Max(0, scrollViewportHeight - DashboardContentVerticalMargin);
     }
 
     private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -584,6 +616,187 @@ public sealed partial class MainWindow : Window
         DashboardCollection.SyncItems(collection, readings, key, create);
     }
 
+    private async void BenchmarkToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_isBenchmarkCurtainOpen)
+        {
+            CancelCpuBenchmark();
+            await AnimateBenchmarkCurtainAsync(open: false).ConfigureAwait(true);
+            return;
+        }
+
+        await AnimateBenchmarkCurtainAsync(open: true).ConfigureAwait(true);
+    }
+
+    private async void CpuBenchmarkRun_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsBenchmarkRunning)
+        {
+            return;
+        }
+
+        if (!_isBenchmarkCurtainOpen)
+        {
+            await AnimateBenchmarkCurtainAsync(open: true).ConfigureAwait(true);
+        }
+
+        CancellationTokenSource benchmark = new();
+        _benchmarkCancellation = benchmark;
+        int workerCount = _viewModel.ResolveBenchmarkWorkerCount();
+        TimeSpan duration = _viewModel.ResolveBenchmarkDuration();
+        string modeText = _viewModel.ResolveBenchmarkModeText();
+
+        _viewModel.IsBenchmarkRunning = true;
+        _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningMode(modeText);
+        _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(workerCount);
+        _viewModel.BenchmarkDurationText = Localization.BenchmarkDurationRun((int)Math.Round(duration.TotalSeconds));
+        _viewModel.BenchmarkProgressValue = 0;
+        _viewModel.BenchmarkProgressText = "0%";
+
+        Progress<CpuBenchmarkProgress> progress = new(ShowCpuBenchmarkProgress);
+        try
+        {
+            CpuBenchmarkResult result = await CpuBenchmarkRunner.RunAsync(duration, workerCount, progress, benchmark.Token).ConfigureAwait(true);
+            ShowCpuBenchmarkResult(result);
+        }
+        catch (OperationCanceledException)
+        {
+            _viewModel.BenchmarkStatusText = Localization.BenchmarkCanceled;
+        }
+        catch (Exception ex)
+        {
+            _viewModel.BenchmarkStatusText = Localization.BenchmarkFailed(ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_benchmarkCancellation, benchmark))
+            {
+                _benchmarkCancellation = null;
+            }
+
+            benchmark.Dispose();
+            _viewModel.IsBenchmarkRunning = false;
+        }
+    }
+
+    private void CpuBenchmarkCancel_Click(object? sender, RoutedEventArgs e) => CancelCpuBenchmark();
+
+    private void CancelCpuBenchmark()
+    {
+        if (_benchmarkCancellation is { IsCancellationRequested: false } benchmark)
+        {
+            _viewModel.BenchmarkStatusText = Localization.BenchmarkCanceling;
+            benchmark.Cancel();
+        }
+    }
+
+    private void ShowCpuBenchmarkProgress(CpuBenchmarkProgress progress)
+    {
+        double percent = Math.Clamp(progress.Ratio * 100d, 0, 100);
+        _viewModel.BenchmarkProgressValue = percent;
+        _viewModel.BenchmarkProgressText = $"{percent:0}%";
+        _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningProgress(progress.Elapsed.TotalSeconds, progress.Duration.TotalSeconds);
+    }
+
+    private void ShowCpuBenchmarkResult(CpuBenchmarkResult result)
+    {
+        _viewModel.BenchmarkProgressValue = 100;
+        _viewModel.BenchmarkProgressText = "100%";
+        _viewModel.BenchmarkScoreText = Math.Round(result.Score).ToString("N0", CultureInfo.InvariantCulture);
+        _viewModel.BenchmarkThroughputText = FormatOperationsPerSecond(result.OperationsPerSecond);
+        _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(result.WorkerCount);
+        _viewModel.BenchmarkDurationText = $"{result.ElapsedSeconds:0.0}s";
+        _viewModel.BenchmarkStatusText = Localization.BenchmarkCompletedAt(DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
+    }
+
+    private static string FormatOperationsPerSecond(double operationsPerSecond)
+    {
+        return operationsPerSecond switch
+        {
+            >= 1_000_000_000d => $"{operationsPerSecond / 1_000_000_000d:0.00} B ops/s",
+            >= 1_000_000d => $"{operationsPerSecond / 1_000_000d:0.00} M ops/s",
+            >= 1_000d => $"{operationsPerSecond / 1_000d:0.00} K ops/s",
+            _ => $"{operationsPerSecond:0} ops/s"
+        };
+    }
+
+    private async Task AnimateBenchmarkCurtainAsync(bool open)
+    {
+        StopBenchmarkCurtainAnimation();
+        CancellationTokenSource animation = new();
+        _benchmarkCurtainAnimation = animation;
+        CancellationToken token = animation.Token;
+
+        if (open)
+        {
+            DashboardScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            BenchmarkCurtainHost.IsVisible = true;
+            BenchmarkCurtainHost.IsHitTestVisible = true;
+        }
+        else
+        {
+            DashboardScrollViewer.Offset = new Vector(DashboardScrollViewer.Offset.X, 0);
+        }
+
+        TranslateTransform curtainTransform = _benchmarkCurtainTransform ?? new TranslateTransform { Y = -BenchmarkCurtainHeight };
+        _benchmarkCurtainTransform = curtainTransform;
+        BenchmarkCurtain.RenderTransform = curtainTransform;
+        TranslateTransform contentTransform = _dashboardContentTransform ?? new TranslateTransform();
+        _dashboardContentTransform = contentTransform;
+        DashboardContent.RenderTransform = contentTransform;
+
+        double fromOffset = curtainTransform.Y;
+        double toOffset = open ? 0 : -BenchmarkCurtainHeight;
+        double fromContentOffset = contentTransform.Y;
+        double toContentOffset = open ? BenchmarkCurtainHeight : 0;
+        double fromOpacity = BenchmarkCurtainHost.Opacity;
+        double toOpacity = open ? 1 : 0;
+
+        try
+        {
+            for (int frame = 1; frame <= DashboardAnimation.Frames; frame++)
+            {
+                token.ThrowIfCancellationRequested();
+                double t = frame / (double)DashboardAnimation.Frames;
+                double eased = DashboardAnimation.EaseOutCubic(t);
+                curtainTransform.Y = DashboardAnimation.Lerp(fromOffset, toOffset, eased);
+                contentTransform.Y = DashboardAnimation.Lerp(fromContentOffset, toContentOffset, eased);
+                BenchmarkCurtainHost.Opacity = DashboardAnimation.Lerp(fromOpacity, toOpacity, eased);
+                await Task.Delay(BenchmarkCurtainAnimationMilliseconds / DashboardAnimation.Frames, token).ConfigureAwait(true);
+            }
+
+            curtainTransform.Y = toOffset;
+            contentTransform.Y = toContentOffset;
+            BenchmarkCurtainHost.Opacity = toOpacity;
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by another curtain animation or window shutdown.
+        }
+        finally
+        {
+            if (ReferenceEquals(_benchmarkCurtainAnimation, animation))
+            {
+                _isBenchmarkCurtainOpen = open;
+                BenchmarkCurtainHost.IsHitTestVisible = open;
+                if (!open)
+                {
+                    BenchmarkCurtainHost.IsVisible = false;
+                    DashboardScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+                    DashboardScrollViewer.Offset = new Vector(DashboardScrollViewer.Offset.X, 0);
+                }
+
+                animation.Dispose();
+                _benchmarkCurtainAnimation = null;
+            }
+        }
+    }
+
+    private void StopBenchmarkCurtainAnimation()
+    {
+        _benchmarkCurtainAnimation?.Cancel();
+    }
+
     private void PawnIoLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://pawnio.eu/");
 
     private void WebsiteLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://remoooo.com");
@@ -613,7 +826,9 @@ public sealed partial class MainWindow : Window
 
         _isClosed = true;
         _shutdown.Cancel();
+        CancelCpuBenchmark();
         StopSidebarWidthAnimation();
+        StopBenchmarkCurtainAnimation();
         Closed -= OnClosed;
         _backend.Dispose();
         _shutdown.Dispose();
