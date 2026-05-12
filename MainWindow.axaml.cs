@@ -47,6 +47,7 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _benchmarkCancellation;
     private TranslateTransform? _benchmarkCurtainTransform;
     private TranslateTransform? _dashboardContentTransform;
+    private GitHubReleaseAssetInfo? _pendingUpdateAsset;
     private Size _lastNormalWindowSize = new(InitialWindowWidth, InitialWindowHeight);
     private HardwareMonitorReadResult? _lastResult;
     private bool _isClosed;
@@ -242,6 +243,7 @@ public sealed partial class MainWindow : Window
             _viewModel.ClockText = "--";
             SyncDeviceCollection(_viewModel.CpuSensorGroups, BuildCpuSensorGroups(null), reading => reading.Key, reading => new SensorGroupViewModel(reading));
             SyncDeviceCollection(_viewModel.CpuCores, Array.Empty<CoreReading>(), core => core.Index, core => new CoreItemViewModel(core));
+            SyncDeviceCollection(_viewModel.CpuOverallUsage, Array.Empty<CoreReading>(), core => core.Index, core => new CoreItemViewModel(core));
             return;
         }
 
@@ -253,6 +255,11 @@ public sealed partial class MainWindow : Window
         _viewModel.ClockText = cpu.ClockText;
         SyncDeviceCollection(_viewModel.CpuSensorGroups, BuildCpuSensorGroups(cpu), reading => reading.Key, reading => new SensorGroupViewModel(reading));
         SyncDeviceCollection(_viewModel.CpuCores, cpu.Cores, core => core.Index, core => new CoreItemViewModel(core));
+        SyncDeviceCollection(
+            _viewModel.CpuOverallUsage,
+            [new CoreReading(-1, Math.Clamp((int)Math.Round(cpu.AverageLoadPercent), 0, 100))],
+            core => core.Index,
+            core => new CoreItemViewModel(core));
     }
 
     private void ShowMemory(MemoryDeviceReading? memory)
@@ -376,6 +383,11 @@ public sealed partial class MainWindow : Window
         SaveDashboardSettings();
     }
 
+    private void CpuCoreGraphToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.IsCpuOverallView = !_viewModel.IsCpuOverallView;
+    }
+
     private void LanguagePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (!ApplyLanguageSelection())
@@ -482,8 +494,16 @@ public sealed partial class MainWindow : Window
         FlyoutAppSubtitleText.Text = Localization.Resource("Ui_AppSubtitle");
         FlyoutVersionLabel.Text = Localization.Resource("Ui_Version");
         FlyoutWebsiteLabel.Text = Localization.Resource("Ui_Website");
+        FlyoutCheckUpdatesButton.Content = Localization.Resource("Ui_CheckForUpdates");
+        FlyoutInstallUpdateButton.Content = Localization.Resource("Ui_DownloadAndInstall");
+        FlyoutOpenReleaseButton.Content = Localization.Resource("Ui_OpenRelease");
+        FlyoutReleaseNotesLabel.Text = Localization.Resource("Ui_ReleaseNotes");
         FlyoutBuiltWithText.Text = Localization.Resource("Ui_BuiltWith");
         FlyoutLicenseNoticeText.Text = Localization.Resource("Ui_LicenseNotice");
+        if (!_viewModel.IsUpdateCheckRunning && !_viewModel.IsReleaseNotesVisible)
+        {
+            _viewModel.UpdateStatusText = Localization.UpdateIdle;
+        }
     }
 
     private void SaveDashboardSettings()
@@ -837,7 +857,133 @@ public sealed partial class MainWindow : Window
 
     private void WebsiteLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://remoooo.com");
 
-    private void GithubLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://github.com/Remyuu");
+    private void GithubLink_Click(object? sender, RoutedEventArgs e) => OpenUri("https://github.com/Remyuu/RemoSystemProfiler");
+
+    private async void CheckUpdates_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsUpdateCheckRunning)
+        {
+            return;
+        }
+
+        _viewModel.IsUpdateCheckRunning = true;
+        _viewModel.IsOpenReleaseVisible = false;
+        _viewModel.IsInstallUpdateVisible = false;
+        _viewModel.IsUpdateProgressVisible = false;
+        _viewModel.UpdateProgressValue = 0;
+        _viewModel.UpdateProgressText = "0%";
+        _viewModel.IsReleaseNotesVisible = false;
+        _viewModel.ReleaseNotesText = string.Empty;
+        _viewModel.UpdateStatusText = Localization.UpdateChecking;
+        _pendingUpdateAsset = null;
+
+        GitHubReleaseCheckResult result = await GitHubReleaseChecker.CheckLatestAsync(_viewModel.CurrentVersion, _shutdown.Token);
+        if (_isClosed)
+        {
+            return;
+        }
+
+        _viewModel.IsUpdateCheckRunning = false;
+        if (!result.IsSuccess)
+        {
+            _viewModel.UpdateStatusText = Localization.UpdateCheckFailed(result.ErrorMessage ?? "Unknown error");
+            return;
+        }
+
+        if (!result.HasRelease || result.Release is null)
+        {
+            _viewModel.UpdateStatusText = Localization.UpdateNoReleases;
+            return;
+        }
+
+        _viewModel.LatestReleaseUrl = result.Release.Url;
+        _viewModel.ReleaseNotesText = result.Release.Notes;
+        _viewModel.IsReleaseNotesVisible = true;
+        _viewModel.IsOpenReleaseVisible = true;
+        _pendingUpdateAsset = result.IsUpdateAvailable ? result.Release.DownloadAsset : null;
+        _viewModel.IsInstallUpdateVisible = _pendingUpdateAsset is not null;
+        _viewModel.UpdateStatusText = result.IsUpdateAvailable && _pendingUpdateAsset is null
+            ? Localization.UpdateNoDownloadAsset
+            : result.IsUpdateAvailable
+            ? Localization.UpdateAvailable(result.Release.Version)
+            : Localization.UpdateAlreadyLatest(_viewModel.VersionText);
+    }
+
+    private void OpenLatestRelease_Click(object? sender, RoutedEventArgs e) => OpenUri(_viewModel.LatestReleaseUrl);
+
+    private async void InstallUpdate_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_pendingUpdateAsset is null || _viewModel.IsUpdateInstallRunning)
+        {
+            return;
+        }
+
+        _viewModel.IsUpdateInstallRunning = true;
+        _viewModel.IsUpdateProgressVisible = true;
+        _viewModel.UpdateProgressValue = 0;
+        _viewModel.UpdateProgressText = "0%";
+        _viewModel.UpdateStatusText = Localization.UpdateDownloading;
+
+        try
+        {
+            Progress<DownloadProgressInfo> progress = new(UpdateDownloadProgress);
+            UpdateInstallResult result = await AppUpdater.DownloadAndStartUpdateAsync(_pendingUpdateAsset, progress, _shutdown.Token);
+            if (_isClosed)
+            {
+                return;
+            }
+
+            _viewModel.UpdateStatusText = Localization.UpdatePreparing;
+            _viewModel.UpdateStatusText = result.Message;
+            _viewModel.IsUpdateInstallRunning = false;
+            _viewModel.IsUpdateProgressVisible = result.IsSuccess && result.ShouldCloseApplication;
+            if (result.IsSuccess && result.ShouldCloseApplication)
+            {
+                Close();
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Closing the app already cancels in-flight update work.
+        }
+        catch (Exception ex)
+        {
+            _viewModel.IsUpdateInstallRunning = false;
+            _viewModel.IsUpdateProgressVisible = false;
+            _viewModel.UpdateStatusText = Localization.UpdateInstallFailed(ex.Message);
+        }
+    }
+
+    private void UpdateDownloadProgress(DownloadProgressInfo value)
+    {
+        double progress = Math.Clamp(value.Percent, 0, 100);
+        _viewModel.UpdateProgressValue = progress;
+        _viewModel.UpdateProgressText = $"{progress:0}% · {FormatDownloadSpeed(value.BytesPerSecond)}";
+        _viewModel.UpdateStatusText = progress >= 100
+            ? Localization.UpdatePreparing
+            : Localization.UpdateDownloading;
+    }
+
+    private static string FormatDownloadSpeed(double bytesPerSecond)
+    {
+        if (bytesPerSecond <= 0)
+        {
+            return "-- MB/s";
+        }
+
+        string[] units = ["B/s", "KB/s", "MB/s", "GB/s"];
+        double value = bytesPerSecond;
+        int unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return unitIndex == 0
+            ? $"{value:0} {units[unitIndex]}"
+            : $"{value:0.0} {units[unitIndex]}";
+    }
 
     private static void OpenUri(string uri)
     {

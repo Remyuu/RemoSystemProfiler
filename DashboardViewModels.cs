@@ -44,6 +44,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _cpuPackagePowerText = "--";
     private string _cpuPeakTempText = "--";
     private string _coreCountText = "--";
+    private bool _isCpuOverallView;
     private bool _isBenchmarkRunning;
     private string _benchmarkStatusText = Localization.BenchmarkReady;
     private string _benchmarkScoreText = "--";
@@ -70,6 +71,17 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private bool _isSidebarExpanded = true;
     private string _sidebarToggleToolTip = Localization.CollapseSidebar;
     private Thickness _sidebarMargin = new(8, 10);
+    private bool _isUpdateCheckRunning;
+    private bool _isReleaseNotesVisible;
+    private bool _isOpenReleaseVisible;
+    private bool _isInstallUpdateVisible;
+    private bool _isUpdateInstallRunning;
+    private bool _isUpdateProgressVisible;
+    private double _updateProgressValue;
+    private string _updateProgressText = "0%";
+    private string _updateStatusText = Localization.UpdateIdle;
+    private string _releaseNotesText = string.Empty;
+    private string _latestReleaseUrl = "https://github.com/Remyuu/RemoSystemProfiler/releases";
     private static readonly string ApplicationVersion = ResolveApplicationVersion();
 
     public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
@@ -77,6 +89,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public ObservableCollection<SensorGroupViewModel> CpuSensorGroups { get; } = [];
 
     public ObservableCollection<CoreItemViewModel> CpuCores { get; } = [];
+
+    public ObservableCollection<CoreItemViewModel> CpuOverallUsage { get; } = [];
 
     public ObservableCollection<MetricItemViewModel> MemoryMetrics { get; } = [];
 
@@ -98,6 +112,56 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string VersionText => $"v{ApplicationVersion}";
 
+    public string CurrentVersion => ApplicationVersion;
+
+    public bool IsUpdateCheckRunning
+    {
+        get => _isUpdateCheckRunning;
+        set
+        {
+            if (SetProperty(ref _isUpdateCheckRunning, value))
+            {
+                RaisePropertyChanged(nameof(IsUpdateCheckAvailable));
+                RaisePropertyChanged(nameof(IsUpdateInstallAvailable));
+            }
+        }
+    }
+
+    public bool IsUpdateCheckAvailable => !IsUpdateCheckRunning && !IsUpdateInstallRunning;
+
+    public bool IsUpdateInstallRunning
+    {
+        get => _isUpdateInstallRunning;
+        set
+        {
+            if (SetProperty(ref _isUpdateInstallRunning, value))
+            {
+                RaisePropertyChanged(nameof(IsUpdateCheckAvailable));
+                RaisePropertyChanged(nameof(IsUpdateInstallAvailable));
+            }
+        }
+    }
+
+    public bool IsUpdateInstallAvailable => !IsUpdateCheckRunning && !IsUpdateInstallRunning;
+
+    public bool IsReleaseNotesVisible { get => _isReleaseNotesVisible; set => SetProperty(ref _isReleaseNotesVisible, value); }
+
+    public bool IsOpenReleaseVisible { get => _isOpenReleaseVisible; set => SetProperty(ref _isOpenReleaseVisible, value); }
+
+    public bool IsInstallUpdateVisible { get => _isInstallUpdateVisible; set => SetProperty(ref _isInstallUpdateVisible, value); }
+
+    public bool IsUpdateProgressVisible { get => _isUpdateProgressVisible; set => SetProperty(ref _isUpdateProgressVisible, value); }
+
+    public double UpdateProgressValue { get => _updateProgressValue; set => SetProperty(ref _updateProgressValue, value); }
+
+    public string UpdateProgressText { get => _updateProgressText; set => SetProperty(ref _updateProgressText, value); }
+
+    public string UpdateStatusText { get => _updateStatusText; set => SetProperty(ref _updateStatusText, value); }
+
+    public string ReleaseNotesText { get => _releaseNotesText; set => SetProperty(ref _releaseNotesText, value); }
+
+    public string LatestReleaseUrl { get => _latestReleaseUrl; set => SetProperty(ref _latestReleaseUrl, value); }
+
     public string CpuNameText { get => _cpuNameText; set => SetProperty(ref _cpuNameText, value); }
 
     public string CpuLoadSummaryText { get => _cpuLoadSummaryText; set => SetProperty(ref _cpuLoadSummaryText, value); }
@@ -109,6 +173,41 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public string CpuPeakTempText { get => _cpuPeakTempText; set => SetProperty(ref _cpuPeakTempText, value); }
 
     public string CoreCountText { get => _coreCountText; set => SetProperty(ref _coreCountText, value); }
+
+    public bool IsCpuOverallView
+    {
+        get => _isCpuOverallView;
+        set
+        {
+            if (SetProperty(ref _isCpuOverallView, value))
+            {
+                RaisePropertyChanged(nameof(IsCpuLogicalProcessorView));
+                RefreshCpuCoreGraphChrome();
+            }
+        }
+    }
+
+    public bool IsCpuLogicalProcessorView => !IsCpuOverallView;
+
+    public string CpuCoreGraphTitle => IsCpuOverallView
+        ? Localization.Resource("Ui_OverallUtilization")
+        : Localization.Resource("Ui_LogicalProcessors");
+
+    public string CpuCoreGraphToggleText => IsCpuOverallView
+        ? Localization.Resource("Ui_LogicalProcessorsShort")
+        : Localization.Resource("Ui_OverallUtilizationShort");
+
+    public string CpuCoreGraphToggleToolTip => IsCpuOverallView
+        ? Localization.Resource("Ui_ShowLogicalProcessors")
+        : Localization.Resource("Ui_ShowOverallUtilization");
+
+    public double CpuLogicalGraphOpacity => IsCpuOverallView ? 0d : 1d;
+
+    public double CpuOverallGraphOpacity => IsCpuOverallView ? 1d : 0d;
+
+    public double CpuLogicalGraphScale => IsCpuOverallView ? 0.985d : 1d;
+
+    public double CpuOverallGraphScale => IsCpuOverallView ? 1d : 0.985d;
 
     public bool IsBenchmarkRunning
     {
@@ -260,12 +359,24 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public void RefreshLocalizedChrome()
     {
         SidebarToggleToolTip = IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+        RefreshCpuCoreGraphChrome();
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
         RefreshBenchmarkDisplay();
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0 && BenchmarkScoreText == "--")
         {
             BenchmarkStatusText = Localization.BenchmarkReady;
         }
+    }
+
+    private void RefreshCpuCoreGraphChrome()
+    {
+        RaisePropertyChanged(nameof(CpuCoreGraphTitle));
+        RaisePropertyChanged(nameof(CpuCoreGraphToggleText));
+        RaisePropertyChanged(nameof(CpuCoreGraphToggleToolTip));
+        RaisePropertyChanged(nameof(CpuLogicalGraphOpacity));
+        RaisePropertyChanged(nameof(CpuOverallGraphOpacity));
+        RaisePropertyChanged(nameof(CpuLogicalGraphScale));
+        RaisePropertyChanged(nameof(CpuOverallGraphScale));
     }
 
     public int ResolveBenchmarkWorkerCount()
