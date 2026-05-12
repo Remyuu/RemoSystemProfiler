@@ -53,7 +53,7 @@ internal static class DashboardSettingsStore
         ChartRangeIndex = Math.Clamp(settings.ChartRangeIndex, 0, 3),
         UpdateIntervalIndex = Math.Clamp(settings.UpdateIntervalIndex, 0, 3),
         ThemeIndex = Math.Clamp(settings.ThemeIndex, 0, 2),
-        LanguageIndex = Math.Clamp(settings.LanguageIndex, 0, 1)
+        LanguageIndex = Math.Clamp(settings.LanguageIndex, 0, 3)
     };
 
     private static string SettingsPath => Path.Combine(AppContext.BaseDirectory, "dashboard-settings.json");

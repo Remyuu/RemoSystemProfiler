@@ -1,35 +1,47 @@
 # Remo System Profiler
 
-Compact Windows 11 hardware sensor dashboard built with WinUI 3.
+Remo System Profiler is a small Windows app for checking your PC’s hardware status in real time. It shows CPU, memory, GPU, storage, temperature, load, power, and sensor info in one compact window.
 
-## Scope
+Remo System Profiler 是一个小型 Windows 硬件监视工具，用来实时查看当前电脑的状态。它会把 CPU、内存、GPU、硬盘、温度、负载、功耗和传感器信息放在一个紧凑的窗口里。
 
-- Reads CPU, memory, GPU, and storage sensors through `LibreHardwareMonitorLib`.
-- Does not require a bundled native SDK DLL or helper process.
-- Shows CPU package power, CPU temperature sensors, per-core load/temperature/power rows, memory usage/temperature, GPU power/temperature/VRAM sensors, and storage usage/temperature/read-write sensors.
-- Lists every exposed GPU and storage device instead of assuming a single card or disk.
-- Keeps the first version intentionally small: no tray icon, no chart history, no alternate sensor backend.
-- Requires administrator elevation so low-level hardware sensors can be opened consistently.
+The app is built with Avalonia and .NET 8. Hardware data on Windows is read through a lightweight backend based on LibreHardwareMonitor. The UI mainly focuses on showing the dashboard clearly.
 
-## Build
+这个应用使用 Avalonia 和 .NET 8 开发。Windows 上的硬件数据由一个轻量后端读取，底层用的是 LibreHardwareMonitor。界面部分主要负责把信息清楚地展示出来。
 
-Install the .NET SDK and Windows App SDK WinUI workload, then open `RemoSystemProfiler.sln` in Visual Studio 2022 or newer and build the `x64` configuration.
+## What It Shows
 
-The app targets `net8.0-windows10.0.19041.0`, Windows App SDK `1.8.*`, and `LibreHardwareMonitorLib`.
+The main page is split into several parts: system overview, CPU info and sensors, memory usage, GPU devices, storage devices, and a small CPU benchmark section. It also has simple settings for update speed, chart range, theme, language, and app info.
 
-If Visual Studio opens the solution with the project unloaded, install the components listed in `.vsconfig` or use Visual Studio Installer > Modify > WinUI application development.
+主界面分成几个区域：系统概览、CPU 信息和传感器、内存占用、GPU 设备、存储设备，还有一个小型 CPU 跑分区域。里面也有一些简单设置，比如刷新间隔、图表范围、主题、语言和关于信息。
 
-For Visual Studio F5 debugging, start Visual Studio itself with **Run as administrator**. The app manifest requests `requireAdministrator`, and packaged MSIX builds also declare the restricted `allowElevation` capability so published launches can show the UAC prompt.
+Not every sensor is always available. It depends on your hardware, drivers, and permissions. The app can run without administrator rights, but some motherboard, fan, voltage, or temperature data may only show up after installing ==PawnIO== and restarting ==as administrator==.
 
-For a quick command-line development build without MSIX packaging:
+不是所有传感器都一定能读到，这取决于你的硬件、驱动和权限。应用不强制管理员启动，但有些主板、风扇、电压或温度数据，可能需要安装 ==PawnIO==，并用==管理员身份==重启后才会显示。
+
+## Use It
+
+Open the solution with Visual Studio 2022 or newer, choose `x64`, and run the `RemoSystemProfiler` project. For local development, just run the normal unpackaged desktop version.
+
+用 Visual Studio 2022 或更新版本打开解决方案，选择 `x64`，然后运行 `RemoSystemProfiler` 项目。日常本地开发时，直接用非打包的桌面运行方式就可以。
+
+For a quick command-line build:
+
+命令行快速构建可以用：
 
 ```powershell
 dotnet build RemoSystemProfiler.csproj -c Debug -p:Platform=x64 -p:WindowsPackageType=None
 ```
 
-For MSIX project build validation on this machine's current Visual Studio install:
+If the dashboard says sensor access is limited, check the message shown in the app first. Installing PawnIO or restarting as administrator may unlock more sensors. Even without full low-level access, storage info and many basic system readings should still work.
 
-```powershell
-$env:MSBuildSDKsPath = 'C:\Program Files\dotnet\sdk\8.0.420\Sdks'
-& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' RemoSystemProfiler.csproj /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false
-```
+如果界面提示传感器访问受限，先看应用里的提示信息。安装 PawnIO 或用管理员身份重启，可能会解锁更多传感器。即使没有完整的底层权限，存储信息和很多基础系统数据通常也能正常显示。
+
+## Project Shape
+
+The project is split into three main parts: the Avalonia desktop app, shared profiler contracts in `RemoSystemProfiler.Core`, and the Windows sensor backend in `RemoSystemProfiler.Backends.Windows`. This keeps the current app simple, while still making it easier to replace the frontend later.
+
+项目主要分成三部分：Avalonia 桌面应用、`RemoSystemProfiler.Core` 里的共享监视器接口，以及 `RemoSystemProfiler.Backends.Windows` 里的 Windows 传感器后端。这样现在的结构比较简单，以后如果想换前端也更方便。
+
+Dashboard settings, such as chart range, update interval, theme, and language, are saved in a small local settings file next to the built app.
+
+图表范围、刷新间隔、主题和语言这些设置，会保存在构建输出目录旁边的一个小型本地设置文件里。

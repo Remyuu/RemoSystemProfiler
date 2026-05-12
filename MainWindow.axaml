@@ -560,73 +560,77 @@
                                         BorderThickness="1"
                                         CornerRadius="8">
                                         <local:AnimatedFlyoutPanel Width="280" Spacing="10">
-                                            <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
+                                            <TextBlock x:Name="FlyoutDashboardTitle" Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Dashboard}" />
                                             <StackPanel Spacing="4">
-                                                <TextBlock Classes="label" Text="{DynamicResource Ui_ChartRange}" />
+                                                <TextBlock x:Name="FlyoutChartRangeLabel" Classes="label" Text="{DynamicResource Ui_ChartRange}" />
                                                 <ComboBox
                                                     SelectedIndex="{Binding SelectedChartRangeIndex}"
                                                     SelectionChanged="ChartRangePicker_SelectionChanged">
-                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeTenSeconds}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeThirtySeconds}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeOneMinute}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_RangeFiveMinutes}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeTenSecondsItem" Content="{DynamicResource Ui_RangeTenSeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeThirtySecondsItem" Content="{DynamicResource Ui_RangeThirtySeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeOneMinuteItem" Content="{DynamicResource Ui_RangeOneMinute}" />
+                                                    <ComboBoxItem x:Name="FlyoutRangeFiveMinutesItem" Content="{DynamicResource Ui_RangeFiveMinutes}" />
                                                 </ComboBox>
                                             </StackPanel>
                                             <StackPanel Spacing="4">
-                                                <TextBlock Classes="label" Text="{DynamicResource Ui_UpdateInterval}" />
+                                                <TextBlock x:Name="FlyoutUpdateIntervalLabel" Classes="label" Text="{DynamicResource Ui_UpdateInterval}" />
                                                 <ComboBox
                                                     SelectedIndex="{Binding SelectedUpdateIntervalIndex}"
                                                     SelectionChanged="UpdateIntervalPicker_SelectionChanged">
-                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalHalfSecond}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalOneSecond}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalTwoSeconds}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_IntervalFiveSeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalHalfSecondItem" Content="{DynamicResource Ui_IntervalHalfSecond}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalOneSecondItem" Content="{DynamicResource Ui_IntervalOneSecond}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalTwoSecondsItem" Content="{DynamicResource Ui_IntervalTwoSeconds}" />
+                                                    <ComboBoxItem x:Name="FlyoutIntervalFiveSecondsItem" Content="{DynamicResource Ui_IntervalFiveSeconds}" />
                                                 </ComboBox>
                                             </StackPanel>
                                             <StackPanel Spacing="4">
-                                                <TextBlock Classes="label" Text="{DynamicResource Ui_Theme}" />
+                                                <TextBlock x:Name="FlyoutThemeLabel" Classes="label" Text="{DynamicResource Ui_Theme}" />
                                                 <ComboBox
                                                     SelectedIndex="{Binding SelectedThemeIndex}"
                                                     SelectionChanged="ThemePicker_SelectionChanged">
-                                                    <ComboBoxItem Content="{DynamicResource Ui_ThemeSystem}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_ThemeLight}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_ThemeDark}" />
+                                                    <ComboBoxItem x:Name="FlyoutThemeSystemItem" Content="{DynamicResource Ui_ThemeSystem}" />
+                                                    <ComboBoxItem x:Name="FlyoutThemeLightItem" Content="{DynamicResource Ui_ThemeLight}" />
+                                                    <ComboBoxItem x:Name="FlyoutThemeDarkItem" Content="{DynamicResource Ui_ThemeDark}" />
                                                 </ComboBox>
                                             </StackPanel>
                                             <StackPanel Spacing="4">
-                                                <TextBlock Classes="label" Text="{DynamicResource Ui_Language}" />
+                                                <TextBlock x:Name="FlyoutLanguageLabel" Classes="label" Text="{DynamicResource Ui_Language}" />
                                                 <ComboBox
                                                     SelectedIndex="{Binding SelectedLanguageIndex}"
                                                     SelectionChanged="LanguagePicker_SelectionChanged">
-                                                    <ComboBoxItem Content="{DynamicResource Ui_English}" />
-                                                    <ComboBoxItem Content="{DynamicResource Ui_Chinese}" />
+                                                    <ComboBoxItem x:Name="FlyoutEnglishItem" Content="{DynamicResource Ui_English}" />
+                                                    <ComboBoxItem x:Name="FlyoutChineseItem" Content="{DynamicResource Ui_Chinese}" />
+                                                    <ComboBoxItem x:Name="FlyoutJapaneseItem" Content="{DynamicResource Ui_Japanese}" />
+                                                    <ComboBoxItem x:Name="FlyoutTraditionalChineseItem" Content="{DynamicResource Ui_TraditionalChinese}" />
                                                 </ComboBox>
                                             </StackPanel>
                                             <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
                                             <local:AnimatedExpander>
                                                 <local:AnimatedExpander.Header>
-                                                    <TextBlock Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_About}" />
+                                                    <TextBlock x:Name="FlyoutAboutTitle" Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_About}" />
                                                 </local:AnimatedExpander.Header>
                                                 <local:AnimatedExpander.Body>
                                                     <StackPanel Spacing="8">
                                                         <StackPanel Spacing="1">
                                                             <TextBlock Classes="emphasis" FontSize="14" Text="Remo System Profiler" />
-                                                            <TextBlock FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="{DynamicResource Ui_AppSubtitle}" />
+                                                            <TextBlock x:Name="FlyoutAppSubtitleText" FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" Text="{DynamicResource Ui_AppSubtitle}" />
                                                         </StackPanel>
                                                         <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
-                                                            <TextBlock Classes="label" Text="{DynamicResource Ui_Version}" />
+                                                            <TextBlock x:Name="FlyoutVersionLabel" Classes="label" Text="{DynamicResource Ui_Version}" />
                                                             <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
-                                                            <TextBlock Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
+                                                            <TextBlock x:Name="FlyoutWebsiteLabel" Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
                                                             <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
                                                             <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
                                                             <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu" />
                                                         </Grid>
                                                         <TextBlock
+                                                            x:Name="FlyoutBuiltWithText"
                                                             FontSize="11"
                                                             Foreground="{DynamicResource MutedTextBrush}"
                                                             Text="{DynamicResource Ui_BuiltWith}"
                                                             TextWrapping="Wrap" />
                                                         <TextBlock
+                                                            x:Name="FlyoutLicenseNoticeText"
                                                             FontSize="11"
                                                             Foreground="{DynamicResource SubtleTextBrush}"
                                                             Text="{DynamicResource Ui_LicenseNotice}"

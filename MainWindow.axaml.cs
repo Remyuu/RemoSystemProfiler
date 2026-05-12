@@ -57,6 +57,7 @@ public sealed partial class MainWindow : Window
         ApplyStoredDashboardSettings(DashboardSettingsStore.Load());
         InitializeComponent();
         DataContext = _viewModel;
+        RefreshDashboardFlyoutLocalization();
         Opened += OnOpened;
         Closed += OnClosed;
         ApplyDashboardSelectionEffects();
@@ -383,6 +384,7 @@ public sealed partial class MainWindow : Window
         }
 
         _viewModel.RefreshLocalizedChrome();
+        RefreshDashboardFlyoutLocalization();
         if (_lastResult is { } result)
         {
             ShowResult(result);
@@ -448,6 +450,40 @@ public sealed partial class MainWindow : Window
         }
 
         return changed;
+    }
+
+    private void RefreshDashboardFlyoutLocalization()
+    {
+        FlyoutDashboardTitle.Text = Localization.Resource("Ui_Dashboard");
+        FlyoutChartRangeLabel.Text = Localization.Resource("Ui_ChartRange");
+        FlyoutRangeTenSecondsItem.Content = Localization.Resource("Ui_RangeTenSeconds");
+        FlyoutRangeThirtySecondsItem.Content = Localization.Resource("Ui_RangeThirtySeconds");
+        FlyoutRangeOneMinuteItem.Content = Localization.Resource("Ui_RangeOneMinute");
+        FlyoutRangeFiveMinutesItem.Content = Localization.Resource("Ui_RangeFiveMinutes");
+
+        FlyoutUpdateIntervalLabel.Text = Localization.Resource("Ui_UpdateInterval");
+        FlyoutIntervalHalfSecondItem.Content = Localization.Resource("Ui_IntervalHalfSecond");
+        FlyoutIntervalOneSecondItem.Content = Localization.Resource("Ui_IntervalOneSecond");
+        FlyoutIntervalTwoSecondsItem.Content = Localization.Resource("Ui_IntervalTwoSeconds");
+        FlyoutIntervalFiveSecondsItem.Content = Localization.Resource("Ui_IntervalFiveSeconds");
+
+        FlyoutThemeLabel.Text = Localization.Resource("Ui_Theme");
+        FlyoutThemeSystemItem.Content = Localization.Resource("Ui_ThemeSystem");
+        FlyoutThemeLightItem.Content = Localization.Resource("Ui_ThemeLight");
+        FlyoutThemeDarkItem.Content = Localization.Resource("Ui_ThemeDark");
+
+        FlyoutLanguageLabel.Text = Localization.Resource("Ui_Language");
+        FlyoutEnglishItem.Content = Localization.Resource("Ui_English");
+        FlyoutChineseItem.Content = Localization.Resource("Ui_Chinese");
+        FlyoutJapaneseItem.Content = Localization.Resource("Ui_Japanese");
+        FlyoutTraditionalChineseItem.Content = Localization.Resource("Ui_TraditionalChinese");
+
+        FlyoutAboutTitle.Text = Localization.Resource("Ui_About");
+        FlyoutAppSubtitleText.Text = Localization.Resource("Ui_AppSubtitle");
+        FlyoutVersionLabel.Text = Localization.Resource("Ui_Version");
+        FlyoutWebsiteLabel.Text = Localization.Resource("Ui_Website");
+        FlyoutBuiltWithText.Text = Localization.Resource("Ui_BuiltWith");
+        FlyoutLicenseNoticeText.Text = Localization.Resource("Ui_LicenseNotice");
     }
 
     private void SaveDashboardSettings()
