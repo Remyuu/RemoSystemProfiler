@@ -6,7 +6,8 @@ internal sealed record DashboardSettings(
     int ChartRangeIndex = 0,
     int UpdateIntervalIndex = 1,
     int ThemeIndex = 0,
-    int LanguageIndex = 0);
+    int LanguageIndex = 0,
+    bool CpuOverallView = false);
 
 internal static class DashboardSettingsStore
 {
