@@ -515,19 +515,16 @@ public sealed partial class MainWindow : Window
     private void ThemePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         ApplyThemeSelection();
-        SaveDashboardSettings();
     }
 
     private void ChartRangePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         ApplyChartRangeSelection();
-        SaveDashboardSettings();
     }
 
     private void UpdateIntervalPicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         ApplyUpdateIntervalSelection();
-        SaveDashboardSettings();
     }
 
     private void CpuCoreGraphToggle_Click(object? sender, RoutedEventArgs e)
@@ -552,7 +549,6 @@ public sealed partial class MainWindow : Window
         {
             _viewModel.RefreshWaitingText();
         }
-        SaveDashboardSettings();
     }
 
     private void ApplyStoredDashboardSettings(DashboardSettings settings)
@@ -561,6 +557,7 @@ public sealed partial class MainWindow : Window
         _viewModel.SelectedUpdateIntervalIndex = settings.UpdateIntervalIndex;
         _viewModel.SelectedThemeIndex = settings.ThemeIndex;
         _viewModel.SelectedLanguageIndex = settings.LanguageIndex;
+        _viewModel.IsCpuOverallView = settings.CpuOverallView;
         ApplyLanguageSelection();
     }
 
@@ -667,7 +664,8 @@ public sealed partial class MainWindow : Window
             _viewModel.SelectedChartRangeIndex,
             _viewModel.SelectedUpdateIntervalIndex,
             _viewModel.SelectedThemeIndex,
-            _viewModel.SelectedLanguageIndex));
+            _viewModel.SelectedLanguageIndex,
+            _viewModel.IsCpuOverallView));
     }
 
     private async void SidebarToggle_Click(object? sender, RoutedEventArgs e)
@@ -1222,6 +1220,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        SaveDashboardSettings();
         _isClosed = true;
         _shutdown.Cancel();
         CancelCpuBenchmark();

@@ -164,8 +164,8 @@ public sealed class CpuCoreGrid : Control
             return;
         }
 
-        StreamGeometry geometry = state.GetGeometry(chart);
-        context.DrawGeometry(null, state.GetSparklinePen(core.LoadBrush), geometry);
+        state.DrawAreaSegments(context, chart, DashboardBrushes.Blue);
+        state.DrawLineSegments(context, chart, DashboardBrushes.Blue);
     }
 
     private void DrawLoadPill(DrawingContext context, CoreItemViewModel core, Rect cell, IBrush pillBackground, IBrush fallbackTextBrush)
@@ -396,11 +396,6 @@ public sealed class CpuCoreGrid : Control
     {
         private float[] _samples = new float[ChartHistorySettings.MaxSamples];
         private int _start;
-        private StreamGeometry? _geometry;
-        private Rect _geometryBounds;
-        private bool _geometryDirty = true;
-        private Pen? _sparklinePen;
-        private IBrush? _sparklinePenBrush;
         private string? _labelTextValue;
         private IBrush? _labelTextBrush;
         private FormattedText? _labelText;
@@ -422,55 +417,59 @@ public sealed class CpuCoreGrid : Control
                 _start = (_start + 1) % _samples.Length;
             }
 
-            _geometryDirty = true;
-        }
-
-        public StreamGeometry GetGeometry(Rect bounds)
-        {
-            if (!_geometryDirty && _geometry is not null && _geometryBounds == bounds)
-            {
-                return _geometry;
-            }
-
-            _geometryBounds = bounds;
-            _geometryDirty = false;
-            StreamGeometry geometry = new();
-            using StreamGeometryContext stream = geometry.Open();
-            if (Count <= 1)
-            {
-                double y = Y(SampleAt(0), bounds);
-                stream.BeginFigure(new Point(bounds.X, y), false);
-                stream.LineTo(new Point(bounds.Right, y));
-            }
-            else
-            {
-                double step = bounds.Width / (Count - 1);
-                stream.BeginFigure(new Point(bounds.X, Y(SampleAt(0), bounds)), false);
-                for (int i = 1; i < Count; i++)
-                {
-                    stream.LineTo(new Point(bounds.X + i * step, Y(SampleAt(i), bounds)));
-                }
-            }
-
-            _geometry = geometry;
-            return geometry;
         }
 
         public void InvalidateGeometry()
         {
-            _geometryDirty = true;
         }
 
-        public Pen GetSparklinePen(IBrush? brush)
+        public void DrawAreaSegments(DrawingContext context, Rect bounds, IBrush lowBrush)
         {
-            IBrush stroke = brush ?? DashboardBrushes.Blue;
-            if (_sparklinePen is null || !ReferenceEquals(_sparklinePenBrush, stroke))
+            if (Count <= 1)
             {
-                _sparklinePenBrush = stroke;
-                _sparklinePen = new Pen(stroke, 2.2);
+                float sample = SampleAt(0);
+                StreamGeometry geometry = BuildAreaSegment(bounds.Left, bounds.Right, bounds.Bottom, Y(sample, bounds), Y(sample, bounds));
+                context.DrawGeometry(UtilizationChartBrushes.CreateAreaBrush(sample, lowBrush), null, geometry);
+                return;
             }
 
-            return _sparklinePen;
+            double step = bounds.Width / (Count - 1);
+            for (int i = 1; i < Count; i++)
+            {
+                float previous = SampleAt(i - 1);
+                float current = SampleAt(i);
+                double x0 = bounds.X + (i - 1) * step;
+                double x1 = bounds.X + i * step;
+                StreamGeometry geometry = BuildAreaSegment(x0, x1, bounds.Bottom, Y(previous, bounds), Y(current, bounds));
+                context.DrawGeometry(UtilizationChartBrushes.CreateAreaBrush((previous + current) * 0.5, lowBrush), null, geometry);
+            }
+        }
+
+        public void DrawLineSegments(DrawingContext context, Rect bounds, IBrush lowBrush)
+        {
+            if (Count <= 1)
+            {
+                float sample = SampleAt(0);
+                StreamGeometry geometry = new();
+                using StreamGeometryContext stream = geometry.Open();
+                double y = Y(sample, bounds);
+                stream.BeginFigure(new Point(bounds.Left, y), false);
+                stream.LineTo(new Point(bounds.Right, y));
+                context.DrawGeometry(null, new Pen(UtilizationChartBrushes.CreateStrokeBrush(sample, lowBrush), 2.2), geometry);
+                return;
+            }
+
+            double step = bounds.Width / (Count - 1);
+            for (int i = 1; i < Count; i++)
+            {
+                float previous = SampleAt(i - 1);
+                float current = SampleAt(i);
+                StreamGeometry geometry = new();
+                using StreamGeometryContext stream = geometry.Open();
+                stream.BeginFigure(new Point(bounds.X + (i - 1) * step, Y(previous, bounds)), false);
+                stream.LineTo(new Point(bounds.X + i * step, Y(current, bounds)));
+                context.DrawGeometry(null, new Pen(UtilizationChartBrushes.CreateStrokeBrush((previous + current) * 0.5, lowBrush), 2.2), geometry);
+            }
         }
 
         public FormattedText GetLabelText(string label, IBrush brush)
@@ -510,10 +509,21 @@ public sealed class CpuCoreGrid : Control
             _samples = resized;
             _start = 0;
             Count = copyCount;
-            _geometryDirty = true;
         }
 
         private float SampleAt(int index) => _samples[(_start + index) % _samples.Length];
+
+        private static StreamGeometry BuildAreaSegment(double x0, double x1, double bottom, double y0, double y1)
+        {
+            StreamGeometry geometry = new();
+            using StreamGeometryContext stream = geometry.Open();
+            stream.BeginFigure(new Point(x0, bottom), true);
+            stream.LineTo(new Point(x0, y0));
+            stream.LineTo(new Point(x1, y1));
+            stream.LineTo(new Point(x1, bottom));
+            stream.EndFigure(true);
+            return geometry;
+        }
 
         private static double Y(float value, Rect bounds) => bounds.Bottom - value / 100d * bounds.Height;
     }
