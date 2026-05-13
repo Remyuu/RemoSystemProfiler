@@ -3,6 +3,7 @@ using Avalonia.Media;
 using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -49,7 +50,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private bool _isCpuOverallView;
     private bool _isBenchmarkRunning;
     private string _benchmarkStatusText = Localization.BenchmarkReady;
-    private string _benchmarkVersionText = ApplicationVersion;
+    private string _benchmarkVersionText = BenchmarkRunner.Version;
     private string _benchmarkModeText = Localization.BenchmarkModeText(1);
     private string _benchmarkScoreText = "--";
     private string _benchmarkSciMarkText = "--";
@@ -62,6 +63,12 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _benchmarkCpuTemperatureText = "--";
     private string _benchmarkPowerThermalText = "--";
     private string _benchmarkValidationText = "--";
+    private string _benchmarkDisplayNameText = BenchmarkPayload.DefaultDisplayName;
+    private bool _isBenchmarkUploadAvailable;
+    private bool _isBenchmarkUploadRunning;
+    private string _benchmarkUploadStatusText = Localization.BenchmarkUploadNoResult;
+    private bool _isLeaderboardLoading;
+    private string _leaderboardStatusText = Localization.LeaderboardReady;
     private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
     private double _benchmarkProgressValue;
     private int _selectedBenchmarkModeIndex = 1;
@@ -106,6 +113,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public ObservableCollection<GpuDeviceViewModel> Gpus { get; } = [];
 
     public ObservableCollection<StorageDeviceViewModel> StorageDevices { get; } = [];
+
+    public ObservableCollection<LeaderboardEntryViewModel> LeaderboardEntries { get; } = [];
 
     public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
 
@@ -245,6 +254,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
                 RaisePropertyChanged(nameof(IsBenchmarkCancelVisible));
                 RaisePropertyChanged(nameof(BenchmarkStartButtonText));
                 RaisePropertyChanged(nameof(AreBenchmarkSettingsEnabled));
+                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
             }
         }
     }
@@ -284,6 +294,65 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public string BenchmarkPowerThermalText { get => _benchmarkPowerThermalText; set => SetProperty(ref _benchmarkPowerThermalText, value); }
 
     public string BenchmarkValidationText { get => _benchmarkValidationText; set => SetProperty(ref _benchmarkValidationText, value); }
+
+    public string BenchmarkDisplayNameText
+    {
+        get => _benchmarkDisplayNameText;
+        set => SetProperty(ref _benchmarkDisplayNameText, value);
+    }
+
+    public bool IsBenchmarkUploadAvailable
+    {
+        get => _isBenchmarkUploadAvailable;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkUploadAvailable, value))
+            {
+                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
+                RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+            }
+        }
+    }
+
+    public bool IsBenchmarkUploadRunning
+    {
+        get => _isBenchmarkUploadRunning;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkUploadRunning, value))
+            {
+                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
+                RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+            }
+        }
+    }
+
+    public bool CanUploadBenchmarkResult => IsBenchmarkUploadAvailable && !IsBenchmarkRunning && !IsBenchmarkUploadRunning;
+
+    public string BenchmarkUploadButtonText => IsBenchmarkUploadRunning
+        ? Localization.BenchmarkUploading
+        : Localization.BenchmarkUploadButton;
+
+    public string BenchmarkUploadStatusText { get => _benchmarkUploadStatusText; set => SetProperty(ref _benchmarkUploadStatusText, value); }
+
+    public bool IsLeaderboardLoading
+    {
+        get => _isLeaderboardLoading;
+        set
+        {
+            if (SetProperty(ref _isLeaderboardLoading, value))
+            {
+                RaisePropertyChanged(nameof(CanRefreshLeaderboard));
+                RaisePropertyChanged(nameof(LeaderboardButtonText));
+            }
+        }
+    }
+
+    public bool CanRefreshLeaderboard => !IsLeaderboardLoading;
+
+    public string LeaderboardButtonText => IsLeaderboardLoading ? Localization.LeaderboardLoadingButton : Localization.LeaderboardRefreshButton;
+
+    public string LeaderboardStatusText { get => _leaderboardStatusText; set => SetProperty(ref _leaderboardStatusText, value); }
 
     public string BenchmarkProgressText { get => _benchmarkProgressText; set => SetProperty(ref _benchmarkProgressText, value); }
 
@@ -371,10 +440,18 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
         RefreshCpuCoreGraphChrome();
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
+        RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+        RaisePropertyChanged(nameof(LeaderboardButtonText));
         RefreshBenchmarkDisplay();
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0 && BenchmarkScoreText == "--")
         {
             BenchmarkStatusText = Localization.BenchmarkReady;
+            BenchmarkUploadStatusText = Localization.BenchmarkUploadNoResult;
+        }
+
+        if (LeaderboardEntries.Count == 0 && !IsLeaderboardLoading)
+        {
+            LeaderboardStatusText = Localization.LeaderboardReady;
         }
     }
 
@@ -418,6 +495,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     {
         int workers = ResolveBenchmarkWorkerCount();
         BenchmarkProfilePlan plan = ResolveBenchmarkPlan();
+        BenchmarkVersionText = BenchmarkRunner.Version;
         BenchmarkModeText = ResolveBenchmarkModeText();
         BenchmarkThreadsText = Localization.BenchmarkThreadCount(workers);
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0)
@@ -457,6 +535,70 @@ public interface IDashboardItem<in TData, out TKey>
     TKey Key { get; }
 
     void Update(TData data);
+}
+
+public sealed class LeaderboardEntryViewModel
+{
+    public LeaderboardEntryViewModel(int rank, BenchmarkLeaderboardEntry entry)
+    {
+        RankText = $"#{rank}";
+        CountryCodeText = NormalizeCountryCode(entry.CountryCode);
+        DisplayNameText = string.IsNullOrWhiteSpace(entry.DisplayName)
+            ? BenchmarkPayload.DefaultDisplayName
+            : entry.DisplayName;
+        CpuNameText = string.IsNullOrWhiteSpace(entry.CpuName) ? "--" : entry.CpuName;
+        ScoreText = entry.Score.ToString("N0", CultureInfo.InvariantCulture);
+        ProfileModeText = $"{entry.Profile} / {entry.Mode}";
+        VersionText = $"bench {entry.BenchmarkVersion} | app {entry.AppVersion}";
+        DetailText = BuildDetailText(entry);
+    }
+
+    public string RankText { get; }
+
+    public string CountryCodeText { get; }
+
+    public string DisplayNameText { get; }
+
+    public string CpuNameText { get; }
+
+    public string ScoreText { get; }
+
+    public string ProfileModeText { get; }
+
+    public string VersionText { get; }
+
+    public string DetailText { get; }
+
+    private static string BuildDetailText(BenchmarkLeaderboardEntry entry)
+    {
+        string cpu = string.IsNullOrWhiteSpace(entry.CpuName) ? "--" : entry.CpuName;
+        string cores = entry.CpuCores is { } coreCount && entry.CpuThreads is { } threadCount
+            ? $"{coreCount}c/{threadCount}t"
+            : "--";
+        string zstd = entry.ZstdCompressGbps is { } compress && entry.ZstdDecompressGbps is { } decompress
+            ? $"zstd {compress:0.00}/{decompress:0.00} GB/s"
+            : "zstd --";
+        string hash = entry.XxHash3Gbps is { } xxhash
+            ? $"xxh3 {xxhash:0.00} GB/s"
+            : "xxh3 --";
+        return $"{cpu} | {cores} | {zstd} | {hash}";
+    }
+
+    private static string NormalizeCountryCode(string? countryCode)
+    {
+        if (string.IsNullOrWhiteSpace(countryCode))
+        {
+            return "--";
+        }
+
+        string code = countryCode.Trim().ToUpperInvariant();
+        if (code.Length != 2 || code.Any(ch => ch is < 'A' or > 'Z') || code is "XX" or "T1")
+        {
+            return code;
+        }
+
+        return code;
+    }
 }
 
 public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardItem<MetricReading, string>

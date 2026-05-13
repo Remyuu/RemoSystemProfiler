@@ -35,7 +35,8 @@ public readonly record struct BenchmarkWorkloadResult(
     string Name,
     double Score,
     string ThroughputText,
-    ulong Checksum);
+    ulong Checksum,
+    double ThroughputGbps = 0);
 
 public readonly record struct BenchmarkResult(
     string Version,
@@ -145,7 +146,7 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.ZstdCompression;
         BenchmarkWorkloadResult zstdCompression = BuildZstdCompressionResult(zstdCompressionResult, plan.ZstdCompression);
-        double ratio = zstdCompressionResult.Units <= 0 ? 0 : zstdCompressionResult.ExtraUnits / zstdCompressionResult.Units;
+        double ratio = zstdCompressionResult.ExtraUnits <= 0 ? 0 : zstdCompressionResult.Units / zstdCompressionResult.ExtraUnits;
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdCompression, ratio);
 
         WorkerResult zstdDecompressionResult = await RunWorkloadStageAsync(
@@ -185,7 +186,8 @@ public static class BenchmarkRunner
 
         progress?.Report(new BenchmarkProgress(1, "Complete", TimeSpan.FromSeconds(elapsedSeconds), plan.TotalDuration));
 
-        return new BenchmarkResult(Version, plan.Profile, elapsedSeconds, workerCount, score, checksum, sciMark, zstdCompression, zstdDecompression, ratio, hash, true);
+        bool isValid = IsValidResult(plan, elapsedSeconds, score, sciMark, zstdCompression, zstdDecompression, ratio, hash);
+        return new BenchmarkResult(Version, plan.Profile, elapsedSeconds, workerCount, score, checksum, sciMark, zstdCompression, zstdDecompression, ratio, hash, isValid);
     }
 
     private static BenchmarkWorkloadResult BuildSciMarkResult(WorkerResult result, TimeSpan duration)
@@ -197,19 +199,61 @@ public static class BenchmarkRunner
     private static BenchmarkWorkloadResult BuildZstdCompressionResult(WorkerResult result, TimeSpan duration)
     {
         double megabytesPerSecond = result.Units / Math.Max(0.001, duration.TotalSeconds);
-        return new BenchmarkWorkloadResult("zstd compression", megabytesPerSecond, FormatBytesPerSecond(megabytesPerSecond * 1024d * 1024d), result.Checksum);
+        return new BenchmarkWorkloadResult(
+            "zstd compression",
+            megabytesPerSecond,
+            FormatBytesPerSecond(megabytesPerSecond * 1024d * 1024d),
+            result.Checksum,
+            megabytesPerSecond / 1024d);
     }
 
     private static BenchmarkWorkloadResult BuildZstdDecompressionResult(WorkerResult result, TimeSpan duration)
     {
         double megabytesPerSecond = result.Units / Math.Max(0.001, duration.TotalSeconds);
-        return new BenchmarkWorkloadResult("zstd decompression", megabytesPerSecond, FormatBytesPerSecond(megabytesPerSecond * 1024d * 1024d), result.Checksum);
+        return new BenchmarkWorkloadResult(
+            "zstd decompression",
+            megabytesPerSecond,
+            FormatBytesPerSecond(megabytesPerSecond * 1024d * 1024d),
+            result.Checksum,
+            megabytesPerSecond / 1024d);
     }
 
     private static BenchmarkWorkloadResult BuildHashResult(WorkerResult result, TimeSpan duration)
     {
         double gigabytesPerSecond = result.Units / Math.Max(0.001, duration.TotalSeconds);
-        return new BenchmarkWorkloadResult("XxHash3", gigabytesPerSecond * 50d, FormatBytesPerSecond(gigabytesPerSecond * 1024d * 1024d * 1024d), result.Checksum);
+        return new BenchmarkWorkloadResult(
+            "XxHash3",
+            gigabytesPerSecond * 50d,
+            FormatBytesPerSecond(gigabytesPerSecond * 1024d * 1024d * 1024d),
+            result.Checksum,
+            gigabytesPerSecond);
+    }
+
+    private static bool IsValidResult(
+        BenchmarkProfilePlan plan,
+        double elapsedSeconds,
+        double score,
+        BenchmarkWorkloadResult sciMark,
+        BenchmarkWorkloadResult zstdCompression,
+        BenchmarkWorkloadResult zstdDecompression,
+        double zstdRatio,
+        BenchmarkWorkloadResult hash)
+    {
+        return elapsedSeconds >= plan.TotalDuration.TotalSeconds * 0.85
+            && IsFinitePositive(score)
+            && IsFinitePositive(sciMark.Score)
+            && IsFinitePositive(zstdCompression.Score)
+            && IsFinitePositive(zstdDecompression.Score)
+            && IsFinitePositive(zstdCompression.ThroughputGbps)
+            && IsFinitePositive(zstdDecompression.ThroughputGbps)
+            && IsFinitePositive(zstdRatio)
+            && IsFinitePositive(hash.Score)
+            && IsFinitePositive(hash.ThroughputGbps);
+    }
+
+    private static bool IsFinitePositive(double value)
+    {
+        return double.IsFinite(value) && value > 0;
     }
 
     private static void ReportCompletedWorkload(

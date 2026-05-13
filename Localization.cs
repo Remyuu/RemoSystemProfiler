@@ -95,6 +95,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
+        ["Ui_Leaderboard"] = "Leaderboard",
+        ["Ui_Upload"] = "Upload",
+        ["Ui_DisplayName"] = "Display name",
         ["Ui_Throughput"] = "Throughput",
         ["Ui_Threads"] = "Threads",
         ["Ui_Duration"] = "Duration",
@@ -187,6 +190,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU 最高温度",
         ["Ui_PowerThermal"] = "功耗 / 降频",
         ["Ui_Validation"] = "校验",
+        ["Ui_Leaderboard"] = "排行榜",
+        ["Ui_Upload"] = "上传",
+        ["Ui_DisplayName"] = "显示名",
         ["Ui_Throughput"] = "吞吐",
         ["Ui_Threads"] = "线程",
         ["Ui_Duration"] = "时长",
@@ -279,6 +285,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
+        ["Ui_Leaderboard"] = "ランキング",
+        ["Ui_Upload"] = "アップロード",
+        ["Ui_DisplayName"] = "表示名",
         ["Ui_Throughput"] = "スループット",
         ["Ui_Threads"] = "スレッド",
         ["Ui_Duration"] = "時間",
@@ -371,6 +380,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU 最高溫度",
         ["Ui_PowerThermal"] = "功耗 / 降頻",
         ["Ui_Validation"] = "校驗",
+        ["Ui_Leaderboard"] = "排行榜",
+        ["Ui_Upload"] = "上傳",
+        ["Ui_DisplayName"] = "顯示名稱",
         ["Ui_Throughput"] = "吞吐量",
         ["Ui_Threads"] = "執行緒",
         ["Ui_Duration"] = "時長",
@@ -455,6 +467,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
+        ["Ui_Leaderboard"] = "Clasificación",
+        ["Ui_Upload"] = "Subir",
+        ["Ui_DisplayName"] = "Nombre visible",
         ["Ui_Throughput"] = "Rendimiento",
         ["Ui_Threads"] = "Hilos",
         ["Ui_Duration"] = "Duración",
@@ -539,6 +554,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
+        ["Ui_Leaderboard"] = "Bestenliste",
+        ["Ui_Upload"] = "Hochladen",
+        ["Ui_DisplayName"] = "Anzeigename",
         ["Ui_Throughput"] = "Durchsatz",
         ["Ui_Threads"] = "Threads",
         ["Ui_Duration"] = "Dauer",
@@ -623,6 +641,9 @@ public static class Localization
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
+        ["Ui_Leaderboard"] = "Classement",
+        ["Ui_Upload"] = "Téléverser",
+        ["Ui_DisplayName"] = "Nom affiché",
         ["Ui_Throughput"] = "Débit",
         ["Ui_Threads"] = "Threads",
         ["Ui_Duration"] = "Durée",
@@ -901,6 +922,32 @@ public static class Localization
     public static string BenchmarkValidationOk => Text("OK", "通过", "OK", "通過", "OK", "OK", "OK");
 
     public static string BenchmarkValidationFailed => Text("Failed", "失败", "失敗", "失敗", "Error", "Fehlgeschlagen", "Échec");
+
+    public static string BenchmarkUploadNoResult => Text("Run a valid result first", "请先运行一次有效跑分", "先に有効な結果を実行", "請先執行一次有效跑分", "Ejecuta primero un resultado válido", "Zuerst ein gültiges Ergebnis ausführen", "Exécutez d'abord un résultat valide");
+
+    public static string BenchmarkUploadButton => Text("Upload result", "上传成绩", "結果をアップロード", "上傳成績", "Subir resultado", "Ergebnis hochladen", "Téléverser le résultat");
+
+    public static string BenchmarkUploading => Text("Uploading...", "正在上传...", "アップロード中...", "正在上傳...", "Subiendo...", "Wird hochgeladen...", "Téléversement...");
+
+    public static string BenchmarkUploadSuccess => Text("Uploaded", "上传成功", "アップロード済み", "已上傳", "Subido", "Hochgeladen", "Téléversé");
+
+    public static string BenchmarkUploadDuplicate => Text("Already uploaded", "该成绩已经上传过", "すでにアップロード済み", "該成績已上傳過", "Ya subido", "Bereits hochgeladen", "Déjà téléversé");
+
+    public static string BenchmarkUploadRateLimited => Text("Try again later", "上传过于频繁，请稍后再试", "後でもう一度お試しください", "上傳過於頻繁，請稍後再試", "Inténtalo más tarde", "Später erneut versuchen", "Réessayez plus tard");
+
+    public static string BenchmarkUploadFailed(string detail) => Text($"Upload failed: {detail}", $"上传失败：{detail}", $"アップロード失敗: {detail}", $"上傳失敗：{detail}", $"Error al subir: {detail}", $"Upload fehlgeschlagen: {detail}", $"Échec du téléversement : {detail}");
+
+    public static string LeaderboardReady => Text("Leaderboard not loaded", "排行榜未加载", "ランキング未読み込み", "排行榜未載入", "Clasificación sin cargar", "Bestenliste nicht geladen", "Classement non chargé");
+
+    public static string LeaderboardRefreshButton => Text("Refresh leaderboard", "刷新排行榜", "ランキングを更新", "重新整理排行榜", "Actualizar clasificación", "Bestenliste aktualisieren", "Actualiser le classement");
+
+    public static string LeaderboardLoadingButton => Text("Loading...", "正在加载...", "読み込み中...", "正在載入...", "Cargando...", "Wird geladen...", "Chargement...");
+
+    public static string LeaderboardLoaded(int count) => Text($"{count} entries loaded", $"已加载 {count} 条", $"{count} 件を読み込み", $"已載入 {count} 筆", $"{count} entradas cargadas", $"{count} Einträge geladen", $"{count} entrées chargées");
+
+    public static string LeaderboardEmpty => Text("No entries yet", "暂无成绩", "まだ結果がありません", "暫無成績", "Sin entradas", "Noch keine Einträge", "Aucune entrée");
+
+    public static string LeaderboardFailed(string detail) => Text($"Leaderboard failed: {detail}", $"排行榜加载失败：{detail}", $"ランキング取得失敗: {detail}", $"排行榜載入失敗：{detail}", $"Error de clasificación: {detail}", $"Bestenliste fehlgeschlagen: {detail}", $"Échec du classement : {detail}");
 
     public static string BenchmarkCompletedAt(string timeText) => Text($"Completed at {timeText}", $"完成于 {timeText}", $"{timeText} に完了", $"完成於 {timeText}", $"Completado a las {timeText}", $"Abgeschlossen um {timeText}", $"Terminé à {timeText}");
 

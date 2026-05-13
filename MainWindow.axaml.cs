@@ -25,7 +25,7 @@ public sealed partial class MainWindow : Window
     private const double InitialWindowHeight = 720;
     private const int StartupOverlayFadeMilliseconds = 320;
     private const int StartupOverlayCompletionHoldMilliseconds = 180;
-    private const double BenchmarkCurtainHeight = 430;
+    private const double BenchmarkCurtainHeight = 560;
     private const int BenchmarkCurtainAnimationMilliseconds = 220;
     private const double DashboardContentVerticalMargin = 14;
     private const double PressScale = 0.985;
@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
     private static readonly double[] UpdateIntervalsSeconds = [0.5, 1, 2, 5];
 
     private readonly IHardwareMonitorBackend _backend = new WindowsHardwareMonitorBackend();
+    private readonly BenchmarkApiClient _benchmarkApi = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly MainWindowViewModel _viewModel = new();
     private readonly List<OverviewReading> _overviewBuffer = new(capacity: 8);
@@ -49,6 +50,7 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _benchmarkCurtainAnimation;
     private CancellationTokenSource? _benchmarkCancellation;
     private BenchmarkSensorAccumulator _benchmarkSensors = new();
+    private BenchmarkUploadDto? _lastBenchmarkUpload;
     private TranslateTransform? _benchmarkCurtainTransform;
     private TranslateTransform? _dashboardContentTransform;
     private GitHubReleaseAssetInfo? _pendingUpdateAsset;
@@ -865,7 +867,7 @@ public sealed partial class MainWindow : Window
 
         _viewModel.IsBenchmarkRunning = true;
         _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningMode(modeText);
-        _viewModel.BenchmarkVersionText = _viewModel.CurrentVersion;
+        _viewModel.BenchmarkVersionText = BenchmarkRunner.Version;
         _viewModel.BenchmarkModeText = modeText;
         _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(workerCount);
         _viewModel.BenchmarkScoreText = "--";
@@ -878,8 +880,11 @@ public sealed partial class MainWindow : Window
         _viewModel.BenchmarkCpuTemperatureText = "--";
         _viewModel.BenchmarkPowerThermalText = "--";
         _viewModel.BenchmarkValidationText = "--";
+        _viewModel.IsBenchmarkUploadAvailable = false;
+        _viewModel.BenchmarkUploadStatusText = Localization.BenchmarkUploadNoResult;
         _viewModel.BenchmarkProgressValue = 0;
         _viewModel.BenchmarkProgressText = MainWindowViewModel.FormatBenchmarkProgress(0, TimeSpan.Zero, plan.TotalDuration);
+        _lastBenchmarkUpload = null;
 
         Progress<BenchmarkProgress> progress = new(ShowBenchmarkProgress);
         try
@@ -952,7 +957,7 @@ public sealed partial class MainWindow : Window
 
         if (progress.ZstdRatio is > 0)
         {
-            _viewModel.BenchmarkZstdRatioText = $"{progress.ZstdRatio.Value * 100d:0.0}%";
+            _viewModel.BenchmarkZstdRatioText = $"{progress.ZstdRatio.Value:0.00}x";
         }
     }
 
@@ -961,12 +966,12 @@ public sealed partial class MainWindow : Window
         _viewModel.BenchmarkProgressValue = 100;
         _viewModel.BenchmarkProgressText = MainWindowViewModel.FormatBenchmarkProgress(100, TimeSpan.FromSeconds(result.ElapsedSeconds), TimeSpan.FromSeconds(result.ElapsedSeconds));
         _viewModel.BenchmarkScoreText = Math.Round(result.Score).ToString("N0", CultureInfo.InvariantCulture);
-        _viewModel.BenchmarkVersionText = _viewModel.CurrentVersion;
+        _viewModel.BenchmarkVersionText = result.Version;
         _viewModel.BenchmarkModeText = Localization.BenchmarkModeText(result.WorkerCount == 1 ? 0 : 1);
         _viewModel.BenchmarkSciMarkText = Math.Round(result.SciMark.Score).ToString("N0", CultureInfo.InvariantCulture);
         _viewModel.BenchmarkZstdCompressionText = result.ZstdCompression.ThroughputText;
         _viewModel.BenchmarkZstdDecompressionText = result.ZstdDecompression.ThroughputText;
-        _viewModel.BenchmarkZstdRatioText = result.ZstdRatio > 0 ? $"{result.ZstdRatio * 100d:0.0}%" : "--";
+        _viewModel.BenchmarkZstdRatioText = result.ZstdRatio > 0 ? $"{result.ZstdRatio:0.00}x" : "--";
         _viewModel.BenchmarkHashText = result.Hash.ThroughputText;
         _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(result.WorkerCount);
         BenchmarkSensorSummary sensorSummary = _benchmarkSensors.Summarize();
@@ -975,6 +980,151 @@ public sealed partial class MainWindow : Window
         _viewModel.BenchmarkPowerThermalText = sensorSummary.PowerThermalText;
         _viewModel.BenchmarkValidationText = result.IsValid ? Localization.BenchmarkValidationOk : Localization.BenchmarkValidationFailed;
         _viewModel.BenchmarkStatusText = Localization.BenchmarkCompletedAt(DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
+        _lastBenchmarkUpload = CreateBenchmarkUploadDto(result, sensorSummary);
+        _viewModel.IsBenchmarkUploadAvailable = result.IsValid;
+        _viewModel.BenchmarkUploadStatusText = result.IsValid
+            ? Localization.BenchmarkUploadButton
+            : Localization.BenchmarkValidationFailed;
+    }
+
+    private BenchmarkUploadDto CreateBenchmarkUploadDto(BenchmarkResult result, BenchmarkSensorSummary sensorSummary)
+    {
+        CpuDeviceReading? cpu = _lastResult?.Snapshot?.Cpu;
+        BenchmarkUploadDto dto = new()
+        {
+            AppVersion = _viewModel.CurrentVersion,
+            BenchmarkVersion = result.Version,
+            Profile = BenchmarkPayload.ProfileToApiValue(result.Profile),
+            Mode = BenchmarkPayload.ModeToApiValue(result.WorkerCount),
+            DisplayName = BenchmarkPayload.NormalizeDisplayName(_viewModel.BenchmarkDisplayNameText),
+            Score = result.Score,
+            SciMarkScore = result.SciMark.Score,
+            ZstdCompressGbps = result.ZstdCompression.ThroughputGbps,
+            ZstdDecompressGbps = result.ZstdDecompression.ThroughputGbps,
+            ZstdRatio = result.ZstdRatio,
+            XxHash3Gbps = result.Hash.ThroughputGbps,
+            CpuName = string.IsNullOrWhiteSpace(cpu?.Name) ? null : cpu.Name,
+            CpuCores = PositiveOrNull(cpu?.CoreCount),
+            CpuThreads = PositiveOrNull(cpu?.LogicalProcessorCount),
+            AvgFrequencyGhz = sensorSummary.AverageFrequencyGhz,
+            MaxTemperatureC = sensorSummary.MaxTemperatureC,
+            PowerThermalStatus = sensorSummary.PowerThermalText,
+            ValidationStatus = result.IsValid ? BenchmarkPayload.ValidationOk : "FAILED",
+            InstallationId = BenchmarkIdentityStore.GetOrCreateInstallationId(),
+            ClientCreatedAt = BenchmarkPayload.UtcTimestamp(DateTimeOffset.UtcNow)
+        };
+
+        BenchmarkPayload.NormalizeMetrics(dto);
+        dto.Checksum = result.IsValid ? BenchmarkPayload.ComputeChecksum(dto) : string.Empty;
+        return dto;
+    }
+
+    private async void BenchmarkUpload_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_lastBenchmarkUpload is null || !_viewModel.CanUploadBenchmarkResult)
+        {
+            return;
+        }
+
+        _viewModel.IsBenchmarkUploadRunning = true;
+        _viewModel.BenchmarkUploadStatusText = Localization.BenchmarkUploading;
+        _lastBenchmarkUpload.DisplayName = BenchmarkPayload.NormalizeDisplayName(_viewModel.BenchmarkDisplayNameText);
+        _viewModel.BenchmarkDisplayNameText = _lastBenchmarkUpload.DisplayName;
+
+        try
+        {
+            BenchmarkUploadResult result = await _benchmarkApi.UploadAsync(_lastBenchmarkUpload, _shutdown.Token).ConfigureAwait(true);
+            _viewModel.BenchmarkUploadStatusText = result.Status switch
+            {
+                BenchmarkUploadStatus.Uploaded => Localization.BenchmarkUploadSuccess,
+                BenchmarkUploadStatus.Duplicate => Localization.BenchmarkUploadDuplicate,
+                BenchmarkUploadStatus.RateLimited => Localization.BenchmarkUploadRateLimited,
+                BenchmarkUploadStatus.Invalid => Localization.BenchmarkUploadFailed(result.Message),
+                _ => Localization.BenchmarkUploadFailed(ShortError(result.Message))
+            };
+
+            if (result.Status is BenchmarkUploadStatus.Uploaded or BenchmarkUploadStatus.Duplicate)
+            {
+                await RefreshLeaderboardAsync().ConfigureAwait(true);
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Window shutdown cancels the upload flow.
+        }
+        finally
+        {
+            if (!_isClosed)
+            {
+                _viewModel.IsBenchmarkUploadRunning = false;
+            }
+        }
+    }
+
+    private async void BenchmarkLeaderboardRefresh_Click(object? sender, RoutedEventArgs e)
+    {
+        await RefreshLeaderboardAsync().ConfigureAwait(true);
+    }
+
+    private async Task RefreshLeaderboardAsync()
+    {
+        if (_viewModel.IsLeaderboardLoading)
+        {
+            return;
+        }
+
+        _viewModel.IsLeaderboardLoading = true;
+        _viewModel.LeaderboardStatusText = Localization.LeaderboardLoadingButton;
+
+        try
+        {
+            BenchmarkLeaderboardQuery query = new()
+            {
+                BenchmarkVersion = BenchmarkRunner.Version,
+                Profile = BenchmarkPayload.ProfileToApiValue(_viewModel.ResolveBenchmarkProfile()),
+                Mode = BenchmarkPayload.ModeToApiValue(_viewModel.ResolveBenchmarkWorkerCount()),
+                Limit = 50
+            };
+            IReadOnlyList<BenchmarkLeaderboardEntry> entries = await _benchmarkApi.GetLeaderboardAsync(query, _shutdown.Token).ConfigureAwait(true);
+
+            _viewModel.LeaderboardEntries.Clear();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                _viewModel.LeaderboardEntries.Add(new LeaderboardEntryViewModel(i + 1, entries[i]));
+            }
+
+            _viewModel.LeaderboardStatusText = entries.Count == 0
+                ? Localization.LeaderboardEmpty
+                : Localization.LeaderboardLoaded(entries.Count);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Window shutdown cancels the leaderboard request.
+        }
+        catch (Exception ex)
+        {
+            _viewModel.LeaderboardStatusText = Localization.LeaderboardFailed(ShortError(ex.Message));
+        }
+        finally
+        {
+            if (!_isClosed)
+            {
+                _viewModel.IsLeaderboardLoading = false;
+            }
+        }
+    }
+
+    private static int? PositiveOrNull(int? value) => value is > 0 ? value : null;
+
+    private static string ShortError(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "Unknown error";
+        }
+
+        string normalized = text.ReplaceLineEndings(" ").Trim();
+        return normalized.Length <= 120 ? normalized : normalized[..120] + "...";
     }
 
     private async Task AnimateBenchmarkCurtainAsync(bool open)
@@ -1281,6 +1431,7 @@ public sealed partial class MainWindow : Window
         StopBenchmarkCurtainAnimation();
         Closed -= OnClosed;
         _backend.Dispose();
+        _benchmarkApi.Dispose();
         _shutdown.Dispose();
     }
 
@@ -1309,16 +1460,25 @@ public sealed partial class MainWindow : Window
 
         public BenchmarkSensorSummary Summarize()
         {
+            double averageFrequencyGhzValue = _frequencySamples == 0
+                ? 0
+                : _frequencyTotal / _frequencySamples / 1000d;
+            double? averageFrequencyGhz = _frequencySamples == 0 ? null : averageFrequencyGhzValue;
+            double? maxTemperatureC = _maxTemperature <= float.MinValue
+                ? null
+                : _maxTemperature;
             string frequencyText = _frequencySamples == 0
                 ? "--"
-                : $"{_frequencyTotal / _frequencySamples / 1000d:0.00} GHz";
+                : $"{averageFrequencyGhzValue:0.00} GHz";
             string temperatureText = _maxTemperature <= float.MinValue
                 ? "--"
                 : MetricFormatter.FormatTemperature(_maxTemperature);
             return new BenchmarkSensorSummary(
                 frequencyText,
                 temperatureText,
-                _powerThermalText ?? Localization.NotReported);
+                _powerThermalText ?? Localization.NotReported,
+                averageFrequencyGhz,
+                maxTemperatureC);
         }
 
         private static string? FindPowerThermalText(CpuDeviceReading cpu)
@@ -1350,7 +1510,9 @@ public sealed partial class MainWindow : Window
     private readonly record struct BenchmarkSensorSummary(
         string AverageFrequencyText,
         string MaxTemperatureText,
-        string PowerThermalText);
+        string PowerThermalText,
+        double? AverageFrequencyGhz,
+        double? MaxTemperatureC);
 
     private sealed record PressVisualState(ITransform? RenderTransform, RelativePoint RenderTransformOrigin);
 }

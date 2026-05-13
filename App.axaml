@@ -30,6 +30,13 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                    <SolidColorBrush x:Key="StartupOverlayBackgroundBrush" Color="#070A0F" />
+                    <SolidColorBrush x:Key="StartupOverlayPanelBrush" Color="#151C26" />
+                    <SolidColorBrush x:Key="StartupOverlayStatusBrush" Color="#111821" />
+                    <SolidColorBrush x:Key="StartupOverlayStrokeBrush" Color="#4B596B" />
+                    <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#F8FAFC" />
+                    <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#C7D7F2" />
+                    <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#27303C" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                         <GradientStop Offset="0" Color="#1C222B" />
                         <GradientStop Offset="1" Color="#001C222B" />
@@ -68,6 +75,13 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#F6F8FB" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#B4BECC" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#8E9AAC" />
+                    <SolidColorBrush x:Key="StartupOverlayBackgroundBrush" Color="#070A0F" />
+                    <SolidColorBrush x:Key="StartupOverlayPanelBrush" Color="#151C26" />
+                    <SolidColorBrush x:Key="StartupOverlayStatusBrush" Color="#111821" />
+                    <SolidColorBrush x:Key="StartupOverlayStrokeBrush" Color="#4B596B" />
+                    <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#F8FAFC" />
+                    <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#C7D7F2" />
+                    <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#27303C" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                         <GradientStop Offset="0" Color="#1C222B" />
                         <GradientStop Offset="1" Color="#001C222B" />
@@ -106,6 +120,13 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#475467" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#667085" />
+                    <SolidColorBrush x:Key="StartupOverlayBackgroundBrush" Color="#070A0F" />
+                    <SolidColorBrush x:Key="StartupOverlayPanelBrush" Color="#151C26" />
+                    <SolidColorBrush x:Key="StartupOverlayStatusBrush" Color="#111821" />
+                    <SolidColorBrush x:Key="StartupOverlayStrokeBrush" Color="#4B596B" />
+                    <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#F8FAFC" />
+                    <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#C7D7F2" />
+                    <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#27303C" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                         <GradientStop Offset="0" Color="#FFFFFF" />
                         <GradientStop Offset="1" Color="#00FFFFFF" />
