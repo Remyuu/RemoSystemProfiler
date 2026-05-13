@@ -25,7 +25,7 @@ public sealed partial class MainWindow : Window
     private const double InitialWindowHeight = 720;
     private const int StartupOverlayFadeMilliseconds = 320;
     private const int StartupOverlayCompletionHoldMilliseconds = 180;
-    private const double BenchmarkCurtainHeight = 284;
+    private const double BenchmarkCurtainHeight = 430;
     private const int BenchmarkCurtainAnimationMilliseconds = 220;
     private const double DashboardContentVerticalMargin = 14;
     private const double PressScale = 0.985;
@@ -48,6 +48,7 @@ public sealed partial class MainWindow : Window
     private bool _isBenchmarkCurtainOpen;
     private CancellationTokenSource? _benchmarkCurtainAnimation;
     private CancellationTokenSource? _benchmarkCancellation;
+    private BenchmarkSensorAccumulator _benchmarkSensors = new();
     private TranslateTransform? _benchmarkCurtainTransform;
     private TranslateTransform? _dashboardContentTransform;
     private GitHubReleaseAssetInfo? _pendingUpdateAsset;
@@ -340,6 +341,11 @@ public sealed partial class MainWindow : Window
         _viewModel.HardwareSummaryText = Localization.HardwareSummary(snapshot.Gpus.Count, snapshot.StorageDevices.Count);
 
         ShowCpu(snapshot.Cpu);
+        if (_viewModel.IsBenchmarkRunning && snapshot.Cpu is not null)
+        {
+            _benchmarkSensors.Add(snapshot.Cpu);
+        }
+
         ShowMemory(snapshot.Memory);
         SyncDeviceCollection(_viewModel.Gpus, snapshot.Gpus, gpu => gpu.Name, gpu => new GpuDeviceViewModel(gpu));
         SyncDeviceCollection(_viewModel.StorageDevices, snapshot.StorageDevices, storage => storage.Name, storage => new StorageDeviceViewModel(storage));
@@ -847,21 +853,39 @@ public sealed partial class MainWindow : Window
         CancellationTokenSource benchmark = new();
         _benchmarkCancellation = benchmark;
         int workerCount = _viewModel.ResolveBenchmarkWorkerCount();
-        TimeSpan duration = _viewModel.ResolveBenchmarkDuration();
+        BenchmarkRunProfile profile = _viewModel.ResolveBenchmarkProfile();
+        BenchmarkProfilePlan plan = _viewModel.ResolveBenchmarkPlan();
         string modeText = _viewModel.ResolveBenchmarkModeText();
+
+        _benchmarkSensors = new BenchmarkSensorAccumulator();
+        if (_lastResult?.Snapshot?.Cpu is { } currentCpu)
+        {
+            _benchmarkSensors.Add(currentCpu);
+        }
 
         _viewModel.IsBenchmarkRunning = true;
         _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningMode(modeText);
+        _viewModel.BenchmarkVersionText = _viewModel.CurrentVersion;
+        _viewModel.BenchmarkModeText = modeText;
         _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(workerCount);
-        _viewModel.BenchmarkDurationText = Localization.BenchmarkDurationRun((int)Math.Round(duration.TotalSeconds));
+        _viewModel.BenchmarkScoreText = "--";
+        _viewModel.BenchmarkSciMarkText = "--";
+        _viewModel.BenchmarkZstdCompressionText = "--";
+        _viewModel.BenchmarkZstdDecompressionText = "--";
+        _viewModel.BenchmarkZstdRatioText = "--";
+        _viewModel.BenchmarkHashText = "--";
+        _viewModel.BenchmarkCpuFrequencyText = "--";
+        _viewModel.BenchmarkCpuTemperatureText = "--";
+        _viewModel.BenchmarkPowerThermalText = "--";
+        _viewModel.BenchmarkValidationText = "--";
         _viewModel.BenchmarkProgressValue = 0;
-        _viewModel.BenchmarkProgressText = "0%";
+        _viewModel.BenchmarkProgressText = MainWindowViewModel.FormatBenchmarkProgress(0, TimeSpan.Zero, plan.TotalDuration);
 
-        Progress<CpuBenchmarkProgress> progress = new(ShowCpuBenchmarkProgress);
+        Progress<BenchmarkProgress> progress = new(ShowBenchmarkProgress);
         try
         {
-            CpuBenchmarkResult result = await CpuBenchmarkRunner.RunAsync(duration, workerCount, progress, benchmark.Token).ConfigureAwait(true);
-            ShowCpuBenchmarkResult(result);
+            BenchmarkResult result = await BenchmarkRunner.RunAsync(profile, workerCount, progress, benchmark.Token).ConfigureAwait(true);
+            ShowBenchmarkResult(result);
         }
         catch (OperationCanceledException)
         {
@@ -894,34 +918,63 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ShowCpuBenchmarkProgress(CpuBenchmarkProgress progress)
+    private void ShowBenchmarkProgress(BenchmarkProgress progress)
     {
         double percent = Math.Clamp(progress.Ratio * 100d, 0, 100);
         _viewModel.BenchmarkProgressValue = percent;
-        _viewModel.BenchmarkProgressText = $"{percent:0}%";
-        _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningProgress(progress.Elapsed.TotalSeconds, progress.Duration.TotalSeconds);
+        _viewModel.BenchmarkProgressText = MainWindowViewModel.FormatBenchmarkProgress(percent, progress.Elapsed, progress.Duration);
+        ShowCompletedBenchmarkWorkload(progress);
+        _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningProgress(progress.StageName, progress.Elapsed.TotalSeconds, progress.Duration.TotalSeconds);
     }
 
-    private void ShowCpuBenchmarkResult(CpuBenchmarkResult result)
+    private void ShowCompletedBenchmarkWorkload(BenchmarkProgress progress)
+    {
+        if (progress.CompletedWorkload is not { } workload)
+        {
+            return;
+        }
+
+        switch (workload.Name)
+        {
+            case "SciMark":
+                _viewModel.BenchmarkSciMarkText = Math.Round(workload.Score).ToString("N0", CultureInfo.InvariantCulture);
+                break;
+            case "zstd compression":
+                _viewModel.BenchmarkZstdCompressionText = workload.ThroughputText;
+                break;
+            case "zstd decompression":
+                _viewModel.BenchmarkZstdDecompressionText = workload.ThroughputText;
+                break;
+            case "XxHash3":
+                _viewModel.BenchmarkHashText = workload.ThroughputText;
+                break;
+        }
+
+        if (progress.ZstdRatio is > 0)
+        {
+            _viewModel.BenchmarkZstdRatioText = $"{progress.ZstdRatio.Value * 100d:0.0}%";
+        }
+    }
+
+    private void ShowBenchmarkResult(BenchmarkResult result)
     {
         _viewModel.BenchmarkProgressValue = 100;
-        _viewModel.BenchmarkProgressText = "100%";
+        _viewModel.BenchmarkProgressText = MainWindowViewModel.FormatBenchmarkProgress(100, TimeSpan.FromSeconds(result.ElapsedSeconds), TimeSpan.FromSeconds(result.ElapsedSeconds));
         _viewModel.BenchmarkScoreText = Math.Round(result.Score).ToString("N0", CultureInfo.InvariantCulture);
-        _viewModel.BenchmarkThroughputText = FormatOperationsPerSecond(result.OperationsPerSecond);
+        _viewModel.BenchmarkVersionText = _viewModel.CurrentVersion;
+        _viewModel.BenchmarkModeText = Localization.BenchmarkModeText(result.WorkerCount == 1 ? 0 : 1);
+        _viewModel.BenchmarkSciMarkText = Math.Round(result.SciMark.Score).ToString("N0", CultureInfo.InvariantCulture);
+        _viewModel.BenchmarkZstdCompressionText = result.ZstdCompression.ThroughputText;
+        _viewModel.BenchmarkZstdDecompressionText = result.ZstdDecompression.ThroughputText;
+        _viewModel.BenchmarkZstdRatioText = result.ZstdRatio > 0 ? $"{result.ZstdRatio * 100d:0.0}%" : "--";
+        _viewModel.BenchmarkHashText = result.Hash.ThroughputText;
         _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(result.WorkerCount);
-        _viewModel.BenchmarkDurationText = $"{result.ElapsedSeconds:0.0}s";
+        BenchmarkSensorSummary sensorSummary = _benchmarkSensors.Summarize();
+        _viewModel.BenchmarkCpuFrequencyText = sensorSummary.AverageFrequencyText;
+        _viewModel.BenchmarkCpuTemperatureText = sensorSummary.MaxTemperatureText;
+        _viewModel.BenchmarkPowerThermalText = sensorSummary.PowerThermalText;
+        _viewModel.BenchmarkValidationText = result.IsValid ? Localization.BenchmarkValidationOk : Localization.BenchmarkValidationFailed;
         _viewModel.BenchmarkStatusText = Localization.BenchmarkCompletedAt(DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
-    }
-
-    private static string FormatOperationsPerSecond(double operationsPerSecond)
-    {
-        return operationsPerSecond switch
-        {
-            >= 1_000_000_000d => $"{operationsPerSecond / 1_000_000_000d:0.00} B ops/s",
-            >= 1_000_000d => $"{operationsPerSecond / 1_000_000d:0.00} M ops/s",
-            >= 1_000d => $"{operationsPerSecond / 1_000d:0.00} K ops/s",
-            _ => $"{operationsPerSecond:0} ops/s"
-        };
     }
 
     private async Task AnimateBenchmarkCurtainAsync(bool open)
@@ -1230,6 +1283,74 @@ public sealed partial class MainWindow : Window
         _backend.Dispose();
         _shutdown.Dispose();
     }
+
+    private sealed class BenchmarkSensorAccumulator
+    {
+        private double _frequencyTotal;
+        private int _frequencySamples;
+        private float _maxTemperature = float.MinValue;
+        private string? _powerThermalText;
+
+        public void Add(CpuDeviceReading cpu)
+        {
+            if (cpu.ClockMHz > 0)
+            {
+                _frequencyTotal += cpu.ClockMHz;
+                _frequencySamples++;
+            }
+
+            foreach (MetricReading sensor in cpu.TemperatureSensors)
+            {
+                _maxTemperature = Math.Max(_maxTemperature, sensor.Value);
+            }
+
+            _powerThermalText ??= FindPowerThermalText(cpu);
+        }
+
+        public BenchmarkSensorSummary Summarize()
+        {
+            string frequencyText = _frequencySamples == 0
+                ? "--"
+                : $"{_frequencyTotal / _frequencySamples / 1000d:0.00} GHz";
+            string temperatureText = _maxTemperature <= float.MinValue
+                ? "--"
+                : MetricFormatter.FormatTemperature(_maxTemperature);
+            return new BenchmarkSensorSummary(
+                frequencyText,
+                temperatureText,
+                _powerThermalText ?? Localization.NotReported);
+        }
+
+        private static string? FindPowerThermalText(CpuDeviceReading cpu)
+        {
+            MetricReading? limitSensor = cpu.PowerSensors
+                .Concat(cpu.TemperatureSensors)
+                .Concat(cpu.ClockSensors)
+                .FirstOrDefault(IsLimitOrThrottlingSensor);
+            if (limitSensor is not null)
+            {
+                return $"{limitSensor.Name}: {limitSensor.ValueText}";
+            }
+
+            return cpu.PackagePower is null
+                ? null
+                : $"{cpu.PackagePower.ValueText} / {Localization.NotReported}";
+        }
+
+        private static bool IsLimitOrThrottlingSensor(MetricReading sensor)
+        {
+            return sensor.Name.Contains("Throttle", StringComparison.OrdinalIgnoreCase)
+                || sensor.Name.Contains("Throttling", StringComparison.OrdinalIgnoreCase)
+                || sensor.Name.Contains("Power Limit", StringComparison.OrdinalIgnoreCase)
+                || sensor.Name.Contains("Thermal Limit", StringComparison.OrdinalIgnoreCase)
+                || sensor.Name.Contains("PROCHOT", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private readonly record struct BenchmarkSensorSummary(
+        string AverageFrequencyText,
+        string MaxTemperatureText,
+        string PowerThermalText);
 
     private sealed record PressVisualState(ITransform? RenderTransform, RelativePoint RenderTransformOrigin);
 }

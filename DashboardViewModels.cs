@@ -49,16 +49,23 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private bool _isCpuOverallView;
     private bool _isBenchmarkRunning;
     private string _benchmarkStatusText = Localization.BenchmarkReady;
+    private string _benchmarkVersionText = ApplicationVersion;
+    private string _benchmarkModeText = Localization.BenchmarkModeText(1);
     private string _benchmarkScoreText = "--";
-    private string _benchmarkThroughputText = "--";
-    private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(CpuBenchmarkRunner.MaxWorkerCount);
-    private string _benchmarkDurationText = Localization.BenchmarkDurationRun(CpuBenchmarkRunner.DefaultDurationSeconds);
-    private string _benchmarkProgressText = "0%";
+    private string _benchmarkSciMarkText = "--";
+    private string _benchmarkZstdCompressionText = "--";
+    private string _benchmarkZstdDecompressionText = "--";
+    private string _benchmarkZstdRatioText = "--";
+    private string _benchmarkHashText = "--";
+    private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(BenchmarkRunner.MaxWorkerCount);
+    private string _benchmarkCpuFrequencyText = "--";
+    private string _benchmarkCpuTemperatureText = "--";
+    private string _benchmarkPowerThermalText = "--";
+    private string _benchmarkValidationText = "--";
+    private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
     private double _benchmarkProgressValue;
     private int _selectedBenchmarkModeIndex = 1;
-    private decimal _benchmarkDurationSeconds = CpuBenchmarkRunner.DefaultDurationSeconds;
-    private decimal _benchmarkCustomWorkerCount = CpuBenchmarkRunner.MaxWorkerCount;
-    private bool _isSyncingBenchmarkSettings;
+    private int _selectedBenchmarkProfileIndex = 1;
     private string _memoryUsageText = "--";
     private string _memoryCapacityText = "--";
     private string _memoryTempText = "";
@@ -238,7 +245,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
                 RaisePropertyChanged(nameof(IsBenchmarkCancelVisible));
                 RaisePropertyChanged(nameof(BenchmarkStartButtonText));
                 RaisePropertyChanged(nameof(AreBenchmarkSettingsEnabled));
-                RaisePropertyChanged(nameof(IsBenchmarkCustomWorkerEnabled));
             }
         }
     }
@@ -253,13 +259,31 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string BenchmarkStatusText { get => _benchmarkStatusText; set => SetProperty(ref _benchmarkStatusText, value); }
 
+    public string BenchmarkVersionText { get => _benchmarkVersionText; set => SetProperty(ref _benchmarkVersionText, value); }
+
+    public string BenchmarkModeText { get => _benchmarkModeText; set => SetProperty(ref _benchmarkModeText, value); }
+
     public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetProperty(ref _benchmarkScoreText, value); }
 
-    public string BenchmarkThroughputText { get => _benchmarkThroughputText; set => SetProperty(ref _benchmarkThroughputText, value); }
+    public string BenchmarkSciMarkText { get => _benchmarkSciMarkText; set => SetProperty(ref _benchmarkSciMarkText, value); }
+
+    public string BenchmarkZstdCompressionText { get => _benchmarkZstdCompressionText; set => SetProperty(ref _benchmarkZstdCompressionText, value); }
+
+    public string BenchmarkZstdDecompressionText { get => _benchmarkZstdDecompressionText; set => SetProperty(ref _benchmarkZstdDecompressionText, value); }
+
+    public string BenchmarkZstdRatioText { get => _benchmarkZstdRatioText; set => SetProperty(ref _benchmarkZstdRatioText, value); }
+
+    public string BenchmarkHashText { get => _benchmarkHashText; set => SetProperty(ref _benchmarkHashText, value); }
 
     public string BenchmarkThreadsText { get => _benchmarkThreadsText; set => SetProperty(ref _benchmarkThreadsText, value); }
 
-    public string BenchmarkDurationText { get => _benchmarkDurationText; set => SetProperty(ref _benchmarkDurationText, value); }
+    public string BenchmarkCpuFrequencyText { get => _benchmarkCpuFrequencyText; set => SetProperty(ref _benchmarkCpuFrequencyText, value); }
+
+    public string BenchmarkCpuTemperatureText { get => _benchmarkCpuTemperatureText; set => SetProperty(ref _benchmarkCpuTemperatureText, value); }
+
+    public string BenchmarkPowerThermalText { get => _benchmarkPowerThermalText; set => SetProperty(ref _benchmarkPowerThermalText, value); }
+
+    public string BenchmarkValidationText { get => _benchmarkValidationText; set => SetProperty(ref _benchmarkValidationText, value); }
 
     public string BenchmarkProgressText { get => _benchmarkProgressText; set => SetProperty(ref _benchmarkProgressText, value); }
 
@@ -270,62 +294,25 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         get => _selectedBenchmarkModeIndex;
         set
         {
-            int modeIndex = Math.Clamp(value, 0, 2);
+            int modeIndex = Math.Clamp(value, 0, 1);
             if (SetProperty(ref _selectedBenchmarkModeIndex, modeIndex))
             {
-                RaisePropertyChanged(nameof(IsBenchmarkCustomWorkerEnabled));
-                if (!_isSyncingBenchmarkSettings && modeIndex != 2)
-                {
-                    _isSyncingBenchmarkSettings = true;
-                    BenchmarkCustomWorkerCount = BenchmarkModeWorkerCount(modeIndex);
-                    _isSyncingBenchmarkSettings = false;
-                }
-
                 RefreshBenchmarkDisplay();
             }
         }
     }
 
-    public decimal BenchmarkDurationSeconds
+    public int SelectedBenchmarkProfileIndex
     {
-        get => _benchmarkDurationSeconds;
+        get => _selectedBenchmarkProfileIndex;
         set
         {
-            if (SetProperty(ref _benchmarkDurationSeconds, Math.Clamp(value, 2, 120)))
+            if (SetProperty(ref _selectedBenchmarkProfileIndex, Math.Clamp(value, 0, 2)))
             {
                 RefreshBenchmarkDisplay();
             }
         }
     }
-
-    public decimal BenchmarkCustomWorkerCount
-    {
-        get => _benchmarkCustomWorkerCount;
-        set
-        {
-            decimal workerCount = Math.Clamp(value, 1, BenchmarkMaxWorkerCount);
-            if (SetProperty(ref _benchmarkCustomWorkerCount, workerCount))
-            {
-                if (!_isSyncingBenchmarkSettings)
-                {
-                    int roundedWorkers = Math.Clamp((int)Math.Round(workerCount), 1, CpuBenchmarkRunner.MaxWorkerCount);
-                    int matchingMode = BenchmarkModeIndexForWorkerCount(roundedWorkers);
-                    if (matchingMode != SelectedBenchmarkModeIndex)
-                    {
-                        _isSyncingBenchmarkSettings = true;
-                        SelectedBenchmarkModeIndex = matchingMode;
-                        _isSyncingBenchmarkSettings = false;
-                    }
-                }
-
-                RefreshBenchmarkDisplay();
-            }
-        }
-    }
-
-    public decimal BenchmarkMaxWorkerCount => CpuBenchmarkRunner.MaxWorkerCount;
-
-    public bool IsBenchmarkCustomWorkerEnabled => !IsBenchmarkRunning;
 
     public string MemoryUsageText { get => _memoryUsageText; set => SetProperty(ref _memoryUsageText, value); }
 
@@ -404,17 +391,22 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public int ResolveBenchmarkWorkerCount()
     {
-        return SelectedBenchmarkModeIndex switch
+        return SelectedBenchmarkModeIndex == 0 ? 1 : BenchmarkRunner.MaxWorkerCount;
+    }
+
+    public BenchmarkRunProfile ResolveBenchmarkProfile()
+    {
+        return SelectedBenchmarkProfileIndex switch
         {
-            0 => 1,
-            1 => CpuBenchmarkRunner.MaxWorkerCount,
-            _ => Math.Clamp((int)Math.Round(BenchmarkCustomWorkerCount), 1, CpuBenchmarkRunner.MaxWorkerCount)
+            0 => BenchmarkRunProfile.Quick,
+            2 => BenchmarkRunProfile.Sustained,
+            _ => BenchmarkRunProfile.Standard
         };
     }
 
-    public TimeSpan ResolveBenchmarkDuration()
+    public BenchmarkProfilePlan ResolveBenchmarkPlan()
     {
-        return TimeSpan.FromSeconds(Math.Clamp((int)Math.Round(BenchmarkDurationSeconds), 2, 120));
+        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile());
     }
 
     public string ResolveBenchmarkModeText()
@@ -425,34 +417,26 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private void RefreshBenchmarkDisplay()
     {
         int workers = ResolveBenchmarkWorkerCount();
-        int durationSeconds = (int)Math.Round(ResolveBenchmarkDuration().TotalSeconds);
+        BenchmarkProfilePlan plan = ResolveBenchmarkPlan();
+        BenchmarkModeText = ResolveBenchmarkModeText();
         BenchmarkThreadsText = Localization.BenchmarkThreadCount(workers);
-        BenchmarkDurationText = Localization.BenchmarkDurationRun(durationSeconds);
+        if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0)
+        {
+            BenchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, plan.TotalDuration);
+        }
     }
 
-    private static int BenchmarkModeWorkerCount(int modeIndex)
+    public static string FormatBenchmarkProgress(double percent, TimeSpan elapsed, TimeSpan duration)
     {
-        return modeIndex switch
-        {
-            0 => 1,
-            1 => CpuBenchmarkRunner.MaxWorkerCount,
-            _ => Math.Clamp(CpuBenchmarkRunner.MaxWorkerCount, 1, CpuBenchmarkRunner.MaxWorkerCount)
-        };
+        return $"{percent:0}% | {FormatBenchmarkDuration(elapsed)} / {FormatBenchmarkDuration(duration)}";
     }
 
-    private static int BenchmarkModeIndexForWorkerCount(int workerCount)
+    public static string FormatBenchmarkDuration(TimeSpan duration)
     {
-        if (workerCount == 1)
-        {
-            return 0;
-        }
-
-        if (workerCount == CpuBenchmarkRunner.MaxWorkerCount)
-        {
-            return 1;
-        }
-
-        return 2;
+        int totalSeconds = Math.Max(0, (int)Math.Round(duration.TotalSeconds));
+        return totalSeconds >= 60
+            ? $"{totalSeconds / 60}m {totalSeconds % 60:00}s"
+            : $"{totalSeconds}s";
     }
 
     private static string ResolveApplicationVersion()
