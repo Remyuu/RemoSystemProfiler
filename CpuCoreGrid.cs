@@ -32,7 +32,7 @@ public sealed class CpuCoreGrid : Control
     private const double FallbackCellHeight = 58;
     private const double PillInsetX = 6;
     private const double PillInsetY = 4;
-    private const double SparklineInset = 7;
+    private const double SparklineInset = 2;
 
     private readonly Dictionary<int, CoreState> _statesByKey = new();
     private readonly List<CoreItemViewModel> _cores = [];
@@ -158,7 +158,6 @@ public sealed class CpuCoreGrid : Control
         }
 
         Rect chart = cell.Deflate(SparklineInset);
-        chart = new Rect(chart.X, chart.Y + chart.Height * 0.42, chart.Width, chart.Height * 0.48);
         if (chart.Width <= 0 || chart.Height <= 0)
         {
             return;
@@ -267,7 +266,7 @@ public sealed class CpuCoreGrid : Control
             return;
         }
 
-        if (e.PropertyName is nameof(CoreItemViewModel.LoadPercent))
+        if (e.PropertyName is nameof(CoreItemViewModel.SampleVersion))
         {
             if (!_statesByKey.TryGetValue(core.Key, out CoreState? state))
             {
@@ -280,7 +279,9 @@ public sealed class CpuCoreGrid : Control
             return;
         }
 
-        if (e.PropertyName is nameof(CoreItemViewModel.LoadText) or nameof(CoreItemViewModel.LoadBrush))
+        if (e.PropertyName is nameof(CoreItemViewModel.LoadPercent)
+            or nameof(CoreItemViewModel.LoadText)
+            or nameof(CoreItemViewModel.LoadBrush))
         {
             InvalidateVisual();
         }

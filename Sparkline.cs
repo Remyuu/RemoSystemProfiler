@@ -9,6 +9,9 @@ public sealed class Sparkline : Control
     public static readonly StyledProperty<double> ValueProperty =
         AvaloniaProperty.Register<Sparkline, double>(nameof(Value));
 
+    public static readonly StyledProperty<int> SampleVersionProperty =
+        AvaloniaProperty.Register<Sparkline, int>(nameof(SampleVersion));
+
     public static readonly StyledProperty<IBrush?> StrokeProperty =
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(Stroke), DashboardBrushes.Blue);
 
@@ -18,15 +21,30 @@ public sealed class Sparkline : Control
     private float[] _samples = new float[ChartHistorySettings.MaxSamples];
     private int _start;
     private int _count;
+    private bool _usesSampleVersion;
 
     static Sparkline()
     {
-        AffectsRender<Sparkline>(StrokeProperty, StrokeThicknessProperty);
+        AffectsRender<Sparkline>(SampleVersionProperty, StrokeProperty, StrokeThicknessProperty);
         ValueProperty.Changed.AddClassHandler<Sparkline>((control, args) =>
         {
             if (args.NewValue is double value)
             {
-                control.AddSample(value);
+                if (!control._usesSampleVersion || control._count <= 1)
+                {
+                    control.AddSample(value);
+                    return;
+                }
+
+                control.InvalidateVisual();
+            }
+        });
+        SampleVersionProperty.Changed.AddClassHandler<Sparkline>((control, args) =>
+        {
+            if (args.NewValue is int version && version > 0)
+            {
+                control._usesSampleVersion = true;
+                control.AddSample(control.Value);
             }
         });
     }
@@ -35,6 +53,12 @@ public sealed class Sparkline : Control
     {
         get => GetValue(ValueProperty);
         set => SetValue(ValueProperty, value);
+    }
+
+    public int SampleVersion
+    {
+        get => GetValue(SampleVersionProperty);
+        set => SetValue(SampleVersionProperty, value);
     }
 
     public IBrush? Stroke

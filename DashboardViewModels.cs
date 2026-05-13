@@ -928,6 +928,7 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
     private string _detailText = "--";
     private IBrush _accentBrush = DashboardBrushes.Blue;
     private double _gaugeValue;
+    private int _sampleVersion;
     private bool _isCompact;
 
     public OverviewItemViewModel(OverviewReading reading)
@@ -949,6 +950,8 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
     public IBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
 
     public double GaugeValue { get => _gaugeValue; private set => SetProperty(ref _gaugeValue, value); }
+
+    public int SampleVersion { get => _sampleVersion; private set => SetProperty(ref _sampleVersion, value); }
 
     public bool IsCompact
     {
@@ -972,6 +975,7 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
         DetailText = reading.DetailText;
         AccentBrush = reading.AccentBrush;
         GaugeValue = reading.GaugeValue;
+        SampleVersion = unchecked(SampleVersion + 1);
     }
 }
 
@@ -982,6 +986,7 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
     private string _loadText = "--";
     private IBrush _loadBrush = DashboardBrushes.Blue;
     private double _loadPercent;
+    private int _sampleVersion;
 
     public CoreItemViewModel(CoreReading reading)
     {
@@ -997,11 +1002,14 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
 
     public double LoadPercent { get => _loadPercent; private set => SetProperty(ref _loadPercent, value); }
 
+    public int SampleVersion { get => _sampleVersion; private set => SetProperty(ref _sampleVersion, value); }
+
     public void Update(CoreReading reading)
     {
         LoadText = reading.LoadText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
         LoadPercent = reading.LoadPercent;
+        SampleVersion = unchecked(SampleVersion + 1);
     }
 
     private static IBrush BuildLoadBrush(int loadPercent) => LoadBrushCache[Math.Clamp(loadPercent, 0, LoadBrushCache.Length - 1)];

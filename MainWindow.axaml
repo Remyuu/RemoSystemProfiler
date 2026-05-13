@@ -245,6 +245,7 @@
                             CornerRadius="3">
                             <local:Sparkline
                                 Margin="4"
+                                SampleVersion="{Binding SampleVersion}"
                                 Stroke="{Binding AccentBrush}"
                                 StrokeThickness="2"
                                 Value="{Binding GaugeValue}" />
