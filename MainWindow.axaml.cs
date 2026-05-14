@@ -58,6 +58,8 @@ public sealed partial class MainWindow : Window
     private HardwareMonitorReadResult? _lastResult;
     private bool _isClosed;
     private bool _startupOverlayDismissed;
+    private bool _pawnIoPromptDismissed;
+    private bool _isRefreshingLocalizedSelectionBoxes;
 
     public MainWindow()
     {
@@ -313,6 +315,7 @@ public sealed partial class MainWindow : Window
         if (!result.IsAvailable || result.Snapshot is null)
         {
             ShowUnavailable(result.Message, result.DriverStatus);
+            UpdatePawnIoPrompt(result.DriverStatus);
             DismissStartupOverlay(result.DriverStatus.NeedsInstallation
                 ? Localization.PawnIoRequired
                 : Localization.SensorBackendUnavailable);
@@ -320,6 +323,7 @@ public sealed partial class MainWindow : Window
         }
 
         ShowSnapshot(result.Snapshot, result);
+        UpdatePawnIoPrompt(result.DriverStatus);
         DismissStartupOverlay(result.DriverStatus.NeedsInstallation
             ? Localization.PawnIoRequired
             : result.RequiresAdministrator
@@ -462,6 +466,27 @@ public sealed partial class MainWindow : Window
             && version < new Version(2, 1, 0);
     }
 
+    private void UpdatePawnIoPrompt(SensorDriverStatus status)
+    {
+        if (!status.NeedsInstallation)
+        {
+            _viewModel.IsPawnIoPromptVisible = false;
+            _pawnIoPromptDismissed = false;
+            return;
+        }
+
+        if (!_pawnIoPromptDismissed)
+        {
+            _viewModel.IsPawnIoPromptVisible = true;
+        }
+    }
+
+    private void PawnIoPromptCancel_Click(object? sender, RoutedEventArgs e)
+    {
+        _pawnIoPromptDismissed = true;
+        _viewModel.IsPawnIoPromptVisible = false;
+    }
+
     private void DismissStartupOverlay(string message)
     {
         if (_startupOverlayDismissed)
@@ -522,16 +547,31 @@ public sealed partial class MainWindow : Window
 
     private void ThemePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_isRefreshingLocalizedSelectionBoxes)
+        {
+            return;
+        }
+
         ApplyThemeSelection();
     }
 
     private void ChartRangePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_isRefreshingLocalizedSelectionBoxes)
+        {
+            return;
+        }
+
         ApplyChartRangeSelection();
     }
 
     private void UpdateIntervalPicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_isRefreshingLocalizedSelectionBoxes)
+        {
+            return;
+        }
+
         ApplyUpdateIntervalSelection();
     }
 
@@ -542,6 +582,17 @@ public sealed partial class MainWindow : Window
 
     private void LanguagePicker_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_isRefreshingLocalizedSelectionBoxes)
+        {
+            return;
+        }
+
+        if (sender is ComboBox { SelectedIndex: >= 0 } languagePicker
+            && languagePicker.SelectedIndex != _viewModel.SelectedLanguageIndex)
+        {
+            _viewModel.SelectedLanguageIndex = languagePicker.SelectedIndex;
+        }
+
         if (!ApplyLanguageSelection())
         {
             return;
@@ -659,6 +710,71 @@ public sealed partial class MainWindow : Window
         {
             _viewModel.UpdateStatusText = Localization.UpdateIdle;
         }
+
+        RefreshBenchmarkLocalization();
+    }
+
+    private void RefreshBenchmarkLocalization()
+    {
+        BenchmarkTitleText.Text = Localization.Resource("Ui_Benchmark");
+        BenchmarkProfileLabel.Text = Localization.Resource("Ui_Profile");
+        BenchmarkModePickerLabel.Text = Localization.Resource("Ui_Mode");
+        BenchmarkVersionLabel.Text = Localization.Resource("Ui_BenchmarkVersion");
+        BenchmarkModeSummaryLabel.Text = Localization.Resource("Ui_Mode");
+        BenchmarkScoreLabel.Text = Localization.Resource("Ui_Score");
+        BenchmarkValidationLabel.Text = Localization.Resource("Ui_Validation");
+        BenchmarkSciMarkLabel.Text = Localization.Resource("Ui_SciMark");
+        BenchmarkZstdCompressionLabel.Text = Localization.Resource("Ui_ZstdCompression");
+        BenchmarkZstdDecompressionLabel.Text = Localization.Resource("Ui_ZstdDecompression");
+        BenchmarkZstdRatioLabel.Text = Localization.Resource("Ui_ZstdRatio");
+        BenchmarkXxHash3Label.Text = Localization.Resource("Ui_XxHash3");
+        BenchmarkCpuAverageFrequencyLabel.Text = Localization.Resource("Ui_CpuAverageFrequency");
+        BenchmarkCpuMaxTemperatureLabel.Text = Localization.Resource("Ui_CpuMaxTemperature");
+        BenchmarkPowerThermalLabel.Text = Localization.Resource("Ui_PowerThermal");
+        BenchmarkProgressLabel.Text = Localization.Resource("Ui_Progress");
+        BenchmarkDisplayNameLabel.Text = Localization.Resource("Ui_DisplayName");
+        BenchmarkLeaderboardLabel.Text = Localization.Resource("Ui_Leaderboard");
+        BenchmarkQuickItem.Content = Localization.Resource("Ui_Quick");
+        BenchmarkStandardItem.Content = Localization.Resource("Ui_Standard");
+        BenchmarkSustainedItem.Content = Localization.Resource("Ui_Sustained");
+        BenchmarkSingleCoreItem.Content = Localization.Resource("Ui_SingleCore");
+        BenchmarkMultiCoreItem.Content = Localization.Resource("Ui_MultiCore");
+        QueueLocalizedSelectionBoxRefresh();
+    }
+
+    private void QueueLocalizedSelectionBoxRefresh()
+    {
+        Dispatcher.UIThread.Post(RefreshLocalizedSelectionBoxes, DispatcherPriority.Render);
+    }
+
+    private void RefreshLocalizedSelectionBoxes()
+    {
+        _isRefreshingLocalizedSelectionBoxes = true;
+        try
+        {
+            RefreshSelectionBox(FlyoutChartRangePicker);
+            RefreshSelectionBox(FlyoutUpdateIntervalPicker);
+            RefreshSelectionBox(FlyoutThemePicker);
+            RefreshSelectionBox(FlyoutLanguagePicker);
+            RefreshSelectionBox(BenchmarkProfilePicker);
+            RefreshSelectionBox(BenchmarkModePicker);
+        }
+        finally
+        {
+            _isRefreshingLocalizedSelectionBoxes = false;
+        }
+    }
+
+    private static void RefreshSelectionBox(ComboBox comboBox)
+    {
+        int selectedIndex = comboBox.SelectedIndex;
+        if (selectedIndex < 0)
+        {
+            return;
+        }
+
+        comboBox.SelectedIndex = -1;
+        comboBox.SelectedIndex = selectedIndex;
     }
 
     private void SaveDashboardSettings()
@@ -1233,6 +1349,10 @@ public sealed partial class MainWindow : Window
             {
                 await Task.Delay(800, _shutdown.Token);
                 await Task.Run(() => ReadAndDispatch(_shutdown.Token), _shutdown.Token);
+            }
+            else if (result.IsSuccess)
+            {
+                _viewModel.IsPawnIoPromptVisible = false;
             }
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)

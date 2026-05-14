@@ -37,6 +37,16 @@
                     <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#F8FAFC" />
                     <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#C7D7F2" />
                     <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#27303C" />
+                    <SolidColorBrush x:Key="BenchmarkEntryBackgroundBrush" Color="#343A2A10" />
+                    <SolidColorBrush x:Key="BenchmarkEntryHoverBrush" Color="#4A4A3514" />
+                    <SolidColorBrush x:Key="BenchmarkEntryPressedBrush" Color="#242D210E" />
+                    <SolidColorBrush x:Key="BenchmarkEntryBorderBrush" Color="#8AC88412" />
+                    <SolidColorBrush x:Key="BenchmarkEntryIconBrush" Color="#FDB022" />
+                    <SolidColorBrush x:Key="BenchmarkRunBackgroundBrush" Color="#15803D" />
+                    <SolidColorBrush x:Key="BenchmarkRunHoverBrush" Color="#166534" />
+                    <SolidColorBrush x:Key="BenchmarkRunPressedBrush" Color="#14532D" />
+                    <SolidColorBrush x:Key="BenchmarkRunBorderBrush" Color="#22C55E" />
+                    <SolidColorBrush x:Key="BenchmarkRunTextBrush" Color="#FFFFFF" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                         <GradientStop Offset="0" Color="#1C222B" />
                         <GradientStop Offset="1" Color="#001C222B" />
@@ -82,6 +92,16 @@
                     <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#F8FAFC" />
                     <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#C7D7F2" />
                     <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#27303C" />
+                    <SolidColorBrush x:Key="BenchmarkEntryBackgroundBrush" Color="#343A2A10" />
+                    <SolidColorBrush x:Key="BenchmarkEntryHoverBrush" Color="#4A4A3514" />
+                    <SolidColorBrush x:Key="BenchmarkEntryPressedBrush" Color="#242D210E" />
+                    <SolidColorBrush x:Key="BenchmarkEntryBorderBrush" Color="#8AC88412" />
+                    <SolidColorBrush x:Key="BenchmarkEntryIconBrush" Color="#FDB022" />
+                    <SolidColorBrush x:Key="BenchmarkRunBackgroundBrush" Color="#15803D" />
+                    <SolidColorBrush x:Key="BenchmarkRunHoverBrush" Color="#166534" />
+                    <SolidColorBrush x:Key="BenchmarkRunPressedBrush" Color="#14532D" />
+                    <SolidColorBrush x:Key="BenchmarkRunBorderBrush" Color="#22C55E" />
+                    <SolidColorBrush x:Key="BenchmarkRunTextBrush" Color="#FFFFFF" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                         <GradientStop Offset="0" Color="#1C222B" />
                         <GradientStop Offset="1" Color="#001C222B" />
@@ -120,13 +140,23 @@
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#111827" />
                     <SolidColorBrush x:Key="MutedTextBrush" Color="#475467" />
                     <SolidColorBrush x:Key="SubtleTextBrush" Color="#667085" />
-                    <SolidColorBrush x:Key="StartupOverlayBackgroundBrush" Color="#070A0F" />
-                    <SolidColorBrush x:Key="StartupOverlayPanelBrush" Color="#151C26" />
-                    <SolidColorBrush x:Key="StartupOverlayStatusBrush" Color="#111821" />
-                    <SolidColorBrush x:Key="StartupOverlayStrokeBrush" Color="#4B596B" />
-                    <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#F8FAFC" />
-                    <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#C7D7F2" />
-                    <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#27303C" />
+                    <SolidColorBrush x:Key="StartupOverlayBackgroundBrush" Color="#F5F7FA" />
+                    <SolidColorBrush x:Key="StartupOverlayPanelBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="StartupOverlayStatusBrush" Color="#EEF3F8" />
+                    <SolidColorBrush x:Key="StartupOverlayStrokeBrush" Color="#B8C2CF" />
+                    <SolidColorBrush x:Key="StartupOverlayTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="StartupOverlayMutedTextBrush" Color="#475467" />
+                    <SolidColorBrush x:Key="StartupOverlayTrackBrush" Color="#D5DCE6" />
+                    <SolidColorBrush x:Key="BenchmarkEntryBackgroundBrush" Color="#2EFDB022" />
+                    <SolidColorBrush x:Key="BenchmarkEntryHoverBrush" Color="#46FDB022" />
+                    <SolidColorBrush x:Key="BenchmarkEntryPressedBrush" Color="#24FDB022" />
+                    <SolidColorBrush x:Key="BenchmarkEntryBorderBrush" Color="#80D97706" />
+                    <SolidColorBrush x:Key="BenchmarkEntryIconBrush" Color="#B54708" />
+                    <SolidColorBrush x:Key="BenchmarkRunBackgroundBrush" Color="#15803D" />
+                    <SolidColorBrush x:Key="BenchmarkRunHoverBrush" Color="#166534" />
+                    <SolidColorBrush x:Key="BenchmarkRunPressedBrush" Color="#14532D" />
+                    <SolidColorBrush x:Key="BenchmarkRunBorderBrush" Color="#0F6B35" />
+                    <SolidColorBrush x:Key="BenchmarkRunTextBrush" Color="#FFFFFF" />
                     <LinearGradientBrush x:Key="PanelFadeTopBrush" StartPoint="0%,0%" EndPoint="0%,100%">
                         <GradientStop Offset="0" Color="#FFFFFF" />
                         <GradientStop Offset="1" Color="#00FFFFFF" />

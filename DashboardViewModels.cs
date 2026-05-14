@@ -39,6 +39,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private IBrush _statusBrush = DashboardBrushes.Amber;
     private bool _isPawnIoDownloadVisible;
     private bool _isPawnIoInstallRunning;
+    private bool _isPawnIoPromptVisible;
     private string _pawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
     private string _updatedText = "--:--:--";
     private string _cpuNameText = "--";
@@ -134,13 +135,22 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             if (SetProperty(ref _isPawnIoInstallRunning, value))
             {
                 RaisePropertyChanged(nameof(IsPawnIoInstallAvailable));
+                RaisePropertyChanged(nameof(IsPawnIoPromptCancelAvailable));
             }
         }
     }
 
     public bool IsPawnIoInstallAvailable => !IsPawnIoInstallRunning;
 
+    public bool IsPawnIoPromptCancelAvailable => !IsPawnIoInstallRunning;
+
+    public bool IsPawnIoPromptVisible { get => _isPawnIoPromptVisible; set => SetProperty(ref _isPawnIoPromptVisible, value); }
+
     public string PawnIoInstallButtonText { get => _pawnIoInstallButtonText; set => SetProperty(ref _pawnIoInstallButtonText, value); }
+
+    public string PawnIoPromptTitleText => Localization.PawnIoRequired;
+
+    public string PawnIoPromptSubtitleText => Localization.InstallPawnIoRestartAdmin;
 
     public string UpdatedText { get => _updatedText; set => SetProperty(ref _updatedText, value); }
 
@@ -438,6 +448,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             PawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
         }
 
+        RaisePropertyChanged(nameof(PawnIoPromptTitleText));
+        RaisePropertyChanged(nameof(PawnIoPromptSubtitleText));
         RefreshCpuCoreGraphChrome();
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
         RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
