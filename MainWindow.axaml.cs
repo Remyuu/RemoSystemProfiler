@@ -66,6 +66,11 @@ public sealed partial class MainWindow : Window
         ApplyStoredDashboardSettings(DashboardSettingsStore.Load());
         InitializeComponent();
         DataContext = _viewModel;
+        BenchmarkPanel.RunRequested += async (_, _) => await RunCpuBenchmarkAsync().ConfigureAwait(true);
+        BenchmarkPanel.CancelRequested += (_, _) => CancelCpuBenchmark();
+        BenchmarkPanel.UploadRequested += async (_, _) => await UploadBenchmarkAsync().ConfigureAwait(true);
+        BenchmarkPanel.RefreshLeaderboardRequested += async (_, _) => await RefreshLeaderboardAsync().ConfigureAwait(true);
+        BenchmarkPanel.ToggleLeaderboardScoreRequested += async (_, _) => await ToggleLeaderboardScoreAsync().ConfigureAwait(true);
         RefreshDashboardFlyoutLocalization();
         Opened += OnOpened;
         Closed += OnClosed;
@@ -720,33 +725,7 @@ public sealed partial class MainWindow : Window
 
     private void RefreshBenchmarkLocalization()
     {
-        BenchmarkTitleText.Text = Localization.Resource("Ui_Benchmark");
-        BenchmarkAlgorithmLabel.Text = Localization.Resource("Ui_BenchmarkVersion");
-        BenchmarkProfileLabel.Text = Localization.Resource("Ui_Profile");
-        BenchmarkModePickerLabel.Text = Localization.Resource("Ui_Mode");
-        BenchmarkVersionLabel.Text = Localization.Resource("Ui_BenchmarkVersion");
-        BenchmarkModeSummaryLabel.Text = Localization.Resource("Ui_Mode");
-        BenchmarkScoreLabel.Text = Localization.Resource("Ui_CpuCoreScore");
-        BenchmarkMixedScoreLabel.Text = Localization.Resource("Ui_CpuMixedScore");
-        BenchmarkValidationLabel.Text = Localization.Resource("Ui_Validation");
-        BenchmarkSciMarkLabel.Text = Localization.Resource("Ui_SciMark");
-        BenchmarkZstdCompressionLabel.Text = Localization.Resource("Ui_ZstdCompression");
-        BenchmarkZstdDecompressionLabel.Text = Localization.Resource("Ui_ZstdDecompression");
-        BenchmarkXxHash3Label.Text = Localization.Resource("Ui_XxHash3");
-        BenchmarkCpuAverageFrequencyLabel.Text = Localization.Resource("Ui_CpuAverageFrequency");
-        BenchmarkCpuMaxTemperatureLabel.Text = Localization.Resource("Ui_CpuMaxTemperature");
-        BenchmarkPowerThermalLabel.Text = Localization.Resource("Ui_PowerThermal");
-        BenchmarkTelemetryLabel.Text = Localization.Resource("Ui_BenchmarkTelemetry");
-        BenchmarkProgressLabel.Text = Localization.Resource("Ui_Progress");
-        BenchmarkDisplayNameLabel.Text = Localization.Resource("Ui_DisplayName");
-        BenchmarkLeaderboardLabel.Text = Localization.Resource("Ui_Leaderboard");
-        BenchmarkVersion21Item.Content = BenchmarkRunner.Version;
-        BenchmarkVersion20Item.Content = BenchmarkRunner.LegacyVersion;
-        BenchmarkQuickItem.Content = Localization.Resource("Ui_Quick");
-        BenchmarkStandardItem.Content = Localization.Resource("Ui_Standard");
-        BenchmarkSustainedItem.Content = Localization.Resource("Ui_Sustained");
-        BenchmarkSingleCoreItem.Content = Localization.Resource("Ui_SingleCore");
-        BenchmarkMultiCoreItem.Content = Localization.Resource("Ui_MultiCore");
+        BenchmarkPanel.RefreshLocalization();
         QueueLocalizedSelectionBoxRefresh();
     }
 
@@ -764,9 +743,7 @@ public sealed partial class MainWindow : Window
             RefreshSelectionBox(FlyoutUpdateIntervalPicker);
             RefreshSelectionBox(FlyoutThemePicker);
             RefreshSelectionBox(FlyoutLanguagePicker);
-            RefreshSelectionBox(BenchmarkVersionPicker);
-            RefreshSelectionBox(BenchmarkProfilePicker);
-            RefreshSelectionBox(BenchmarkModePicker);
+            BenchmarkPanel.RefreshLocalizedSelectionBoxes();
         }
         finally
         {
@@ -966,7 +943,7 @@ public sealed partial class MainWindow : Window
         await AnimateBenchmarkCurtainAsync(open: true).ConfigureAwait(true);
     }
 
-    private async void CpuBenchmarkRun_Click(object? sender, RoutedEventArgs e)
+    private async Task RunCpuBenchmarkAsync()
     {
         if (_viewModel.IsBenchmarkRunning)
         {
@@ -995,7 +972,6 @@ public sealed partial class MainWindow : Window
 
         _viewModel.IsBenchmarkRunning = true;
         _viewModel.BenchmarkStatusText = Localization.BenchmarkRunningMode(modeText);
-        _viewModel.BenchmarkVersionText = benchmarkVersion;
         _viewModel.BenchmarkModeText = modeText;
         _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(workerCount);
         _viewModel.BenchmarkScoreText = "--";
@@ -1003,7 +979,6 @@ public sealed partial class MainWindow : Window
         _viewModel.BenchmarkSciMarkText = "--";
         _viewModel.BenchmarkZstdCompressionText = "--";
         _viewModel.BenchmarkZstdDecompressionText = "--";
-        _viewModel.BenchmarkZstdRatioText = "--";
         _viewModel.BenchmarkHashText = "--";
         _viewModel.BenchmarkCpuFrequencyText = "--";
         _viewModel.BenchmarkCpuTemperatureText = "--";
@@ -1040,8 +1015,6 @@ public sealed partial class MainWindow : Window
             _viewModel.IsBenchmarkRunning = false;
         }
     }
-
-    private void CpuBenchmarkCancel_Click(object? sender, RoutedEventArgs e) => CancelCpuBenchmark();
 
     private void CancelCpuBenchmark()
     {
@@ -1084,10 +1057,6 @@ public sealed partial class MainWindow : Window
                 break;
         }
 
-        if (progress.ZstdRatio is > 0)
-        {
-            _viewModel.BenchmarkZstdRatioText = $"{progress.ZstdRatio.Value:0.00}x";
-        }
     }
 
     private void ShowBenchmarkResult(BenchmarkResult result)
@@ -1098,12 +1067,10 @@ public sealed partial class MainWindow : Window
             ? Math.Round(result.CpuCoreScore).ToString("N0", CultureInfo.InvariantCulture)
             : "--";
         _viewModel.BenchmarkMixedScoreText = Math.Round(result.CpuMixedScore).ToString("N0", CultureInfo.InvariantCulture);
-        _viewModel.BenchmarkVersionText = result.Version;
         _viewModel.BenchmarkModeText = Localization.BenchmarkModeText(result.WorkerCount == 1 ? 0 : 1);
         _viewModel.BenchmarkSciMarkText = Math.Round(result.SciMark.Score).ToString("N0", CultureInfo.InvariantCulture);
         _viewModel.BenchmarkZstdCompressionText = result.ZstdCompression.ThroughputText;
         _viewModel.BenchmarkZstdDecompressionText = result.ZstdDecompression.ThroughputText;
-        _viewModel.BenchmarkZstdRatioText = result.ZstdRatio > 0 ? $"{result.ZstdRatio:0.00}x" : "--";
         _viewModel.BenchmarkHashText = result.Hash.ThroughputText;
         _viewModel.BenchmarkThreadsText = Localization.BenchmarkThreadCount(result.WorkerCount);
         BenchmarkSensorSummary sensorSummary = _benchmarkSensors.Summarize();
@@ -1154,7 +1121,7 @@ public sealed partial class MainWindow : Window
         return dto;
     }
 
-    private async void BenchmarkUpload_Click(object? sender, RoutedEventArgs e)
+    private async Task UploadBenchmarkAsync()
     {
         if (_lastBenchmarkUpload is null || !_viewModel.CanUploadBenchmarkResult)
         {
@@ -1196,12 +1163,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void BenchmarkLeaderboardRefresh_Click(object? sender, RoutedEventArgs e)
-    {
-        await RefreshLeaderboardAsync().ConfigureAwait(true);
-    }
-
-    private void LeaderboardScoreToggle_Click(object? sender, RoutedEventArgs e)
+    private async Task ToggleLeaderboardScoreAsync()
     {
         if (!_viewModel.IsLeaderboardScorePickerEnabled)
         {
@@ -1209,6 +1171,7 @@ public sealed partial class MainWindow : Window
         }
 
         _viewModel.SelectedLeaderboardScoreIndex = _viewModel.SelectedLeaderboardScoreIndex == 0 ? 1 : 0;
+        await RefreshLeaderboardAsync().ConfigureAwait(true);
     }
 
     private async Task RefreshLeaderboardAsync()

@@ -64,12 +64,17 @@ public readonly record struct BenchmarkResult(
 
 public static class BenchmarkRunner
 {
-    public const string Version = "2.1";
+    public const string Version = "2.2";
     public const string LegacyVersion = "2.0";
 
     private const int SciMarkKernelCount = 5;
     private const int ZstdPayloadBytes = 1 * 1024 * 1024;
     private const int HashPayloadBytes = 8 * 1024 * 1024;
+    private const double CurrentScoreTarget = 1000d;
+    private const double CurrentSciMarkScoreReference = 420_000_000d;
+    private const double CurrentZstdCompressionScoreReference = 50_000d;
+    private const double CurrentZstdDecompressionScoreReference = 50_000d;
+    private const double CurrentHashScoreReference = 50_000d;
 
     public static int MaxWorkerCount => Math.Max(1, Environment.ProcessorCount);
 
@@ -207,6 +212,11 @@ public static class BenchmarkRunner
             completed += sciMarkDurations[i];
         }
         BenchmarkWorkloadResult sciMark = BuildSciMarkResult(sciMarkTotal, plan.SciMark);
+        if (!legacyScoring)
+        {
+            sciMark = NormalizeCurrentWorkloadScore(sciMark, CurrentSciMarkScoreReference);
+        }
+
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, sciMark);
 
         WorkerResult zstdCompressionResult = await RunWorkloadStageAsync(
@@ -221,6 +231,11 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.ZstdCompression;
         BenchmarkWorkloadResult zstdCompression = BuildZstdCompressionResult(zstdCompressionResult, plan.ZstdCompression);
+        if (!legacyScoring)
+        {
+            zstdCompression = NormalizeCurrentWorkloadScore(zstdCompression, CurrentZstdCompressionScoreReference);
+        }
+
         double ratio = zstdCompressionResult.ExtraUnits <= 0 ? 0 : zstdCompressionResult.Units / zstdCompressionResult.ExtraUnits;
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdCompression, legacyScoring ? ratio : null);
 
@@ -236,6 +251,11 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.ZstdDecompression;
         BenchmarkWorkloadResult zstdDecompression = BuildZstdDecompressionResult(zstdDecompressionResult, plan.ZstdDecompression);
+        if (!legacyScoring)
+        {
+            zstdDecompression = NormalizeCurrentWorkloadScore(zstdDecompression, CurrentZstdDecompressionScoreReference);
+        }
+
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdDecompression, legacyScoring ? ratio : null);
 
         WorkerResult hashResult = await RunWorkloadStageAsync(
@@ -250,6 +270,11 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.Hash;
         BenchmarkWorkloadResult hash = BuildHashResult(hashResult, plan.Hash);
+        if (!legacyScoring)
+        {
+            hash = NormalizeCurrentWorkloadScore(hash, CurrentHashScoreReference);
+        }
+
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, hash);
 
         double elapsedSeconds = Math.Max(0.001, (Stopwatch.GetTimestamp() - startedAt) / (double)Stopwatch.Frequency);
@@ -309,6 +334,12 @@ public static class BenchmarkRunner
             FormatBytesPerSecond(gigabytesPerSecond * 1024d * 1024d * 1024d),
             result.Checksum,
             gigabytesPerSecond);
+    }
+
+    private static BenchmarkWorkloadResult NormalizeCurrentWorkloadScore(BenchmarkWorkloadResult result, double referenceScore)
+    {
+        double normalized = CurrentScoreTarget * Math.Sqrt(Math.Max(0, result.Score) / Math.Max(1, referenceScore));
+        return result with { Score = normalized };
     }
 
     private static bool IsValidResult(

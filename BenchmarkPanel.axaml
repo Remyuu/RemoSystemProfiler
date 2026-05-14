@@ -1,0 +1,355 @@
+<UserControl
+    x:Class="RemoSystemProfiler.BenchmarkPanel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:RemoSystemProfiler"
+    x:DataType="local:MainWindowViewModel">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="BenchmarkMetricCardTemplate" x:DataType="local:BenchmarkMetricCardViewModel">
+            <Border
+                Classes="soft-panel"
+                Margin="3"
+                MinHeight="64">
+                <StackPanel Spacing="2">
+                    <TextBlock
+                        Classes="label"
+                        FontWeight="{Binding TitleFontWeight}"
+                        Text="{Binding TitleText}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Classes="small-value"
+                        FontSize="{Binding ValueFontSize}"
+                        FontWeight="{Binding ValueFontWeight}"
+                        Text="{Binding ValueText}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="LeaderboardEntryTemplate" x:DataType="local:LeaderboardEntryViewModel">
+            <local:AnimatedExpander
+                Width="{Binding $parent[ItemsControl].Bounds.Width}"
+                IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                <local:AnimatedExpander.Header>
+                    <Grid
+                        HorizontalAlignment="Stretch"
+                        RowDefinitions="Auto,Auto"
+                        RowSpacing="5">
+                        <Grid ColumnDefinitions="42,40,*,96" ColumnSpacing="8">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Classes="label"
+                                FontWeight="SemiBold"
+                                Text="{Binding RankText}" />
+                            <local:CountryFlagBadge
+                                Grid.Column="1"
+                                Width="31"
+                                Height="21"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                CountryCode="{Binding CountryCodeText}"
+                                TextBrush="{DynamicResource MutedTextBrush}" />
+                            <TextBlock
+                                Grid.Column="2"
+                                Classes="small-value"
+                                Text="{Binding DisplayNameText}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Grid.Column="3"
+                                HorizontalAlignment="Right"
+                                Classes="value"
+                                FontSize="16"
+                                Text="{Binding ScoreText}" />
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBlock
+                                Classes="label"
+                                Text="{Binding DetailText}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
+                                Classes="label"
+                                Text="{Binding ProfileModeText}" />
+                        </Grid>
+                    </Grid>
+                </local:AnimatedExpander.Header>
+                <local:AnimatedExpander.Body>
+                    <StackPanel Spacing="6">
+                        <ItemsControl
+                            Classes="stretch-items"
+                            ItemTemplate="{StaticResource LeaderboardDetailTemplate}"
+                            ItemsSource="{Binding DetailItems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <StackPanel IsVisible="{Binding HasTelemetrySamples}" Spacing="4">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                                <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
+                                <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
+                                <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
+                                <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
+                            </Grid>
+                            <local:BenchmarkTelemetryChart
+                                Height="68"
+                                Samples="{Binding TelemetrySamples}" />
+                        </StackPanel>
+                    </StackPanel>
+                </local:AnimatedExpander.Body>
+            </local:AnimatedExpander>
+        </DataTemplate>
+
+        <DataTemplate x:Key="LeaderboardDetailTemplate" x:DataType="local:LeaderboardDetailItemViewModel">
+            <Grid ColumnDefinitions="126,*" ColumnSpacing="8" MinHeight="24">
+                <TextBlock
+                    Classes="label"
+                    Text="{Binding LabelText}"
+                    TextTrimming="CharacterEllipsis" />
+                <TextBlock
+                    Grid.Column="1"
+                    Classes="small-value"
+                    Text="{Binding ValueText}"
+                    TextTrimming="CharacterEllipsis" />
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="*,Auto" RowSpacing="8">
+        <Grid ColumnDefinitions="1.05*,1.15*" ColumnSpacing="10">
+            <Grid RowDefinitions="Auto,Auto,Auto,*" ColumnDefinitions="*,*,Auto,Auto" RowSpacing="8" ColumnSpacing="8">
+                <StackPanel Grid.ColumnSpan="2" Spacing="2">
+                    <TextBlock Classes="emphasis" FontSize="15" Text="{DynamicResource Ui_Benchmark}" />
+                    <TextBlock
+                        Classes="label"
+                        Text="{Binding BenchmarkStatusText}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <Grid
+                    Grid.Column="2"
+                    Grid.ColumnSpan="2"
+                    Grid.RowSpan="2"
+                    MinWidth="96"
+                    HorizontalAlignment="Right"
+                    RowDefinitions="Auto,*">
+                    <StackPanel HorizontalAlignment="Right" Spacing="3">
+                        <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkVersion}" />
+                        <ComboBox
+                            x:Name="BenchmarkVersionPicker"
+                            MinWidth="96"
+                            HorizontalAlignment="Right"
+                            IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                            SelectedIndex="{Binding SelectedBenchmarkVersionIndex, Mode=TwoWay}">
+                            <ComboBoxItem x:Name="BenchmarkVersion21Item" Content="2.1" />
+                            <ComboBoxItem x:Name="BenchmarkVersion20Item" Content="2.0" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Row="1"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            Classes="benchmark-run"
+                            Click="RunButton_Click"
+                            IsEnabled="{Binding IsBenchmarkStartEnabled}"
+                            ToolTip.Tip="{Binding BenchmarkStartButtonText}">
+                            <Path
+                                Width="11"
+                                Height="12"
+                                VerticalAlignment="Center"
+                                Data="M 0 0 L 0 12 L 11 6 Z"
+                                Fill="{DynamicResource BenchmarkRunTextBrush}" />
+                        </Button>
+                        <Button
+                            Classes="tool-action"
+                            Click="CancelButton_Click"
+                            Content="{DynamicResource Ui_Cancel}"
+                            IsVisible="{Binding IsBenchmarkCancelVisible}" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Row="1" Spacing="3">
+                    <TextBlock Classes="label" Text="{DynamicResource Ui_Profile}" />
+                    <ComboBox
+                        x:Name="BenchmarkProfilePicker"
+                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                        SelectedIndex="{Binding SelectedBenchmarkProfileIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="{DynamicResource Ui_Quick}" />
+                        <ComboBoxItem Content="{DynamicResource Ui_Standard}" />
+                        <ComboBoxItem Content="{DynamicResource Ui_Sustained}" />
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="3">
+                    <TextBlock Classes="label" Text="{DynamicResource Ui_Mode}" />
+                    <ComboBox
+                        x:Name="BenchmarkModePicker"
+                        IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
+                        SelectedIndex="{Binding SelectedBenchmarkModeIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="{DynamicResource Ui_SingleCore}" />
+                        <ComboBoxItem Content="{DynamicResource Ui_MultiCore}" />
+                    </ComboBox>
+                </StackPanel>
+
+                <ItemsControl
+                    Grid.Row="2"
+                    Grid.ColumnSpan="4"
+                    ItemTemplate="{StaticResource BenchmarkMetricCardTemplate}"
+                    ItemsSource="{Binding BenchmarkMetricCards}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <Border
+                    Grid.Row="3"
+                    Grid.ColumnSpan="4"
+                    Classes="soft-panel"
+                    MinHeight="112"
+                    Padding="8,6">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="4">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                            <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
+                            <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
+                            <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
+                            <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
+                        </Grid>
+                        <local:BenchmarkTelemetryChart
+                            Grid.Row="1"
+                            Samples="{Binding BenchmarkTelemetrySamples}" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Grid.Column="1" Classes="soft-panel" Padding="8,6">
+                <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="7">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="emphasis" FontSize="13" Text="{DynamicResource Ui_Leaderboard}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Classes="label"
+                            Text="{Binding LeaderboardStatusText}"
+                            TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+                        <StackPanel Spacing="2">
+                            <TextBlock Classes="label" Text="{DynamicResource Ui_DisplayName}" />
+                            <TextBox
+                                Height="30"
+                                MaxLength="40"
+                                PlaceholderText="Anonymous"
+                                Text="{Binding BenchmarkDisplayNameText, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock
+                                Classes="label"
+                                Text="{Binding LeaderboardScoreKindText}"
+                                TextTrimming="CharacterEllipsis" />
+                            <Grid HorizontalAlignment="Left">
+                                <Button
+                                    Classes="leaderboard-switch"
+                                    Click="ScoreToggleButton_Click"
+                                    IsEnabled="{Binding IsLeaderboardScorePickerEnabled}"
+                                    ToolTip.Tip="{Binding LeaderboardSwitchToolTip}">
+                                    <Grid Width="54" Height="28">
+                                        <Border
+                                            Background="{Binding LeaderboardSwitchBrush}"
+                                            CornerRadius="14" />
+                                        <Ellipse
+                                            Width="20"
+                                            Height="20"
+                                            Margin="4"
+                                            HorizontalAlignment="Left"
+                                            Fill="#FFFFFF">
+                                            <Ellipse.RenderTransform>
+                                                <TranslateTransform X="{Binding LeaderboardSwitchKnobOffset}">
+                                                    <TranslateTransform.Transitions>
+                                                        <Transitions>
+                                                            <DoubleTransition Property="X" Duration="0:0:0.16" />
+                                                        </Transitions>
+                                                    </TranslateTransform.Transitions>
+                                                </TranslateTransform>
+                                            </Ellipse.RenderTransform>
+                                        </Ellipse>
+                                    </Grid>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                        <Button
+                            Grid.Column="2"
+                            Classes="icon-button"
+                            Click="UploadButton_Click"
+                            VerticalAlignment="Bottom"
+                            IsEnabled="{Binding CanUploadBenchmarkResult}"
+                            ToolTip.Tip="{Binding BenchmarkUploadButtonText}">
+                            <Path
+                                Width="17"
+                                Height="17"
+                                Data="M 8.5 13.5 V 3.5 M 4.5 7.5 L 8.5 3.5 L 12.5 7.5 M 3 14.5 H 14"
+                                Stroke="{DynamicResource AccentTextBrush}"
+                                StrokeLineCap="Round"
+                                StrokeThickness="1.8"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Grid.Column="3"
+                            Classes="icon-button"
+                            Click="RefreshLeaderboardButton_Click"
+                            VerticalAlignment="Bottom"
+                            IsEnabled="{Binding CanRefreshLeaderboard}"
+                            ToolTip.Tip="{Binding LeaderboardButtonText}">
+                            <Path
+                                Width="17"
+                                Height="17"
+                                Data="M 13.5 6.5 A 5 5 0 1 0 12.1 11.8 M 13.5 6.5 V 2.8 M 13.5 6.5 H 9.8"
+                                Stroke="{DynamicResource AccentTextBrush}"
+                                StrokeLineCap="Round"
+                                StrokeThickness="1.8"
+                                Stretch="Uniform" />
+                        </Button>
+                    </Grid>
+                    <TextBlock
+                        Grid.Row="2"
+                        Classes="label"
+                        Text="{Binding BenchmarkUploadStatusText}"
+                        TextTrimming="CharacterEllipsis" />
+                    <ScrollViewer
+                        Grid.Row="3"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <ItemsControl
+                            Classes="stretch-items"
+                            ItemTemplate="{StaticResource LeaderboardEntryTemplate}"
+                            ItemsSource="{Binding LeaderboardEntries}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="7" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="5">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="label" Text="{DynamicResource Ui_Progress}" />
+                <TextBlock Grid.Column="1" Classes="label" Text="{Binding BenchmarkProgressText}" />
+            </Grid>
+            <ProgressBar
+                Grid.Row="1"
+                Height="5"
+                Minimum="0"
+                Maximum="100"
+                Value="{Binding BenchmarkProgressValue}" />
+        </Grid>
+    </Grid>
+</UserControl>

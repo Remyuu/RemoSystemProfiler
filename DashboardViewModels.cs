@@ -51,14 +51,12 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private bool _isCpuOverallView;
     private bool _isBenchmarkRunning;
     private string _benchmarkStatusText = Localization.BenchmarkReady;
-    private string _benchmarkVersionText = BenchmarkRunner.Version;
     private string _benchmarkModeText = Localization.BenchmarkModeText(1);
     private string _benchmarkScoreText = "--";
     private string _benchmarkMixedScoreText = "--";
     private string _benchmarkSciMarkText = "--";
     private string _benchmarkZstdCompressionText = "--";
     private string _benchmarkZstdDecompressionText = "--";
-    private string _benchmarkZstdRatioText = "--";
     private string _benchmarkHashText = "--";
     private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(BenchmarkRunner.MaxWorkerCount);
     private string _benchmarkCpuFrequencyText = "--";
@@ -103,6 +101,22 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _releaseNotesText = string.Empty;
     private string _latestReleaseUrl = "https://github.com/Remyuu/RemoSystemProfiler/releases";
     private static readonly string ApplicationVersion = ResolveApplicationVersion();
+    private readonly Dictionary<BenchmarkMetricCardKey, BenchmarkMetricCardViewModel> _benchmarkMetricCardsByKey = [];
+
+    public MainWindowViewModel()
+    {
+        AddBenchmarkMetric(BenchmarkMetricCardKey.CpuCoreScore, "Ui_CpuCoreScore", BenchmarkScoreText, isPrimary: true);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.CpuMixedScore, "Ui_CpuMixedScore", BenchmarkMixedScoreText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.Mode, "Ui_Mode", BenchmarkModeText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.Validation, "Ui_Validation", BenchmarkValidationText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.SciMark, "Ui_SciMark", BenchmarkSciMarkText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.XxHash3, "Ui_XxHash3", BenchmarkHashText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.ZstdCompression, "Ui_ZstdCompression", BenchmarkZstdCompressionText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.ZstdDecompression, "Ui_ZstdDecompression", BenchmarkZstdDecompressionText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.CpuAverageFrequency, "Ui_CpuAverageFrequency", BenchmarkCpuFrequencyText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.CpuMaxTemperature, "Ui_CpuMaxTemperature", BenchmarkCpuTemperatureText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.PowerThermal, "Ui_PowerThermal", BenchmarkPowerThermalText);
+    }
 
     public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
 
@@ -119,6 +133,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public ObservableCollection<StorageDeviceViewModel> StorageDevices { get; } = [];
 
     public ObservableCollection<LeaderboardEntryViewModel> LeaderboardEntries { get; } = [];
+
+    public ObservableCollection<BenchmarkMetricCardViewModel> BenchmarkMetricCards { get; } = [];
 
     public ObservableCollection<BenchmarkTelemetrySample> BenchmarkTelemetrySamples { get; } = [];
 
@@ -284,33 +300,29 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string BenchmarkStatusText { get => _benchmarkStatusText; set => SetProperty(ref _benchmarkStatusText, value); }
 
-    public string BenchmarkVersionText { get => _benchmarkVersionText; set => SetProperty(ref _benchmarkVersionText, value); }
+    public string BenchmarkModeText { get => _benchmarkModeText; set => SetBenchmarkText(ref _benchmarkModeText, value, BenchmarkMetricCardKey.Mode); }
 
-    public string BenchmarkModeText { get => _benchmarkModeText; set => SetProperty(ref _benchmarkModeText, value); }
+    public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetBenchmarkText(ref _benchmarkScoreText, value, BenchmarkMetricCardKey.CpuCoreScore); }
 
-    public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetProperty(ref _benchmarkScoreText, value); }
+    public string BenchmarkMixedScoreText { get => _benchmarkMixedScoreText; set => SetBenchmarkText(ref _benchmarkMixedScoreText, value, BenchmarkMetricCardKey.CpuMixedScore); }
 
-    public string BenchmarkMixedScoreText { get => _benchmarkMixedScoreText; set => SetProperty(ref _benchmarkMixedScoreText, value); }
+    public string BenchmarkSciMarkText { get => _benchmarkSciMarkText; set => SetBenchmarkText(ref _benchmarkSciMarkText, value, BenchmarkMetricCardKey.SciMark); }
 
-    public string BenchmarkSciMarkText { get => _benchmarkSciMarkText; set => SetProperty(ref _benchmarkSciMarkText, value); }
+    public string BenchmarkZstdCompressionText { get => _benchmarkZstdCompressionText; set => SetBenchmarkText(ref _benchmarkZstdCompressionText, value, BenchmarkMetricCardKey.ZstdCompression); }
 
-    public string BenchmarkZstdCompressionText { get => _benchmarkZstdCompressionText; set => SetProperty(ref _benchmarkZstdCompressionText, value); }
+    public string BenchmarkZstdDecompressionText { get => _benchmarkZstdDecompressionText; set => SetBenchmarkText(ref _benchmarkZstdDecompressionText, value, BenchmarkMetricCardKey.ZstdDecompression); }
 
-    public string BenchmarkZstdDecompressionText { get => _benchmarkZstdDecompressionText; set => SetProperty(ref _benchmarkZstdDecompressionText, value); }
-
-    public string BenchmarkZstdRatioText { get => _benchmarkZstdRatioText; set => SetProperty(ref _benchmarkZstdRatioText, value); }
-
-    public string BenchmarkHashText { get => _benchmarkHashText; set => SetProperty(ref _benchmarkHashText, value); }
+    public string BenchmarkHashText { get => _benchmarkHashText; set => SetBenchmarkText(ref _benchmarkHashText, value, BenchmarkMetricCardKey.XxHash3); }
 
     public string BenchmarkThreadsText { get => _benchmarkThreadsText; set => SetProperty(ref _benchmarkThreadsText, value); }
 
-    public string BenchmarkCpuFrequencyText { get => _benchmarkCpuFrequencyText; set => SetProperty(ref _benchmarkCpuFrequencyText, value); }
+    public string BenchmarkCpuFrequencyText { get => _benchmarkCpuFrequencyText; set => SetBenchmarkText(ref _benchmarkCpuFrequencyText, value, BenchmarkMetricCardKey.CpuAverageFrequency); }
 
-    public string BenchmarkCpuTemperatureText { get => _benchmarkCpuTemperatureText; set => SetProperty(ref _benchmarkCpuTemperatureText, value); }
+    public string BenchmarkCpuTemperatureText { get => _benchmarkCpuTemperatureText; set => SetBenchmarkText(ref _benchmarkCpuTemperatureText, value, BenchmarkMetricCardKey.CpuMaxTemperature); }
 
-    public string BenchmarkPowerThermalText { get => _benchmarkPowerThermalText; set => SetProperty(ref _benchmarkPowerThermalText, value); }
+    public string BenchmarkPowerThermalText { get => _benchmarkPowerThermalText; set => SetBenchmarkText(ref _benchmarkPowerThermalText, value, BenchmarkMetricCardKey.PowerThermal); }
 
-    public string BenchmarkValidationText { get => _benchmarkValidationText; set => SetProperty(ref _benchmarkValidationText, value); }
+    public string BenchmarkValidationText { get => _benchmarkValidationText; set => SetBenchmarkText(ref _benchmarkValidationText, value, BenchmarkMetricCardKey.Validation); }
 
     public string BenchmarkDisplayNameText
     {
@@ -503,6 +515,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
         RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
         RaisePropertyChanged(nameof(LeaderboardButtonText));
+        RefreshBenchmarkMetricCards();
         RefreshLeaderboardScoreChrome();
         RefreshBenchmarkDisplay();
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0 && BenchmarkScoreText == "--")
@@ -526,6 +539,37 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         RaisePropertyChanged(nameof(CpuOverallGraphOpacity));
         RaisePropertyChanged(nameof(CpuLogicalGraphScale));
         RaisePropertyChanged(nameof(CpuOverallGraphScale));
+    }
+
+    private void AddBenchmarkMetric(BenchmarkMetricCardKey key, string titleResourceKey, string valueText, bool isPrimary = false)
+    {
+        BenchmarkMetricCardViewModel card = new(titleResourceKey, valueText, isPrimary);
+        _benchmarkMetricCardsByKey[key] = card;
+        BenchmarkMetricCards.Add(card);
+    }
+
+    private void SetBenchmarkMetric(BenchmarkMetricCardKey key, string valueText)
+    {
+        if (_benchmarkMetricCardsByKey.TryGetValue(key, out BenchmarkMetricCardViewModel? card))
+        {
+            card.ValueText = valueText;
+        }
+    }
+
+    private void SetBenchmarkText(ref string field, string value, BenchmarkMetricCardKey key, [CallerMemberName] string? propertyName = null)
+    {
+        if (SetProperty(ref field, value, propertyName))
+        {
+            SetBenchmarkMetric(key, value);
+        }
+    }
+
+    private void RefreshBenchmarkMetricCards()
+    {
+        foreach (BenchmarkMetricCardViewModel card in BenchmarkMetricCards)
+        {
+            card.RefreshLocalization();
+        }
     }
 
     private void RefreshLeaderboardScoreChrome()
@@ -584,7 +628,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     {
         int workers = ResolveBenchmarkWorkerCount();
         BenchmarkProfilePlan plan = ResolveBenchmarkPlan();
-        BenchmarkVersionText = ResolveBenchmarkVersion();
         BenchmarkModeText = ResolveBenchmarkModeText();
         BenchmarkThreadsText = Localization.BenchmarkThreadCount(workers);
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0)
@@ -617,6 +660,55 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         return string.IsNullOrWhiteSpace(version) ? "1.0.0" : version;
     }
 
+    private enum BenchmarkMetricCardKey
+    {
+        CpuCoreScore,
+        CpuMixedScore,
+        Mode,
+        Validation,
+        SciMark,
+        XxHash3,
+        ZstdCompression,
+        ZstdDecompression,
+        CpuAverageFrequency,
+        CpuMaxTemperature,
+        PowerThermal
+    }
+}
+
+public sealed class BenchmarkMetricCardViewModel : ObservableDashboardItem
+{
+    private string _valueText;
+
+    public BenchmarkMetricCardViewModel(string titleResourceKey, string valueText, bool isPrimary)
+    {
+        TitleResourceKey = titleResourceKey;
+        _valueText = valueText;
+        IsPrimary = isPrimary;
+    }
+
+    public string TitleResourceKey { get; }
+
+    public string TitleText => Localization.Resource(TitleResourceKey);
+
+    public bool IsPrimary { get; }
+
+    public double ValueFontSize => IsPrimary ? 22d : 13d;
+
+    public FontWeight TitleFontWeight => IsPrimary ? FontWeight.SemiBold : FontWeight.Normal;
+
+    public FontWeight ValueFontWeight => IsPrimary ? FontWeight.Bold : FontWeight.SemiBold;
+
+    public string ValueText
+    {
+        get => _valueText;
+        set => SetProperty(ref _valueText, value);
+    }
+
+    public void RefreshLocalization()
+    {
+        RaisePropertyChanged(nameof(TitleText));
+    }
 }
 
 public interface IDashboardItem<in TData, out TKey>
