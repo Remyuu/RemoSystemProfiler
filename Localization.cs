@@ -96,6 +96,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU avg frequency",
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
+        ["Ui_CpuEnergy"] = "CPU energy",
+        ["Ui_CpuPeakPower"] = "Peak power",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
         ["Ui_Leaderboard"] = "Leaderboard",
@@ -188,6 +190,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU 平均频率",
         ["Ui_CpuMaxTemperature"] = "CPU 最高温度",
+        ["Ui_CpuEnergy"] = "CPU 累计能耗",
+        ["Ui_CpuPeakPower"] = "最高功率",
         ["Ui_PowerThermal"] = "功耗 / 降频",
         ["Ui_Validation"] = "校验",
         ["Ui_Leaderboard"] = "排行榜",
@@ -280,6 +284,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU avg frequency",
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
+        ["Ui_CpuEnergy"] = "CPU energy",
+        ["Ui_CpuPeakPower"] = "Peak power",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
         ["Ui_Leaderboard"] = "ランキング",
@@ -372,6 +378,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU 平均頻率",
         ["Ui_CpuMaxTemperature"] = "CPU 最高溫度",
+        ["Ui_CpuEnergy"] = "CPU 累計能耗",
+        ["Ui_CpuPeakPower"] = "最高功率",
         ["Ui_PowerThermal"] = "功耗 / 降頻",
         ["Ui_Validation"] = "校驗",
         ["Ui_Leaderboard"] = "排行榜",
@@ -456,6 +464,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU avg frequency",
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
+        ["Ui_CpuEnergy"] = "CPU energy",
+        ["Ui_CpuPeakPower"] = "Peak power",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
         ["Ui_Leaderboard"] = "Clasificación",
@@ -540,6 +550,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU avg frequency",
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
+        ["Ui_CpuEnergy"] = "CPU energy",
+        ["Ui_CpuPeakPower"] = "Peak power",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
         ["Ui_Leaderboard"] = "Bestenliste",
@@ -624,6 +636,8 @@ public static class Localization
         ["Ui_XxHash3"] = "XxHash3",
         ["Ui_CpuAverageFrequency"] = "CPU avg frequency",
         ["Ui_CpuMaxTemperature"] = "CPU max temp",
+        ["Ui_CpuEnergy"] = "CPU energy",
+        ["Ui_CpuPeakPower"] = "Peak power",
         ["Ui_PowerThermal"] = "Power / throttle",
         ["Ui_Validation"] = "Validation",
         ["Ui_Leaderboard"] = "Classement",
@@ -908,13 +922,27 @@ public static class Localization
 
     public static string BenchmarkUploading => Text("Uploading...", "正在上传...", "アップロード中...", "正在上傳...", "Subiendo...", "Wird hochgeladen...", "Téléversement...");
 
+    public static string ActionCooldown => Text("Wait 5s", "等待 5 秒", "5秒待機", "等待 5 秒", "Espera 5 s", "5 s warten", "Attendre 5 s");
+
+    public static string BenchmarkDeleteButton => Text("Delete matching result", "删除匹配成绩", "一致する結果を削除", "刪除相符成績", "Eliminar resultado coincidente", "Passendes Ergebnis löschen", "Supprimer le résultat correspondant");
+
+    public static string BenchmarkDeleting => Text("Deleting...", "正在删除...", "削除中...", "正在刪除...", "Eliminando...", "Wird gelöscht...", "Suppression...");
+
     public static string BenchmarkUploadSuccess => Text("Uploaded", "上传成功", "アップロード済み", "已上傳", "Subido", "Hochgeladen", "Téléversé");
+
+    public static string BenchmarkUploadUpdated => Text("Updated", "已更新", "更新済み", "已更新", "Actualizado", "Aktualisiert", "Mis à jour");
+
+    public static string BenchmarkDeleteSuccess => Text("Deleted", "删除成功", "削除済み", "已刪除", "Eliminado", "Gelöscht", "Supprimé");
+
+    public static string BenchmarkDeleteNotFound => Text("No matching result", "没有匹配成绩", "一致する結果がありません", "沒有相符成績", "Sin resultado coincidente", "Kein passendes Ergebnis", "Aucun résultat correspondant");
 
     public static string BenchmarkUploadDuplicate => Text("Already uploaded", "该成绩已经上传过", "すでにアップロード済み", "該成績已上傳過", "Ya subido", "Bereits hochgeladen", "Déjà téléversé");
 
     public static string BenchmarkUploadRateLimited => Text("Try again later", "上传过于频繁，请稍后再试", "後でもう一度お試しください", "上傳過於頻繁，請稍後再試", "Inténtalo más tarde", "Später erneut versuchen", "Réessayez plus tard");
 
     public static string BenchmarkUploadFailed(string detail) => Text($"Upload failed: {detail}", $"上传失败：{detail}", $"アップロード失敗: {detail}", $"上傳失敗：{detail}", $"Error al subir: {detail}", $"Upload fehlgeschlagen: {detail}", $"Échec du téléversement : {detail}");
+
+    public static string BenchmarkDeleteFailed(string detail) => Text($"Delete failed: {detail}", $"删除失败：{detail}", $"削除失敗: {detail}", $"刪除失敗：{detail}", $"Error al eliminar: {detail}", $"Löschen fehlgeschlagen: {detail}", $"Échec de la suppression : {detail}");
 
     public static string LeaderboardReady => Text("Leaderboard not loaded", "排行榜未加载", "ランキング未読み込み", "排行榜未載入", "Clasificación sin cargar", "Bestenliste nicht geladen", "Classement non chargé");
 

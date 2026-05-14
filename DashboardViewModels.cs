@@ -61,13 +61,17 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(BenchmarkRunner.MaxWorkerCount);
     private string _benchmarkCpuFrequencyText = "--";
     private string _benchmarkCpuTemperatureText = "--";
-    private string _benchmarkPowerThermalText = "--";
+    private string _benchmarkCpuEnergyText = "--";
+    private string _benchmarkPeakPowerText = "--";
     private string _benchmarkValidationText = "--";
     private string _benchmarkDisplayNameText = BenchmarkPayload.DefaultDisplayName;
     private bool _isBenchmarkUploadAvailable;
     private bool _isBenchmarkUploadRunning;
+    private bool _isBenchmarkUploadCooldownRunning;
+    private bool _isBenchmarkDeleteRunning;
     private string _benchmarkUploadStatusText = Localization.BenchmarkUploadNoResult;
     private bool _isLeaderboardLoading;
+    private bool _isLeaderboardRefreshCooldownRunning;
     private string _leaderboardStatusText = Localization.LeaderboardReady;
     private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
     private double _benchmarkProgressValue;
@@ -115,7 +119,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         AddBenchmarkMetric(BenchmarkMetricCardKey.ZstdDecompression, "Ui_ZstdDecompression", BenchmarkZstdDecompressionText);
         AddBenchmarkMetric(BenchmarkMetricCardKey.CpuAverageFrequency, "Ui_CpuAverageFrequency", BenchmarkCpuFrequencyText);
         AddBenchmarkMetric(BenchmarkMetricCardKey.CpuMaxTemperature, "Ui_CpuMaxTemperature", BenchmarkCpuTemperatureText);
-        AddBenchmarkMetric(BenchmarkMetricCardKey.PowerThermal, "Ui_PowerThermal", BenchmarkPowerThermalText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.CpuEnergy, "Ui_CpuEnergy", BenchmarkCpuEnergyText);
+        AddBenchmarkMetric(BenchmarkMetricCardKey.CpuPeakPower, "Ui_CpuPeakPower", BenchmarkPeakPowerText);
     }
 
     public ObservableCollection<OverviewItemViewModel> OverviewItems { get; } = [];
@@ -286,6 +291,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
                 RaisePropertyChanged(nameof(BenchmarkStartButtonText));
                 RaisePropertyChanged(nameof(AreBenchmarkSettingsEnabled));
                 RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
+                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
             }
         }
     }
@@ -320,7 +326,9 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string BenchmarkCpuTemperatureText { get => _benchmarkCpuTemperatureText; set => SetBenchmarkText(ref _benchmarkCpuTemperatureText, value, BenchmarkMetricCardKey.CpuMaxTemperature); }
 
-    public string BenchmarkPowerThermalText { get => _benchmarkPowerThermalText; set => SetBenchmarkText(ref _benchmarkPowerThermalText, value, BenchmarkMetricCardKey.PowerThermal); }
+    public string BenchmarkCpuEnergyText { get => _benchmarkCpuEnergyText; set => SetBenchmarkText(ref _benchmarkCpuEnergyText, value, BenchmarkMetricCardKey.CpuEnergy); }
+
+    public string BenchmarkPeakPowerText { get => _benchmarkPeakPowerText; set => SetBenchmarkText(ref _benchmarkPeakPowerText, value, BenchmarkMetricCardKey.CpuPeakPower); }
 
     public string BenchmarkValidationText { get => _benchmarkValidationText; set => SetBenchmarkText(ref _benchmarkValidationText, value, BenchmarkMetricCardKey.Validation); }
 
@@ -339,6 +347,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             {
                 RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
                 RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
             }
         }
     }
@@ -352,15 +361,51 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             {
                 RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
                 RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
             }
         }
     }
 
-    public bool CanUploadBenchmarkResult => IsBenchmarkUploadAvailable && !IsBenchmarkRunning && !IsBenchmarkUploadRunning;
+    public bool IsBenchmarkUploadCooldownRunning
+    {
+        get => _isBenchmarkUploadCooldownRunning;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkUploadCooldownRunning, value))
+            {
+                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
+                RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+            }
+        }
+    }
+
+    public bool IsBenchmarkDeleteRunning
+    {
+        get => _isBenchmarkDeleteRunning;
+        set
+        {
+            if (SetProperty(ref _isBenchmarkDeleteRunning, value))
+            {
+                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
+                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
+                RaisePropertyChanged(nameof(BenchmarkDeleteButtonText));
+            }
+        }
+    }
+
+    public bool CanUploadBenchmarkResult => IsBenchmarkUploadAvailable && !IsBenchmarkRunning && !IsBenchmarkUploadRunning && !IsBenchmarkUploadCooldownRunning && !IsBenchmarkDeleteRunning;
 
     public string BenchmarkUploadButtonText => IsBenchmarkUploadRunning
         ? Localization.BenchmarkUploading
+        : IsBenchmarkUploadCooldownRunning
+        ? Localization.ActionCooldown
         : Localization.BenchmarkUploadButton;
+
+    public bool CanDeleteBenchmarkResult => !IsBenchmarkRunning && !IsBenchmarkUploadRunning && !IsBenchmarkDeleteRunning && !IsLeaderboardLoading;
+
+    public string BenchmarkDeleteButtonText => IsBenchmarkDeleteRunning
+        ? Localization.BenchmarkDeleting
+        : Localization.BenchmarkDeleteButton;
 
     public string BenchmarkUploadStatusText { get => _benchmarkUploadStatusText; set => SetProperty(ref _benchmarkUploadStatusText, value); }
 
@@ -372,14 +417,32 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             if (SetProperty(ref _isLeaderboardLoading, value))
             {
                 RaisePropertyChanged(nameof(CanRefreshLeaderboard));
+                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
                 RaisePropertyChanged(nameof(LeaderboardButtonText));
             }
         }
     }
 
-    public bool CanRefreshLeaderboard => !IsLeaderboardLoading;
+    public bool IsLeaderboardRefreshCooldownRunning
+    {
+        get => _isLeaderboardRefreshCooldownRunning;
+        set
+        {
+            if (SetProperty(ref _isLeaderboardRefreshCooldownRunning, value))
+            {
+                RaisePropertyChanged(nameof(CanRefreshLeaderboard));
+                RaisePropertyChanged(nameof(LeaderboardButtonText));
+            }
+        }
+    }
 
-    public string LeaderboardButtonText => IsLeaderboardLoading ? Localization.LeaderboardLoadingButton : Localization.LeaderboardRefreshButton;
+    public bool CanRefreshLeaderboard => !IsLeaderboardLoading && !IsLeaderboardRefreshCooldownRunning;
+
+    public string LeaderboardButtonText => IsLeaderboardLoading
+        ? Localization.LeaderboardLoadingButton
+        : IsLeaderboardRefreshCooldownRunning
+        ? Localization.ActionCooldown
+        : Localization.LeaderboardRefreshButton;
 
     public string LeaderboardStatusText { get => _leaderboardStatusText; set => SetProperty(ref _leaderboardStatusText, value); }
 
@@ -513,7 +576,10 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         RaisePropertyChanged(nameof(PawnIoPromptSubtitleText));
         RefreshCpuCoreGraphChrome();
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
+        RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
         RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
+        RaisePropertyChanged(nameof(BenchmarkDeleteButtonText));
+        RaisePropertyChanged(nameof(CanRefreshLeaderboard));
         RaisePropertyChanged(nameof(LeaderboardButtonText));
         RefreshBenchmarkMetricCards();
         RefreshLeaderboardScoreChrome();
@@ -672,7 +738,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         ZstdDecompression,
         CpuAverageFrequency,
         CpuMaxTemperature,
-        PowerThermal
+        CpuEnergy,
+        CpuPeakPower
     }
 }
 
@@ -735,6 +802,13 @@ public sealed class LeaderboardEntryViewModel
         ScoreText = score.ToString("N0", CultureInfo.InvariantCulture);
         ProfileModeText = $"{entry.Profile} / {entry.Mode}";
         VersionText = $"bench {entry.BenchmarkVersion} | app {entry.AppVersion}";
+        BenchmarkVersionValue = entry.BenchmarkVersion;
+        ProfileValue = entry.Profile;
+        ModeValue = entry.Mode;
+        CanDelete = entry.IsCurrentDevice || entry.IsOwnDevice || entry.CanDelete;
+        OwnerFrameBrush = CanDelete ? DashboardBrushes.Teal : Brushes.Transparent;
+        OwnerFrameThickness = CanDelete ? new Thickness(2) : new Thickness(0);
+        OwnerFramePadding = CanDelete ? new Thickness(2) : new Thickness(0);
         DetailText = BuildDetailText(entry);
         TelemetrySamples = entry.TelemetrySamples is { Count: > 0 } samples ? samples : [];
         HasTelemetrySamples = TelemetrySamples.Count > 1;
@@ -756,6 +830,22 @@ public sealed class LeaderboardEntryViewModel
     public string VersionText { get; }
 
     public string DetailText { get; }
+
+    public string BenchmarkVersionValue { get; }
+
+    public string ProfileValue { get; }
+
+    public string ModeValue { get; }
+
+    public bool CanDelete { get; }
+
+    public string DeleteButtonText => Localization.BenchmarkDeleteButton;
+
+    public IBrush OwnerFrameBrush { get; }
+
+    public Thickness OwnerFrameThickness { get; }
+
+    public Thickness OwnerFramePadding { get; }
 
     public IReadOnlyList<LeaderboardDetailItemViewModel> DetailItems { get; }
 
@@ -806,6 +896,12 @@ public sealed class LeaderboardEntryViewModel
         string cores = entry.CpuCores is { } coreCount && entry.CpuThreads is { } threadCount
             ? $"{coreCount}c / {threadCount}t"
             : "--";
+        string energyText = BenchmarkTelemetrySummaries.FormatEnergy(entry.TelemetrySamples);
+        string peakPowerText = BenchmarkTelemetrySummaries.FormatPeakPower(entry.TelemetrySamples);
+        if (peakPowerText == "--" && !string.IsNullOrWhiteSpace(entry.PowerThermalStatus))
+        {
+            peakPowerText = entry.PowerThermalStatus;
+        }
 
         return
         [
@@ -825,7 +921,8 @@ public sealed class LeaderboardEntryViewModel
             new("XxHash3", FormatGbps(entry.XxHash3Gbps)),
             new("Avg frequency", entry.AvgFrequencyGhz is { } frequency ? $"{frequency:0.00} GHz" : "--"),
             new("Max temp", entry.MaxTemperatureC is { } temperature ? $"{temperature:0.#} C" : "--"),
-            new("Power / thermal", string.IsNullOrWhiteSpace(entry.PowerThermalStatus) ? "--" : entry.PowerThermalStatus),
+            new("CPU energy", energyText),
+            new("Peak power", peakPowerText),
             new("Client time", string.IsNullOrWhiteSpace(entry.ClientCreatedAt) ? "--" : entry.ClientCreatedAt),
             new("Server time", string.IsNullOrWhiteSpace(entry.ServerCreatedAt) ? "--" : entry.ServerCreatedAt),
             new("ID", string.IsNullOrWhiteSpace(entry.Id) ? "--" : entry.Id)
@@ -850,6 +947,80 @@ public sealed class LeaderboardEntryViewModel
         return scoreKind == BenchmarkScoreKind.CpuCore
             ? entry.CpuCoreScore ?? entry.Score
             : entry.CpuMixedScore ?? entry.Score;
+    }
+}
+
+internal static class BenchmarkTelemetrySummaries
+{
+    public static string FormatEnergy(IReadOnlyList<BenchmarkTelemetrySample>? samples)
+    {
+        if (samples is null || samples.Count < 2)
+        {
+            return "--";
+        }
+
+        double wattSeconds = 0;
+        BenchmarkTelemetrySample? previous = null;
+        for (int i = 0; i < samples.Count; i++)
+        {
+            BenchmarkTelemetrySample current = samples[i];
+            if (current.CpuPackagePowerW is not { } currentPower || !double.IsFinite(currentPower) || currentPower < 0)
+            {
+                previous = null;
+                continue;
+            }
+
+            if (previous?.CpuPackagePowerW is { } previousPower && double.IsFinite(previousPower) && previousPower >= 0)
+            {
+                double deltaSeconds = current.ElapsedSeconds - previous.ElapsedSeconds;
+                if (double.IsFinite(deltaSeconds) && deltaSeconds > 0)
+                {
+                    wattSeconds += ((previousPower + currentPower) * 0.5d) * deltaSeconds;
+                }
+            }
+
+            previous = current;
+        }
+
+        return FormatEnergy(wattSeconds);
+    }
+
+    public static string FormatEnergy(double wattSeconds)
+    {
+        if (!double.IsFinite(wattSeconds) || wattSeconds <= 0)
+        {
+            return "--";
+        }
+
+        double wattHours = wattSeconds / 3600d;
+        return wattHours < 1
+            ? $"{wattHours * 1000d:0.#} mWh"
+            : $"{wattHours:0.00} Wh";
+    }
+
+    public static string FormatPeakPower(IReadOnlyList<BenchmarkTelemetrySample>? samples)
+    {
+        double? peakPower = null;
+        if (samples is not null)
+        {
+            for (int i = 0; i < samples.Count; i++)
+            {
+                double? value = samples[i].CpuPackagePowerW;
+                if (value is { } power && double.IsFinite(power) && power >= 0)
+                {
+                    peakPower = peakPower is null ? power : Math.Max(peakPower.Value, power);
+                }
+            }
+        }
+
+        return FormatPeakPower(peakPower);
+    }
+
+    public static string FormatPeakPower(double? peakPower)
+    {
+        return peakPower is { } power && double.IsFinite(power) && power >= 0
+            ? $"{power:0.#} W"
+            : "--";
     }
 }
 

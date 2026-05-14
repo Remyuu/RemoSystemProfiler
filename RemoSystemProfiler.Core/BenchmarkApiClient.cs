@@ -77,6 +77,9 @@ public sealed class BenchmarkUploadDto
     [JsonPropertyName("installation_id")]
     public string InstallationId { get; set; } = string.Empty;
 
+    [JsonPropertyName("device_id")]
+    public string DeviceId { get; set; } = string.Empty;
+
     [JsonPropertyName("client_created_at")]
     public string ClientCreatedAt { get; set; } = string.Empty;
 
@@ -89,6 +92,8 @@ public sealed class BenchmarkLeaderboardQuery
     public string BenchmarkVersion { get; init; } = BenchmarkRunner.Version;
 
     public string AppVersion { get; init; } = string.Empty;
+
+    public string DeviceId { get; init; } = string.Empty;
 
     public string Profile { get; init; } = "standard";
 
@@ -175,6 +180,15 @@ public sealed class BenchmarkLeaderboardEntry
 
     [JsonPropertyName("telemetry_samples")]
     public IReadOnlyList<BenchmarkTelemetrySample>? TelemetrySamples { get; init; }
+
+    [JsonPropertyName("is_current_device")]
+    public bool IsCurrentDevice { get; init; }
+
+    [JsonPropertyName("is_own_device")]
+    public bool IsOwnDevice { get; init; }
+
+    [JsonPropertyName("can_delete")]
+    public bool CanDelete { get; init; }
 }
 
 public sealed class BenchmarkTelemetrySample
@@ -193,11 +207,15 @@ public sealed class BenchmarkTelemetrySample
 
     [JsonPropertyName("cpu_clock_ghz")]
     public double? CpuClockGhz { get; init; }
+
+    [JsonPropertyName("cpu_core_clocks_ghz")]
+    public IReadOnlyList<double>? CpuCoreClocksGhz { get; init; }
 }
 
 public enum BenchmarkUploadStatus
 {
     Uploaded,
+    Updated,
     Duplicate,
     RateLimited,
     Invalid,
@@ -209,9 +227,43 @@ public sealed record BenchmarkUploadResult(
     string Message,
     HttpStatusCode? HttpStatusCode = null);
 
+public sealed class BenchmarkDeleteRequest
+{
+    [JsonPropertyName("device_id")]
+    public string DeviceId { get; set; } = string.Empty;
+
+    [JsonPropertyName("display_name")]
+    public string? DisplayName { get; set; }
+
+    [JsonPropertyName("benchmark_version")]
+    public string? BenchmarkVersion { get; set; }
+
+    [JsonPropertyName("profile")]
+    public string? Profile { get; set; }
+
+    [JsonPropertyName("mode")]
+    public string? Mode { get; set; }
+}
+
+public enum BenchmarkDeleteStatus
+{
+    Deleted,
+    NotFound,
+    RateLimited,
+    Invalid,
+    Failed
+}
+
+public sealed record BenchmarkDeleteResult(
+    BenchmarkDeleteStatus Status,
+    string Message,
+    HttpStatusCode? HttpStatusCode = null,
+    int? DeletedCount = null);
+
 public sealed class BenchmarkApiClient : IDisposable
 {
     private static readonly Uri ResultsEndpoint = new("https://remoooo.com/wp-json/remo-benchmark/v1/results");
+    private static readonly Uri DeleteEndpoint = new("https://remoooo.com/wp-json/remo-benchmark/v1/results/delete");
     private static readonly Uri LeaderboardEndpoint = new("https://remoooo.com/wp-json/remo-benchmark/v1/leaderboard");
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -253,6 +305,26 @@ public sealed class BenchmarkApiClient : IDisposable
                 using HttpResponseMessage response = await _http.PostAsJsonAsync(ResultsEndpoint, dto, JsonOptions, cancellationToken).ConfigureAwait(false);
                 string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
+                if (response.IsSuccessStatusCode && TryReadResponseStatus(body, out string responseStatus))
+                {
+                    if (responseStatus.Equals("updated", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new BenchmarkUploadResult(BenchmarkUploadStatus.Updated, body, response.StatusCode);
+                    }
+
+                    if (responseStatus.Equals("duplicate", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new BenchmarkUploadResult(BenchmarkUploadStatus.Duplicate, body, response.StatusCode);
+                    }
+
+                    if (responseStatus.Equals("uploaded", StringComparison.OrdinalIgnoreCase)
+                        || responseStatus.Equals("created", StringComparison.OrdinalIgnoreCase)
+                        || responseStatus.Equals("inserted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new BenchmarkUploadResult(BenchmarkUploadStatus.Uploaded, body, response.StatusCode);
+                    }
+                }
+
                 if ((int)response.StatusCode == 201)
                 {
                     return new BenchmarkUploadResult(BenchmarkUploadStatus.Uploaded, body, response.StatusCode);
@@ -291,6 +363,60 @@ public sealed class BenchmarkApiClient : IDisposable
         }
 
         return new BenchmarkUploadResult(BenchmarkUploadStatus.Failed, "Upload retry limit reached.");
+    }
+
+    public async Task<BenchmarkDeleteResult> DeleteAsync(BenchmarkDeleteRequest request, CancellationToken cancellationToken)
+    {
+        if (!BenchmarkPayload.TryValidateForDelete(request, out string validationError))
+        {
+            return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Invalid, validationError);
+        }
+
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                using HttpResponseMessage response = await _http.PostAsJsonAsync(DeleteEndpoint, request, JsonOptions, cancellationToken).ConfigureAwait(false);
+                string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return InterpretDeleteSuccess(body, response.StatusCode);
+                }
+
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    return new BenchmarkDeleteResult(BenchmarkDeleteStatus.RateLimited, body, response.StatusCode);
+                }
+
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Invalid, body, response.StatusCode);
+                }
+
+                if ((int)response.StatusCode >= 500 && attempt < 2)
+                {
+                    await Task.Delay(RetryDelay(attempt), cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Failed, body, response.StatusCode);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (IsTransientUploadException(ex) && attempt < 2)
+            {
+                await Task.Delay(RetryDelay(attempt), cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Failed, ex.Message);
+            }
+        }
+
+        return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Failed, "Delete retry limit reached.");
     }
 
     public async Task<IReadOnlyList<BenchmarkLeaderboardEntry>> GetLeaderboardAsync(BenchmarkLeaderboardQuery query, CancellationToken cancellationToken)
@@ -345,6 +471,7 @@ public sealed class BenchmarkApiClient : IDisposable
         StringBuilder builder = new();
         AppendQuery(builder, "benchmark_version", query.BenchmarkVersion);
         AppendQuery(builder, "app_version", query.AppVersion);
+        AppendQuery(builder, "device_id", query.DeviceId);
         AppendQuery(builder, "profile", query.Profile);
         AppendQuery(builder, "mode", query.Mode);
         AppendQuery(builder, "ranking", BenchmarkPayload.ScoreKindToApiValue(query.ScoreKind));
@@ -369,16 +496,146 @@ public sealed class BenchmarkApiClient : IDisposable
             .Append('=')
             .Append(Uri.EscapeDataString(value));
     }
+
+    private static BenchmarkDeleteResult InterpretDeleteSuccess(string body, HttpStatusCode statusCode)
+    {
+        if (TryReadDeletedCount(body, out int deletedCount))
+        {
+            return deletedCount > 0
+                ? new BenchmarkDeleteResult(BenchmarkDeleteStatus.Deleted, body, statusCode, deletedCount)
+                : new BenchmarkDeleteResult(BenchmarkDeleteStatus.NotFound, body, statusCode, deletedCount);
+        }
+
+        if (TryReadSuccessFlag(body, out bool success) && !success)
+        {
+            return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Failed, body, statusCode);
+        }
+
+        return new BenchmarkDeleteResult(BenchmarkDeleteStatus.Failed, "Delete response did not include deleted_count.", statusCode);
+    }
+
+    private static bool TryReadDeletedCount(string body, out int deletedCount)
+    {
+        deletedCount = 0;
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return false;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            return TryReadIntProperty(document.RootElement, "deleted_count", out deletedCount)
+                || TryReadIntProperty(document.RootElement, "deleted", out deletedCount)
+                || TryReadIntProperty(document.RootElement, "affected_rows", out deletedCount)
+                || TryReadIntProperty(document.RootElement, "rows_deleted", out deletedCount)
+                || TryReadIntProperty(document.RootElement, "count", out deletedCount);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReadSuccessFlag(string body, out bool success)
+    {
+        success = false;
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return false;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("success", out JsonElement value)
+                || value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                return false;
+            }
+
+            success = value.GetBoolean();
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReadResponseStatus(string body, out string status)
+    {
+        status = string.Empty;
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return false;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("status", out JsonElement value)
+                || value.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            status = value.GetString() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(status);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReadIntProperty(JsonElement root, string name, out int value)
+    {
+        value = 0;
+        if (!root.TryGetProperty(name, out JsonElement element))
+        {
+            return false;
+        }
+
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out value))
+        {
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+
+        if (element.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            value = element.GetBoolean() ? 1 : 0;
+            return true;
+        }
+
+        return false;
+    }
 }
 
 public static class BenchmarkIdentityStore
 {
     private const string ApplicationFolderName = "RemoSystemProfiler";
     private const string InstallationIdFileName = "installation_id.txt";
+    private const string DeviceIdFileName = "device_id.txt";
 
-    public static string GetOrCreateInstallationId()
+    public static string GetOrCreateInstallationId() => GetOrCreateGuid(ResolveIdentityPath(InstallationIdFileName));
+
+    public static string GetOrCreateDeviceId() => GetOrCreateGuid(ResolveIdentityPath(DeviceIdFileName));
+
+    private static string GetOrCreateGuid(string path)
     {
-        string path = ResolveInstallationIdPath();
         try
         {
             if (File.Exists(path))
@@ -405,13 +662,13 @@ public static class BenchmarkIdentityStore
         }
     }
 
-    private static string ResolveInstallationIdPath()
+    private static string ResolveIdentityPath(string fileName)
     {
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         string root = string.IsNullOrWhiteSpace(appData)
             ? AppContext.BaseDirectory
             : Path.Combine(appData, ApplicationFolderName);
-        return Path.Combine(root, InstallationIdFileName);
+        return Path.Combine(root, fileName);
     }
 }
 
@@ -421,6 +678,7 @@ public static class BenchmarkPayload
     public const string DefaultDisplayName = "Anonymous";
     private const int MaxDisplayNameLength = 40;
     private const int MaxTelemetrySamples = 240;
+    private const int MaxTelemetryCoreClocks = 256;
     private const double MaxAcceptedScore = 100_000_000d;
     private static readonly JsonWriterOptions CanonicalWriterOptions = new()
     {
@@ -478,6 +736,8 @@ public static class BenchmarkPayload
         dto.AvgFrequencyGhz = RoundNullable(dto.AvgFrequencyGhz, 3);
         dto.MaxTemperatureC = RoundNullable(dto.MaxTemperatureC, 1);
         dto.TelemetrySamples = NormalizeTelemetrySamples(dto.TelemetrySamples);
+        dto.InstallationId = dto.InstallationId?.Trim() ?? string.Empty;
+        dto.DeviceId = dto.DeviceId?.Trim() ?? string.Empty;
     }
 
     public static string ComputeChecksum(BenchmarkUploadDto dto)
@@ -542,15 +802,15 @@ public static class BenchmarkPayload
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(dto.InstallationId) || string.IsNullOrWhiteSpace(dto.Checksum))
+        if (string.IsNullOrWhiteSpace(dto.InstallationId) || string.IsNullOrWhiteSpace(dto.DeviceId) || string.IsNullOrWhiteSpace(dto.Checksum))
         {
-            error = "Missing installation id or checksum.";
+            error = "Missing device identity or checksum.";
             return false;
         }
 
-        if (!Guid.TryParse(dto.InstallationId, out _))
+        if (!Guid.TryParse(dto.InstallationId, out _) || !Guid.TryParse(dto.DeviceId, out _))
         {
-            error = "Invalid installation id.";
+            error = "Invalid device identity.";
             return false;
         }
 
@@ -575,6 +835,64 @@ public static class BenchmarkPayload
         return true;
     }
 
+    public static bool TryValidateForDelete(BenchmarkDeleteRequest request, out string error)
+    {
+        error = string.Empty;
+        request.DeviceId = request.DeviceId?.Trim() ?? string.Empty;
+        if (!Guid.TryParse(request.DeviceId, out Guid parsedDeviceId))
+        {
+            error = "Invalid device identity.";
+            return false;
+        }
+
+        request.DeviceId = parsedDeviceId.ToString("D");
+
+        bool hasDisplayName = !string.IsNullOrWhiteSpace(request.DisplayName);
+        bool hasBenchmarkVersion = !string.IsNullOrWhiteSpace(request.BenchmarkVersion);
+        bool hasProfile = !string.IsNullOrWhiteSpace(request.Profile);
+        bool hasMode = !string.IsNullOrWhiteSpace(request.Mode);
+        bool isTargetedDelete = hasDisplayName || hasBenchmarkVersion || hasProfile || hasMode;
+        if (!isTargetedDelete)
+        {
+            request.DisplayName = null;
+            request.BenchmarkVersion = null;
+            request.Profile = null;
+            request.Mode = null;
+            return true;
+        }
+
+        if (!hasDisplayName || !hasBenchmarkVersion || !hasProfile || !hasMode)
+        {
+            error = "Targeted delete requires display name, benchmark version, profile, and mode.";
+            return false;
+        }
+
+        request.DisplayName = NormalizeDisplayName(request.DisplayName);
+        request.BenchmarkVersion = request.BenchmarkVersion?.Trim() ?? string.Empty;
+        request.Profile = request.Profile?.Trim() ?? string.Empty;
+        request.Mode = request.Mode?.Trim() ?? string.Empty;
+
+        if (!BenchmarkRunner.IsSupportedVersion(request.BenchmarkVersion))
+        {
+            error = "Unsupported benchmark version.";
+            return false;
+        }
+
+        if (request.Profile is not ("quick" or "standard" or "sustained"))
+        {
+            error = "Invalid benchmark profile.";
+            return false;
+        }
+
+        if (request.Mode is not ("single" or "multi"))
+        {
+            error = "Invalid benchmark mode.";
+            return false;
+        }
+
+        return true;
+    }
+
     private static string BuildCanonicalJson(BenchmarkUploadDto dto)
     {
         List<CanonicalProperty> properties = [];
@@ -586,6 +904,7 @@ public static class BenchmarkPayload
         Add(properties, "cpu_mixed_score", dto.CpuMixedScore);
         Add(properties, "cpu_name", dto.CpuName);
         Add(properties, "cpu_threads", dto.CpuThreads);
+        Add(properties, "device_id", dto.DeviceId);
         Add(properties, "installation_id", dto.InstallationId);
         Add(properties, "mode", dto.Mode);
         Add(properties, "profile", dto.Profile);
@@ -687,7 +1006,8 @@ public static class BenchmarkPayload
                 CpuLoadPercent = RoundNullable(sample.CpuLoadPercent, 2),
                 CpuMaxTemperatureC = RoundNullable(sample.CpuMaxTemperatureC, 2),
                 CpuPackagePowerW = RoundNullable(sample.CpuPackagePowerW, 3),
-                CpuClockGhz = RoundNullable(sample.CpuClockGhz, 3)
+                CpuClockGhz = RoundNullable(sample.CpuClockGhz, 3),
+                CpuCoreClocksGhz = NormalizeCoreClocks(sample.CpuCoreClocksGhz)
             });
         }
 
@@ -737,7 +1057,8 @@ public static class BenchmarkPayload
             if (!IsAcceptedPercent(sample.CpuLoadPercent)
                 || !IsAcceptedTelemetryValue(sample.CpuMaxTemperatureC, 130)
                 || !IsAcceptedTelemetryValue(sample.CpuPackagePowerW, 1000)
-                || !IsAcceptedTelemetryValue(sample.CpuClockGhz, 10))
+                || !IsAcceptedTelemetryValue(sample.CpuClockGhz, 10)
+                || !CoreClocksAreValid(sample.CpuCoreClocksGhz))
             {
                 return false;
             }
@@ -759,6 +1080,37 @@ public static class BenchmarkPayload
             && IsAcceptedMetric(dto.XxHash3Gbps)
             && IsAcceptedMetric(dto.AvgFrequencyGhz)
             && IsAcceptedMetric(dto.MaxTemperatureC);
+    }
+
+    private static IReadOnlyList<double>? NormalizeCoreClocks(IReadOnlyList<double>? values)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return null;
+        }
+
+        List<double> normalized = new(Math.Min(values.Count, MaxTelemetryCoreClocks));
+        for (int i = 0; i < values.Count && normalized.Count < MaxTelemetryCoreClocks; i++)
+        {
+            double value = values[i];
+            if (double.IsFinite(value) && value is >= 0 and <= 10)
+            {
+                normalized.Add(RoundMetric(value, 3));
+            }
+        }
+
+        return normalized.Count == 0 ? null : normalized;
+    }
+
+    private static bool CoreClocksAreValid(IReadOnlyList<double>? values)
+    {
+        if (values is null)
+        {
+            return true;
+        }
+
+        return values.Count <= MaxTelemetryCoreClocks
+            && values.All(value => IsAcceptedTelemetryValue(value, 10));
     }
 
     private readonly record struct CanonicalProperty(string Name, object Value);

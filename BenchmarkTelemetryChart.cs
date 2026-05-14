@@ -61,9 +61,11 @@ public sealed class BenchmarkTelemetryChart : Control
 
         double maxElapsed = Math.Max(0.001, samples[^1].ElapsedSeconds);
         double maxPower = Math.Max(1, samples.Max(sample => sample.CpuPackagePowerW ?? 0));
+        double maxClock = Math.Max(1, samples.Max(sample => sample.CpuClockGhz ?? 0));
         DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuLoadPercent, 100, DashboardBrushes.Blue);
         DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuMaxTemperatureC, 100, DashboardBrushes.Red);
         DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuPackagePowerW, maxPower, DashboardBrushes.Amber);
+        DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuClockGhz, maxClock, DashboardBrushes.Green);
         DrawHoverReadout(context, bounds, chart, samples, maxElapsed);
     }
 
@@ -248,6 +250,13 @@ public sealed class BenchmarkTelemetryChart : Control
             context.DrawEllipse(DashboardBrushes.Amber, null, powerPoint, 2.5, 2.5);
         }
 
+        if (sample.CpuClockGhz is not null)
+        {
+            double maxClock = Math.Max(1, samples.Max(item => item.CpuClockGhz ?? 0));
+            Point clockPoint = ChartPoint(chart, sample, maxElapsed, item => item.CpuClockGhz, maxClock);
+            context.DrawEllipse(DashboardBrushes.Green, null, clockPoint, 2.5, 2.5);
+        }
+
         DrawTooltip(context, bounds, sample);
     }
 
@@ -258,7 +267,8 @@ public sealed class BenchmarkTelemetryChart : Control
             $"Time  {sample.ElapsedSeconds:0.0}s",
             $"{Localization.Resource("Ui_Load")}  {FormatPercent(sample.CpuLoadPercent)}",
             $"{Localization.Resource("Ui_Temp")}  {FormatTemperature(sample.CpuMaxTemperatureC)}",
-            $"{Localization.Resource("Ui_Power")}  {FormatPower(sample.CpuPackagePowerW)}"
+            $"{Localization.Resource("Ui_Power")}  {FormatPower(sample.CpuPackagePowerW)}",
+            $"{Localization.Resource("Ui_Speed")}  {FormatClock(sample.CpuClockGhz)}"
         ];
 
         FormattedText[] texts = lines
@@ -308,5 +318,9 @@ public sealed class BenchmarkTelemetryChart : Control
 
     private static string FormatPower(double? value) => value is { } number && double.IsFinite(number)
         ? $"{number:0.#} W"
+        : "--";
+
+    private static string FormatClock(double? value) => value is { } number && double.IsFinite(number)
+        ? $"{number:0.00} GHz"
         : "--";
 }
