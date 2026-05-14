@@ -1,4 +1,5 @@
 using System.Text.Json;
+using RemoSystemProfiler.Core;
 
 namespace RemoSystemProfiler;
 
@@ -7,7 +8,8 @@ internal sealed record DashboardSettings(
     int UpdateIntervalIndex = 1,
     int ThemeIndex = 0,
     int LanguageIndex = 0,
-    bool CpuOverallView = false);
+    bool CpuOverallView = false,
+    string BenchmarkDisplayName = BenchmarkPayload.DefaultDisplayName);
 
 internal static class DashboardSettingsStore
 {
@@ -54,7 +56,8 @@ internal static class DashboardSettingsStore
         ChartRangeIndex = Math.Clamp(settings.ChartRangeIndex, 0, 3),
         UpdateIntervalIndex = Math.Clamp(settings.UpdateIntervalIndex, 0, 3),
         ThemeIndex = Math.Clamp(settings.ThemeIndex, 0, 2),
-        LanguageIndex = Math.Clamp(settings.LanguageIndex, 0, 6)
+        LanguageIndex = Math.Clamp(settings.LanguageIndex, 0, 6),
+        BenchmarkDisplayName = BenchmarkPayload.NormalizeDisplayName(settings.BenchmarkDisplayName)
     };
 
     private static string SettingsPath => Path.Combine(AppContext.BaseDirectory, "dashboard-settings.json");

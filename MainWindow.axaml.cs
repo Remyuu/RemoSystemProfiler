@@ -617,6 +617,7 @@ public sealed partial class MainWindow : Window
         _viewModel.SelectedThemeIndex = settings.ThemeIndex;
         _viewModel.SelectedLanguageIndex = settings.LanguageIndex;
         _viewModel.IsCpuOverallView = settings.CpuOverallView;
+        _viewModel.BenchmarkDisplayNameText = settings.BenchmarkDisplayName;
         ApplyLanguageSelection();
     }
 
@@ -789,7 +790,8 @@ public sealed partial class MainWindow : Window
             _viewModel.SelectedUpdateIntervalIndex,
             _viewModel.SelectedThemeIndex,
             _viewModel.SelectedLanguageIndex,
-            _viewModel.IsCpuOverallView));
+            _viewModel.IsCpuOverallView,
+            BenchmarkPayload.NormalizeDisplayName(_viewModel.BenchmarkDisplayNameText)));
     }
 
     private async void SidebarToggle_Click(object? sender, RoutedEventArgs e)
@@ -1208,7 +1210,6 @@ public sealed partial class MainWindow : Window
             {
                 _viewModel.LeaderboardEntries.Add(new LeaderboardEntryViewModel(i + 1, entries[i]));
             }
-
             _viewModel.LeaderboardStatusText = entries.Count == 0
                 ? Localization.LeaderboardEmpty
                 : Localization.LeaderboardLoaded(entries.Count);

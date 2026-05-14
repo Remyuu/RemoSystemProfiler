@@ -539,6 +539,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
         return string.IsNullOrWhiteSpace(version) ? "1.0.0" : version;
     }
+
 }
 
 public interface IDashboardItem<in TData, out TKey>
@@ -551,6 +552,8 @@ public interface IDashboardItem<in TData, out TKey>
 
 public sealed class LeaderboardEntryViewModel
 {
+    private bool _isExpanded;
+
     public LeaderboardEntryViewModel(int rank, BenchmarkLeaderboardEntry entry)
     {
         RankText = $"#{rank}";
@@ -563,6 +566,7 @@ public sealed class LeaderboardEntryViewModel
         ProfileModeText = $"{entry.Profile} / {entry.Mode}";
         VersionText = $"bench {entry.BenchmarkVersion} | app {entry.AppVersion}";
         DetailText = BuildDetailText(entry);
+        DetailItems = BuildDetailItems(rank, entry, DisplayNameText, CpuNameText, ScoreText, ProfileModeText, VersionText);
     }
 
     public string RankText { get; }
@@ -581,19 +585,21 @@ public sealed class LeaderboardEntryViewModel
 
     public string DetailText { get; }
 
+    public IReadOnlyList<LeaderboardDetailItemViewModel> DetailItems { get; }
+
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => _isExpanded = value;
+    }
+
     private static string BuildDetailText(BenchmarkLeaderboardEntry entry)
     {
         string cpu = string.IsNullOrWhiteSpace(entry.CpuName) ? "--" : entry.CpuName;
         string cores = entry.CpuCores is { } coreCount && entry.CpuThreads is { } threadCount
             ? $"{coreCount}c/{threadCount}t"
             : "--";
-        string zstd = entry.ZstdCompressGbps is { } compress && entry.ZstdDecompressGbps is { } decompress
-            ? $"zstd {compress:0.00}/{decompress:0.00} GB/s"
-            : "zstd --";
-        string hash = entry.XxHash3Gbps is { } xxhash
-            ? $"xxh3 {xxhash:0.00} GB/s"
-            : "xxh3 --";
-        return $"{cpu} | {cores} | {zstd} | {hash}";
+        return $"{cpu} | {cores}";
     }
 
     private static string NormalizeCountryCode(string? countryCode)
@@ -611,7 +617,54 @@ public sealed class LeaderboardEntryViewModel
 
         return code;
     }
+
+    private static IReadOnlyList<LeaderboardDetailItemViewModel> BuildDetailItems(
+        int rank,
+        BenchmarkLeaderboardEntry entry,
+        string displayName,
+        string cpuName,
+        string score,
+        string profileMode,
+        string version)
+    {
+        string cores = entry.CpuCores is { } coreCount && entry.CpuThreads is { } threadCount
+            ? $"{coreCount}c / {threadCount}t"
+            : "--";
+
+        return
+        [
+            new("Rank", $"#{rank}"),
+            new("Name", displayName),
+            new("Country", NormalizeCountryCode(entry.CountryCode)),
+            new("Score", score),
+            new("Profile / Mode", profileMode),
+            new("Version", version),
+            new("CPU", cpuName),
+            new("Cores / Threads", cores),
+            new("SciMark", FormatNumber(entry.SciMarkScore)),
+            new("zstd compression", FormatGbps(entry.ZstdCompressGbps)),
+            new("zstd decompression", FormatGbps(entry.ZstdDecompressGbps)),
+            new("zstd ratio", entry.ZstdRatio is { } ratio ? $"{ratio * 100d:0.0}%" : "--"),
+            new("XxHash3", FormatGbps(entry.XxHash3Gbps)),
+            new("Avg frequency", entry.AvgFrequencyGhz is { } frequency ? $"{frequency:0.00} GHz" : "--"),
+            new("Max temp", entry.MaxTemperatureC is { } temperature ? $"{temperature:0.#} C" : "--"),
+            new("Power / thermal", string.IsNullOrWhiteSpace(entry.PowerThermalStatus) ? "--" : entry.PowerThermalStatus),
+            new("Client time", string.IsNullOrWhiteSpace(entry.ClientCreatedAt) ? "--" : entry.ClientCreatedAt),
+            new("Server time", string.IsNullOrWhiteSpace(entry.ServerCreatedAt) ? "--" : entry.ServerCreatedAt),
+            new("ID", string.IsNullOrWhiteSpace(entry.Id) ? "--" : entry.Id)
+        ];
+    }
+
+    private static string FormatNumber(double? value) => value is { } number
+        ? number.ToString("N0", CultureInfo.InvariantCulture)
+        : "--";
+
+    private static string FormatGbps(double? value) => value is { } number
+        ? $"{number:0.00} GB/s"
+        : "--";
 }
+
+public sealed record LeaderboardDetailItemViewModel(string LabelText, string ValueText);
 
 public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardItem<MetricReading, string>
 {
