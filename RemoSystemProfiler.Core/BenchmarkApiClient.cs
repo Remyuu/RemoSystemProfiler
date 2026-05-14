@@ -29,6 +29,12 @@ public sealed class BenchmarkUploadDto
     [JsonPropertyName("score")]
     public double Score { get; set; }
 
+    [JsonPropertyName("cpu_core_score")]
+    public double? CpuCoreScore { get; set; }
+
+    [JsonPropertyName("cpu_mixed_score")]
+    public double? CpuMixedScore { get; set; }
+
     [JsonPropertyName("scimark_score")]
     public double? SciMarkScore { get; set; }
 
@@ -73,6 +79,9 @@ public sealed class BenchmarkUploadDto
 
     [JsonPropertyName("client_created_at")]
     public string ClientCreatedAt { get; set; } = string.Empty;
+
+    [JsonPropertyName("telemetry_samples")]
+    public IReadOnlyList<BenchmarkTelemetrySample>? TelemetrySamples { get; set; }
 }
 
 public sealed class BenchmarkLeaderboardQuery
@@ -84,6 +93,8 @@ public sealed class BenchmarkLeaderboardQuery
     public string Profile { get; init; } = "standard";
 
     public string Mode { get; init; } = "multi";
+
+    public BenchmarkScoreKind ScoreKind { get; init; } = BenchmarkScoreKind.CpuCore;
 
     public int Limit { get; init; } = 50;
 }
@@ -113,6 +124,15 @@ public sealed class BenchmarkLeaderboardEntry
 
     [JsonPropertyName("score")]
     public double Score { get; init; }
+
+    [JsonPropertyName("cpu_core_score")]
+    public double? CpuCoreScore { get; init; }
+
+    [JsonPropertyName("cpu_mixed_score")]
+    public double? CpuMixedScore { get; init; }
+
+    [JsonPropertyName("ranking_score")]
+    public double? RankingScore { get; init; }
 
     [JsonPropertyName("scimark_score")]
     public double? SciMarkScore { get; init; }
@@ -152,6 +172,27 @@ public sealed class BenchmarkLeaderboardEntry
 
     [JsonPropertyName("server_created_at")]
     public string? ServerCreatedAt { get; init; }
+
+    [JsonPropertyName("telemetry_samples")]
+    public IReadOnlyList<BenchmarkTelemetrySample>? TelemetrySamples { get; init; }
+}
+
+public sealed class BenchmarkTelemetrySample
+{
+    [JsonPropertyName("elapsed_s")]
+    public double ElapsedSeconds { get; init; }
+
+    [JsonPropertyName("cpu_load_percent")]
+    public double? CpuLoadPercent { get; init; }
+
+    [JsonPropertyName("cpu_max_temperature_c")]
+    public double? CpuMaxTemperatureC { get; init; }
+
+    [JsonPropertyName("cpu_package_power_w")]
+    public double? CpuPackagePowerW { get; init; }
+
+    [JsonPropertyName("cpu_clock_ghz")]
+    public double? CpuClockGhz { get; init; }
 }
 
 public enum BenchmarkUploadStatus
@@ -306,6 +347,7 @@ public sealed class BenchmarkApiClient : IDisposable
         AppendQuery(builder, "app_version", query.AppVersion);
         AppendQuery(builder, "profile", query.Profile);
         AppendQuery(builder, "mode", query.Mode);
+        AppendQuery(builder, "ranking", BenchmarkPayload.ScoreKindToApiValue(query.ScoreKind));
         AppendQuery(builder, "limit", Math.Clamp(query.Limit, 1, 100).ToString(CultureInfo.InvariantCulture));
         return new Uri($"{LeaderboardEndpoint}?{builder}");
     }
@@ -378,6 +420,7 @@ public static class BenchmarkPayload
     public const string ValidationOk = "OK";
     public const string DefaultDisplayName = "Anonymous";
     private const int MaxDisplayNameLength = 40;
+    private const int MaxTelemetrySamples = 240;
     private const double MaxAcceptedScore = 100_000_000d;
     private static readonly JsonWriterOptions CanonicalWriterOptions = new()
     {
@@ -393,6 +436,12 @@ public static class BenchmarkPayload
     };
 
     public static string ModeToApiValue(int workerCount) => workerCount == 1 ? "single" : "multi";
+
+    public static string ScoreKindToApiValue(BenchmarkScoreKind scoreKind) => scoreKind switch
+    {
+        BenchmarkScoreKind.CpuMixed => "cpu_mixed",
+        _ => "cpu_core"
+    };
 
     public static string UtcTimestamp(DateTimeOffset timestamp) => timestamp.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
@@ -415,14 +464,20 @@ public static class BenchmarkPayload
     public static void NormalizeMetrics(BenchmarkUploadDto dto)
     {
         dto.DisplayName = NormalizeDisplayName(dto.DisplayName);
+        dto.CpuMixedScore ??= dto.Score;
         dto.Score = RoundMetric(dto.Score, 2);
+        dto.CpuCoreScore = RoundNullable(dto.CpuCoreScore, 2);
+        dto.CpuMixedScore = RoundNullable(dto.CpuMixedScore, 2);
         dto.SciMarkScore = RoundNullable(dto.SciMarkScore, 2);
         dto.ZstdCompressGbps = RoundNullable(dto.ZstdCompressGbps);
         dto.ZstdDecompressGbps = RoundNullable(dto.ZstdDecompressGbps);
-        dto.ZstdRatio = RoundNullable(dto.ZstdRatio);
+        dto.ZstdRatio = BenchmarkRunner.IsLegacyVersion(dto.BenchmarkVersion)
+            ? RoundNullable(dto.ZstdRatio)
+            : null;
         dto.XxHash3Gbps = RoundNullable(dto.XxHash3Gbps);
         dto.AvgFrequencyGhz = RoundNullable(dto.AvgFrequencyGhz, 3);
         dto.MaxTemperatureC = RoundNullable(dto.MaxTemperatureC, 1);
+        dto.TelemetrySamples = NormalizeTelemetrySamples(dto.TelemetrySamples);
     }
 
     public static string ComputeChecksum(BenchmarkUploadDto dto)
@@ -444,6 +499,12 @@ public static class BenchmarkPayload
             return false;
         }
 
+        if (!BenchmarkRunner.IsSupportedVersion(dto.BenchmarkVersion))
+        {
+            error = "Unsupported benchmark version.";
+            return false;
+        }
+
         if (dto.Profile is not ("quick" or "standard" or "sustained"))
         {
             error = "Invalid benchmark profile.";
@@ -459,6 +520,19 @@ public static class BenchmarkPayload
         if (!IsAcceptedScore(dto.Score))
         {
             error = "Invalid benchmark score.";
+            return false;
+        }
+
+        if (dto.CpuMixedScore is not null && !IsAcceptedScore(dto.CpuMixedScore.Value))
+        {
+            error = "Invalid CPU mixed score.";
+            return false;
+        }
+
+        if (BenchmarkRunner.SupportsCpuCoreScore(dto.BenchmarkVersion)
+            && (dto.CpuCoreScore is null || !IsAcceptedScore(dto.CpuCoreScore.Value)))
+        {
+            error = "Invalid CPU core score.";
             return false;
         }
 
@@ -492,6 +566,12 @@ public static class BenchmarkPayload
             return false;
         }
 
+        if (!TelemetrySamplesAreValid(dto.TelemetrySamples))
+        {
+            error = "Invalid benchmark telemetry.";
+            return false;
+        }
+
         return true;
     }
 
@@ -502,6 +582,8 @@ public static class BenchmarkPayload
         Add(properties, "benchmark_version", dto.BenchmarkVersion);
         Add(properties, "client_created_at", dto.ClientCreatedAt);
         Add(properties, "cpu_cores", dto.CpuCores);
+        Add(properties, "cpu_core_score", dto.CpuCoreScore);
+        Add(properties, "cpu_mixed_score", dto.CpuMixedScore);
         Add(properties, "cpu_name", dto.CpuName);
         Add(properties, "cpu_threads", dto.CpuThreads);
         Add(properties, "installation_id", dto.InstallationId);
@@ -512,7 +594,10 @@ public static class BenchmarkPayload
         Add(properties, "xxhash3_gbps", dto.XxHash3Gbps);
         Add(properties, "zstd_compress_gbps", dto.ZstdCompressGbps);
         Add(properties, "zstd_decompress_gbps", dto.ZstdDecompressGbps);
-        Add(properties, "zstd_ratio", dto.ZstdRatio);
+        if (BenchmarkRunner.IsLegacyVersion(dto.BenchmarkVersion))
+        {
+            Add(properties, "zstd_ratio", dto.ZstdRatio);
+        }
 
         properties.Sort((left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
 
@@ -579,6 +664,36 @@ public static class BenchmarkPayload
             : null;
     }
 
+    private static IReadOnlyList<BenchmarkTelemetrySample>? NormalizeTelemetrySamples(IReadOnlyList<BenchmarkTelemetrySample>? samples)
+    {
+        if (samples is null || samples.Count == 0)
+        {
+            return null;
+        }
+
+        List<BenchmarkTelemetrySample> normalized = new(Math.Min(samples.Count, MaxTelemetrySamples));
+        int stride = Math.Max(1, (int)Math.Ceiling(samples.Count / (double)MaxTelemetrySamples));
+        for (int i = 0; i < samples.Count; i += stride)
+        {
+            BenchmarkTelemetrySample sample = samples[i];
+            if (!double.IsFinite(sample.ElapsedSeconds) || sample.ElapsedSeconds < 0)
+            {
+                continue;
+            }
+
+            normalized.Add(new BenchmarkTelemetrySample
+            {
+                ElapsedSeconds = RoundMetric(sample.ElapsedSeconds, 3),
+                CpuLoadPercent = RoundNullable(sample.CpuLoadPercent, 2),
+                CpuMaxTemperatureC = RoundNullable(sample.CpuMaxTemperatureC, 2),
+                CpuPackagePowerW = RoundNullable(sample.CpuPackagePowerW, 3),
+                CpuClockGhz = RoundNullable(sample.CpuClockGhz, 3)
+            });
+        }
+
+        return normalized.Count == 0 ? null : normalized;
+    }
+
     private static bool IsAcceptedScore(double score)
     {
         return double.IsFinite(score) && score > 0 && score <= MaxAcceptedScore;
@@ -589,9 +704,55 @@ public static class BenchmarkPayload
         return value is null || (double.IsFinite(value.Value) && value.Value >= 0);
     }
 
+    private static bool IsAcceptedPercent(double? value)
+    {
+        return value is null || (double.IsFinite(value.Value) && value.Value is >= 0 and <= 100);
+    }
+
+    private static bool IsAcceptedTelemetryValue(double? value, double max)
+    {
+        return value is null || (double.IsFinite(value.Value) && value.Value >= 0 && value.Value <= max);
+    }
+
+    private static bool TelemetrySamplesAreValid(IReadOnlyList<BenchmarkTelemetrySample>? samples)
+    {
+        if (samples is null)
+        {
+            return true;
+        }
+
+        if (samples.Count > MaxTelemetrySamples)
+        {
+            return false;
+        }
+
+        double previousElapsed = -1;
+        foreach (BenchmarkTelemetrySample sample in samples)
+        {
+            if (!double.IsFinite(sample.ElapsedSeconds) || sample.ElapsedSeconds < 0 || sample.ElapsedSeconds < previousElapsed)
+            {
+                return false;
+            }
+
+            if (!IsAcceptedPercent(sample.CpuLoadPercent)
+                || !IsAcceptedTelemetryValue(sample.CpuMaxTemperatureC, 130)
+                || !IsAcceptedTelemetryValue(sample.CpuPackagePowerW, 1000)
+                || !IsAcceptedTelemetryValue(sample.CpuClockGhz, 10))
+            {
+                return false;
+            }
+
+            previousElapsed = sample.ElapsedSeconds;
+        }
+
+        return true;
+    }
+
     private static bool AllNullableMetricsAreValid(BenchmarkUploadDto dto)
     {
-        return IsAcceptedMetric(dto.SciMarkScore)
+        return IsAcceptedMetric(dto.CpuCoreScore)
+            && IsAcceptedMetric(dto.CpuMixedScore)
+            && IsAcceptedMetric(dto.SciMarkScore)
             && IsAcceptedMetric(dto.ZstdCompressGbps)
             && IsAcceptedMetric(dto.ZstdDecompressGbps)
             && IsAcceptedMetric(dto.ZstdRatio)

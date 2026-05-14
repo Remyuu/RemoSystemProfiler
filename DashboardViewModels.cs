@@ -54,6 +54,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _benchmarkVersionText = BenchmarkRunner.Version;
     private string _benchmarkModeText = Localization.BenchmarkModeText(1);
     private string _benchmarkScoreText = "--";
+    private string _benchmarkMixedScoreText = "--";
     private string _benchmarkSciMarkText = "--";
     private string _benchmarkZstdCompressionText = "--";
     private string _benchmarkZstdDecompressionText = "--";
@@ -72,8 +73,10 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _leaderboardStatusText = Localization.LeaderboardReady;
     private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
     private double _benchmarkProgressValue;
+    private int _selectedBenchmarkVersionIndex;
     private int _selectedBenchmarkModeIndex = 1;
     private int _selectedBenchmarkProfileIndex = 1;
+    private int _selectedLeaderboardScoreIndex;
     private string _memoryUsageText = "--";
     private string _memoryCapacityText = "--";
     private string _memoryTempText = "";
@@ -116,6 +119,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public ObservableCollection<StorageDeviceViewModel> StorageDevices { get; } = [];
 
     public ObservableCollection<LeaderboardEntryViewModel> LeaderboardEntries { get; } = [];
+
+    public ObservableCollection<BenchmarkTelemetrySample> BenchmarkTelemetrySamples { get; } = [];
 
     public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
 
@@ -285,6 +290,8 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetProperty(ref _benchmarkScoreText, value); }
 
+    public string BenchmarkMixedScoreText { get => _benchmarkMixedScoreText; set => SetProperty(ref _benchmarkMixedScoreText, value); }
+
     public string BenchmarkSciMarkText { get => _benchmarkSciMarkText; set => SetProperty(ref _benchmarkSciMarkText, value); }
 
     public string BenchmarkZstdCompressionText { get => _benchmarkZstdCompressionText; set => SetProperty(ref _benchmarkZstdCompressionText, value); }
@@ -368,6 +375,20 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public double BenchmarkProgressValue { get => _benchmarkProgressValue; set => SetProperty(ref _benchmarkProgressValue, value); }
 
+    public int SelectedBenchmarkVersionIndex
+    {
+        get => _selectedBenchmarkVersionIndex;
+        set
+        {
+            if (SetProperty(ref _selectedBenchmarkVersionIndex, Math.Clamp(value, 0, 1)))
+            {
+                SelectedLeaderboardScoreIndex = BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion()) ? 0 : 1;
+                RefreshBenchmarkDisplay();
+                RefreshLeaderboardScoreChrome();
+            }
+        }
+    }
+
     public int SelectedBenchmarkModeIndex
     {
         get => _selectedBenchmarkModeIndex;
@@ -392,6 +413,34 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             }
         }
     }
+
+    public int SelectedLeaderboardScoreIndex
+    {
+        get => _selectedLeaderboardScoreIndex;
+        set
+        {
+            if (SetProperty(ref _selectedLeaderboardScoreIndex, Math.Clamp(value, 0, 1)))
+            {
+                RefreshLeaderboardScoreChrome();
+            }
+        }
+    }
+
+    public bool IsLeaderboardScorePickerEnabled => BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion());
+
+    public bool IsLeaderboardCpuCoreSelected => ResolveLeaderboardScoreKind() == BenchmarkScoreKind.CpuCore;
+
+    public string LeaderboardScoreKindText => IsLeaderboardCpuCoreSelected
+        ? Localization.Resource("Ui_CpuCoreShort")
+        : Localization.Resource("Ui_CpuMixedShort");
+
+    public string LeaderboardSwitchToolTip => IsLeaderboardCpuCoreSelected
+        ? Localization.Resource("Ui_CpuCoreScore")
+        : Localization.Resource("Ui_CpuMixedScore");
+
+    public double LeaderboardSwitchKnobOffset => IsLeaderboardCpuCoreSelected ? 26d : 0d;
+
+    public IBrush LeaderboardSwitchBrush => DashboardBrushes.Teal;
 
     public string MemoryUsageText { get => _memoryUsageText; set => SetProperty(ref _memoryUsageText, value); }
 
@@ -454,6 +503,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         RaisePropertyChanged(nameof(BenchmarkStartButtonText));
         RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
         RaisePropertyChanged(nameof(LeaderboardButtonText));
+        RefreshLeaderboardScoreChrome();
         RefreshBenchmarkDisplay();
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0 && BenchmarkScoreText == "--")
         {
@@ -478,6 +528,16 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         RaisePropertyChanged(nameof(CpuOverallGraphScale));
     }
 
+    private void RefreshLeaderboardScoreChrome()
+    {
+        RaisePropertyChanged(nameof(IsLeaderboardScorePickerEnabled));
+        RaisePropertyChanged(nameof(IsLeaderboardCpuCoreSelected));
+        RaisePropertyChanged(nameof(LeaderboardScoreKindText));
+        RaisePropertyChanged(nameof(LeaderboardSwitchToolTip));
+        RaisePropertyChanged(nameof(LeaderboardSwitchKnobOffset));
+        RaisePropertyChanged(nameof(LeaderboardSwitchBrush));
+    }
+
     public int ResolveBenchmarkWorkerCount()
     {
         return SelectedBenchmarkModeIndex == 0 ? 1 : BenchmarkRunner.MaxWorkerCount;
@@ -495,7 +555,24 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public BenchmarkProfilePlan ResolveBenchmarkPlan()
     {
-        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile());
+        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile(), ResolveBenchmarkVersion());
+    }
+
+    public string ResolveBenchmarkVersion()
+    {
+        return SelectedBenchmarkVersionIndex == 1 ? BenchmarkRunner.LegacyVersion : BenchmarkRunner.Version;
+    }
+
+    public BenchmarkScoreKind ResolveLeaderboardScoreKind()
+    {
+        if (!BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion()))
+        {
+            return BenchmarkScoreKind.CpuMixed;
+        }
+
+        return SelectedLeaderboardScoreIndex == 1
+            ? BenchmarkScoreKind.CpuMixed
+            : BenchmarkScoreKind.CpuCore;
     }
 
     public string ResolveBenchmarkModeText()
@@ -507,7 +584,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     {
         int workers = ResolveBenchmarkWorkerCount();
         BenchmarkProfilePlan plan = ResolveBenchmarkPlan();
-        BenchmarkVersionText = BenchmarkRunner.Version;
+        BenchmarkVersionText = ResolveBenchmarkVersion();
         BenchmarkModeText = ResolveBenchmarkModeText();
         BenchmarkThreadsText = Localization.BenchmarkThreadCount(workers);
         if (!IsBenchmarkRunning && BenchmarkProgressValue <= 0)
@@ -554,18 +631,21 @@ public sealed class LeaderboardEntryViewModel
 {
     private bool _isExpanded;
 
-    public LeaderboardEntryViewModel(int rank, BenchmarkLeaderboardEntry entry)
+    public LeaderboardEntryViewModel(int rank, BenchmarkLeaderboardEntry entry, BenchmarkScoreKind scoreKind)
     {
+        double score = ResolveScore(entry, scoreKind);
         RankText = $"#{rank}";
         CountryCodeText = NormalizeCountryCode(entry.CountryCode);
         DisplayNameText = string.IsNullOrWhiteSpace(entry.DisplayName)
             ? BenchmarkPayload.DefaultDisplayName
             : entry.DisplayName;
         CpuNameText = string.IsNullOrWhiteSpace(entry.CpuName) ? "--" : entry.CpuName;
-        ScoreText = entry.Score.ToString("N0", CultureInfo.InvariantCulture);
+        ScoreText = score.ToString("N0", CultureInfo.InvariantCulture);
         ProfileModeText = $"{entry.Profile} / {entry.Mode}";
         VersionText = $"bench {entry.BenchmarkVersion} | app {entry.AppVersion}";
         DetailText = BuildDetailText(entry);
+        TelemetrySamples = entry.TelemetrySamples is { Count: > 0 } samples ? samples : [];
+        HasTelemetrySamples = TelemetrySamples.Count > 1;
         DetailItems = BuildDetailItems(rank, entry, DisplayNameText, CpuNameText, ScoreText, ProfileModeText, VersionText);
     }
 
@@ -586,6 +666,10 @@ public sealed class LeaderboardEntryViewModel
     public string DetailText { get; }
 
     public IReadOnlyList<LeaderboardDetailItemViewModel> DetailItems { get; }
+
+    public IReadOnlyList<BenchmarkTelemetrySample> TelemetrySamples { get; }
+
+    public bool HasTelemetrySamples { get; }
 
     public bool IsExpanded
     {
@@ -636,7 +720,9 @@ public sealed class LeaderboardEntryViewModel
             new("Rank", $"#{rank}"),
             new("Name", displayName),
             new("Country", NormalizeCountryCode(entry.CountryCode)),
-            new("Score", score),
+            new("Ranking Score", score),
+            new("CPU Core Score", FormatNumber(entry.CpuCoreScore)),
+            new("CPU Mixed Score", FormatNumber(entry.CpuMixedScore ?? entry.Score)),
             new("Profile / Mode", profileMode),
             new("Version", version),
             new("CPU", cpuName),
@@ -644,7 +730,6 @@ public sealed class LeaderboardEntryViewModel
             new("SciMark", FormatNumber(entry.SciMarkScore)),
             new("zstd compression", FormatGbps(entry.ZstdCompressGbps)),
             new("zstd decompression", FormatGbps(entry.ZstdDecompressGbps)),
-            new("zstd ratio", entry.ZstdRatio is { } ratio ? $"{ratio * 100d:0.0}%" : "--"),
             new("XxHash3", FormatGbps(entry.XxHash3Gbps)),
             new("Avg frequency", entry.AvgFrequencyGhz is { } frequency ? $"{frequency:0.00} GHz" : "--"),
             new("Max temp", entry.MaxTemperatureC is { } temperature ? $"{temperature:0.#} C" : "--"),
@@ -662,6 +747,18 @@ public sealed class LeaderboardEntryViewModel
     private static string FormatGbps(double? value) => value is { } number
         ? $"{number:0.00} GB/s"
         : "--";
+
+    private static double ResolveScore(BenchmarkLeaderboardEntry entry, BenchmarkScoreKind scoreKind)
+    {
+        if (entry.RankingScore is { } rankingScore && double.IsFinite(rankingScore) && rankingScore > 0)
+        {
+            return rankingScore;
+        }
+
+        return scoreKind == BenchmarkScoreKind.CpuCore
+            ? entry.CpuCoreScore ?? entry.Score
+            : entry.CpuMixedScore ?? entry.Score;
+    }
 }
 
 public sealed record LeaderboardDetailItemViewModel(string LabelText, string ValueText);
@@ -1269,6 +1366,8 @@ internal static class DashboardBrushes
     public static readonly IBrush Red = Solid("#F97066");
     public static readonly IBrush Green = Solid("#32D583");
     public static readonly IBrush Amber = Solid("#FDB022");
+    public static readonly IBrush Teal = Solid("#087F8C");
+    public static readonly IBrush SwitchOffTrack = Solid("#202A36");
     public static readonly IBrush Purple = Solid("#C77DFF");
     public static readonly IBrush OrangeRed = Solid("#FF5A4F");
     public static readonly IBrush LimeGreen = Solid("#32D583");
