@@ -251,9 +251,12 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 
         ISensor[] sensors = ActiveSensors(cpu);
         IReadOnlyList<CoreReading> sensorCores = BuildCoreReadings(sensors);
+        IReadOnlyDictionary<int, float> coreClocks = BuildCoreClockReadings(sensors);
         CpuTopology topology = ReadCpuTopology(sensorCores.Count);
-        IReadOnlyList<CoreReading> cores = _logicalProcessorLoadReader.ReadLoadPercentages(topology.LogicalProcessors)
-            ?? NormalizeCoreReadings(sensorCores, topology.LogicalProcessors);
+        IReadOnlyList<CoreReading> cores = AttachCoreClocks(
+            _logicalProcessorLoadReader.ReadLoadPercentages(topology.LogicalProcessors)
+                ?? NormalizeCoreReadings(sensorCores, topology.LogicalProcessors),
+            coreClocks);
         float averageLoad = FindSensor(sensors, SensorType.Load, "CPU Total")?.Value
             ?? FindSensor(sensors, SensorType.Load, "Total")?.Value
             ?? Average(cores.Select(core => (float)core.LoadPercent));
@@ -444,6 +447,48 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             .ToArray();
     }
 
+    private static IReadOnlyDictionary<int, float> BuildCoreClockReadings(IReadOnlyList<ISensor> sensors)
+    {
+        Dictionary<int, float> clocks = [];
+        HashSet<int> usedIndexes = [];
+        int fallbackIndex = 0;
+        foreach (ISensor sensor in SensorsOfType(sensors, SensorType.Clock).Where(IsCpuCoreClockSensor).OrderBy(sensor => sensor.Index).ThenBy(sensor => sensor.Name))
+        {
+            int index = TryGetCoreIndex(sensor.Name) ?? fallbackIndex;
+            if (usedIndexes.Contains(index))
+            {
+                index = NextAvailableCoreIndex(usedIndexes, ref fallbackIndex);
+            }
+
+            float clockMHz = sensor.Value.GetValueOrDefault();
+            if (clockMHz <= 0 || clockMHz > 10000)
+            {
+                continue;
+            }
+
+            usedIndexes.Add(index);
+            fallbackIndex = Math.Max(fallbackIndex, index + 1);
+            clocks[index] = clockMHz;
+        }
+
+        return clocks;
+    }
+
+    private static IReadOnlyList<CoreReading> AttachCoreClocks(IReadOnlyList<CoreReading> readings, IReadOnlyDictionary<int, float> clocks)
+    {
+        if (readings.Count == 0 || clocks.Count == 0)
+        {
+            return readings;
+        }
+
+        return readings
+            .Select(reading => new CoreReading(
+                reading.Index,
+                reading.LoadPercent,
+                clocks.TryGetValue(reading.Index, out float clockMHz) ? clockMHz : reading.ClockMHz))
+            .ToArray();
+    }
+
     private static IReadOnlyList<CoreReading> NormalizeCoreReadings(IReadOnlyList<CoreReading> readings, int logicalProcessorCount)
     {
         if (logicalProcessorCount <= 0 || readings.Count == logicalProcessorCount)
@@ -456,7 +501,7 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             return readings
                 .OrderBy(reading => reading.Index)
                 .Take(logicalProcessorCount)
-                .Select((reading, index) => new CoreReading(index, reading.LoadPercent))
+                .Select((reading, index) => new CoreReading(index, reading.LoadPercent, reading.ClockMHz))
                 .ToArray();
         }
 
@@ -472,7 +517,7 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         for (int index = 0; index < normalized.Length; index++)
         {
             int sourceIndex = Math.Min(ordered.Length - 1, (int)(index * ordered.Length / (double)logicalProcessorCount));
-            normalized[index] = new CoreReading(index, ordered[sourceIndex].LoadPercent);
+            normalized[index] = new CoreReading(index, ordered[sourceIndex].LoadPercent, ordered[sourceIndex].ClockMHz);
         }
 
         return normalized;
@@ -597,7 +642,7 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 
     private static bool IsCpuCoreClockSensor(ISensor sensor) =>
         sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)
-        && !ContainsAny(sensor.Name, "Bus", "Memory", "Fabric");
+        && !ContainsAny(sensor.Name, "Bus", "Memory", "Fabric", "Max", "Total");
 
     private static bool ContainsAny(string text, params string[] values)
     {

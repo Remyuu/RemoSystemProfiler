@@ -62,9 +62,12 @@ public sealed record CpuDeviceReading(
 
 public sealed record CoreReading(
     int Index,
-    int LoadPercent)
+    int LoadPercent,
+    float ClockMHz = 0)
 {
     public string LoadText => $"{LoadPercent}%";
+
+    public double ClockGhz => ClockMHz > 0 ? ClockMHz / 1000d : 0;
 }
 
 public sealed record MemoryDeviceReading(

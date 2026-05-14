@@ -28,82 +28,108 @@
         </DataTemplate>
 
         <DataTemplate x:Key="LeaderboardEntryTemplate" x:DataType="local:LeaderboardEntryViewModel">
-            <local:AnimatedExpander
+            <Border
                 Width="{Binding $parent[ItemsControl].Bounds.Width}"
-                IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
-                <local:AnimatedExpander.Header>
-                    <Grid
-                        HorizontalAlignment="Stretch"
-                        RowDefinitions="Auto,Auto"
-                        RowSpacing="5">
-                        <Grid ColumnDefinitions="42,40,*,96" ColumnSpacing="8">
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                Classes="label"
-                                FontWeight="SemiBold"
-                                Text="{Binding RankText}" />
-                            <local:CountryFlagBadge
-                                Grid.Column="1"
-                                Width="31"
-                                Height="21"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center"
-                                CountryCode="{Binding CountryCodeText}"
-                                TextBrush="{DynamicResource MutedTextBrush}" />
-                            <TextBlock
-                                Grid.Column="2"
-                                Classes="small-value"
-                                Text="{Binding DisplayNameText}"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                Grid.Column="3"
-                                HorizontalAlignment="Right"
-                                Classes="value"
-                                FontSize="16"
-                                Text="{Binding ScoreText}" />
-                        </Grid>
-                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                            <TextBlock
-                                Classes="label"
-                                Text="{Binding DetailText}"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                Grid.Column="1"
-                                HorizontalAlignment="Right"
-                                Classes="label"
-                                Text="{Binding ProfileModeText}" />
-                        </Grid>
-                    </Grid>
-                </local:AnimatedExpander.Header>
-                <local:AnimatedExpander.Body>
-                    <StackPanel Spacing="6">
-                        <ItemsControl
-                            Classes="stretch-items"
-                            ItemTemplate="{StaticResource LeaderboardDetailTemplate}"
-                            ItemsSource="{Binding DetailItems}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Spacing="4" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
-                        <StackPanel
-                            IsVisible="{Binding HasTelemetrySamples}"
-                            PointerReleased="LeaderboardTelemetryPanel_PointerReleased"
-                            Spacing="4">
-                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-                                <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
-                                <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
-                                <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
-                                <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
+                Padding="{Binding OwnerFramePadding}"
+                BorderBrush="{Binding OwnerFrameBrush}"
+                BorderThickness="{Binding OwnerFrameThickness}"
+                CornerRadius="6">
+                <local:AnimatedExpander
+                    HorizontalAlignment="Stretch"
+                    IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                        <local:AnimatedExpander.Header>
+                            <Grid
+                                HorizontalAlignment="Stretch"
+                                RowDefinitions="Auto,Auto"
+                                RowSpacing="5">
+                                <Grid ColumnDefinitions="Auto,42,40,*,96" ColumnSpacing="8">
+                                    <Button
+                                        Width="30"
+                                        Height="30"
+                                        Classes="icon-button"
+                                        Click="LeaderboardDeleteButton_Click"
+                                        IsVisible="{Binding CanDelete}"
+                                        ToolTip.Tip="{Binding DeleteButtonText}"
+                                        VerticalAlignment="Center">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="M 5.5 5.5 V 13.5 M 8.5 5.5 V 13.5 M 11.5 5.5 V 13.5 M 3.5 4 H 13.5 M 6.3 4 V 2.8 H 10.7 V 4 M 4.5 4 L 5.1 14.8 H 11.9 L 12.5 4"
+                                            Stroke="{DynamicResource AccentTextBrush}"
+                                            StrokeLineCap="Round"
+                                            StrokeThickness="1.65"
+                                            Stretch="Uniform" />
+                                    </Button>
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Classes="label"
+                                        FontWeight="SemiBold"
+                                        Text="{Binding RankText}" />
+                                    <local:CountryFlagBadge
+                                        Grid.Column="2"
+                                        Width="31"
+                                        Height="21"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        CountryCode="{Binding CountryCodeText}"
+                                        TextBrush="{DynamicResource MutedTextBrush}" />
+                                    <TextBlock
+                                        Grid.Column="3"
+                                        Classes="small-value"
+                                        Text="{Binding DisplayNameText}"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Grid.Column="4"
+                                        HorizontalAlignment="Right"
+                                        Classes="value"
+                                        FontSize="16"
+                                        Text="{Binding ScoreText}" />
+                                </Grid>
+                                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock
+                                        Classes="label"
+                                        Text="{Binding DetailText}"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        HorizontalAlignment="Right"
+                                        Classes="label"
+                                        Text="{Binding ProfileModeText}" />
+                                </Grid>
                             </Grid>
-                            <local:BenchmarkTelemetryChart
-                                Height="68"
-                                Samples="{Binding TelemetrySamples}" />
-                        </StackPanel>
-                    </StackPanel>
-                </local:AnimatedExpander.Body>
-            </local:AnimatedExpander>
+                        </local:AnimatedExpander.Header>
+                        <local:AnimatedExpander.Body>
+                            <StackPanel Spacing="6">
+                                <ItemsControl
+                                    Classes="stretch-items"
+                                    ItemTemplate="{StaticResource LeaderboardDetailTemplate}"
+                                    ItemsSource="{Binding DetailItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                                <StackPanel
+                                    IsVisible="{Binding HasTelemetrySamples}"
+                                    PointerReleased="LeaderboardTelemetryPanel_PointerReleased"
+                                    Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+                                        <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
+                                        <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
+                                        <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
+                                        <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
+                                        <TextBlock Grid.Column="4" Classes="label" Foreground="{StaticResource GreenBrush}" Text="{DynamicResource Ui_Speed}" />
+                                    </Grid>
+                                    <local:BenchmarkTelemetryChart
+                                        Height="68"
+                                        Samples="{Binding TelemetrySamples}" />
+                                </StackPanel>
+                                </StackPanel>
+                            </local:AnimatedExpander.Body>
+                </local:AnimatedExpander>
+            </Border>
         </DataTemplate>
 
         <DataTemplate x:Key="LeaderboardDetailTemplate" x:DataType="local:LeaderboardDetailItemViewModel">
@@ -220,11 +246,12 @@
                     Padding="8,6"
                     PointerReleased="BenchmarkTelemetryPanel_PointerReleased">
                     <Grid RowDefinitions="Auto,*" RowSpacing="4">
-                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                             <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
                             <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
                             <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
                             <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
+                            <TextBlock Grid.Column="4" Classes="label" Foreground="{StaticResource GreenBrush}" Text="{DynamicResource Ui_Speed}" />
                         </Grid>
                         <local:BenchmarkTelemetryChart
                             x:Name="MainBenchmarkTelemetryChart"
@@ -289,36 +316,70 @@
                             </Grid>
                         </StackPanel>
                         <Button
+                            x:Name="UploadLeaderboardButton"
                             Grid.Column="2"
                             Classes="icon-button"
                             Click="UploadButton_Click"
+                            RenderTransformOrigin="50%,50%"
                             VerticalAlignment="Bottom"
-                            IsEnabled="{Binding CanUploadBenchmarkResult}"
                             ToolTip.Tip="{Binding BenchmarkUploadButtonText}">
+                            <Button.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1">
+                                    <ScaleTransform.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="ScaleX" Duration="0:0:0.12" />
+                                            <DoubleTransition Property="ScaleY" Duration="0:0:0.12" />
+                                        </Transitions>
+                                    </ScaleTransform.Transitions>
+                                </ScaleTransform>
+                            </Button.RenderTransform>
                             <Path
+                                x:Name="UploadLeaderboardIcon"
                                 Width="17"
                                 Height="17"
                                 Data="M 8.5 13.5 V 3.5 M 4.5 7.5 L 8.5 3.5 L 12.5 7.5 M 3 14.5 H 14"
+                                RenderTransformOrigin="50%,50%"
                                 Stroke="{DynamicResource AccentTextBrush}"
                                 StrokeLineCap="Round"
                                 StrokeThickness="1.8"
-                                Stretch="Uniform" />
+                                Stretch="Uniform">
+                                <Path.RenderTransform>
+                                    <TranslateTransform Y="0" />
+                                </Path.RenderTransform>
+                            </Path>
                         </Button>
                         <Button
+                            x:Name="RefreshLeaderboardButton"
                             Grid.Column="3"
                             Classes="icon-button"
                             Click="RefreshLeaderboardButton_Click"
+                            RenderTransformOrigin="50%,50%"
                             VerticalAlignment="Bottom"
-                            IsEnabled="{Binding CanRefreshLeaderboard}"
                             ToolTip.Tip="{Binding LeaderboardButtonText}">
+                            <Button.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1">
+                                    <ScaleTransform.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="ScaleX" Duration="0:0:0.12" />
+                                            <DoubleTransition Property="ScaleY" Duration="0:0:0.12" />
+                                        </Transitions>
+                                    </ScaleTransform.Transitions>
+                                </ScaleTransform>
+                            </Button.RenderTransform>
                             <Path
+                                x:Name="RefreshLeaderboardIcon"
                                 Width="17"
                                 Height="17"
                                 Data="M 13.5 6.5 A 5 5 0 1 0 12.1 11.8 M 13.5 6.5 V 2.8 M 13.5 6.5 H 9.8"
+                                RenderTransformOrigin="50%,50%"
                                 Stroke="{DynamicResource AccentTextBrush}"
                                 StrokeLineCap="Round"
                                 StrokeThickness="1.8"
-                                Stretch="Uniform" />
+                                Stretch="Uniform">
+                                <Path.RenderTransform>
+                                    <RotateTransform Angle="0" />
+                                </Path.RenderTransform>
+                            </Path>
                         </Button>
                     </Grid>
                     <TextBlock

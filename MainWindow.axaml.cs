@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window
     private const double DashboardContentVerticalMargin = 14;
     private const double PressScale = 0.985;
 
+    private static readonly TimeSpan BenchmarkNetworkActionCooldown = TimeSpan.FromSeconds(5);
     private static readonly int[] ChartRangesSeconds = [10, 30, 60, 300];
     private static readonly double[] UpdateIntervalsSeconds = [0.5, 1, 2, 5];
 
@@ -72,7 +73,8 @@ public sealed partial class MainWindow : Window
         BenchmarkPanel.RunRequested += async (_, _) => await RunCpuBenchmarkAsync().ConfigureAwait(true);
         BenchmarkPanel.CancelRequested += (_, _) => CancelCpuBenchmark();
         BenchmarkPanel.UploadRequested += async (_, _) => await UploadBenchmarkAsync().ConfigureAwait(true);
-        BenchmarkPanel.RefreshLeaderboardRequested += async (_, _) => await RefreshLeaderboardAsync().ConfigureAwait(true);
+        BenchmarkPanel.DeleteRequested += async (_, args) => await DeleteBenchmarkAsync(args.Entry).ConfigureAwait(true);
+        BenchmarkPanel.RefreshLeaderboardRequested += async (_, _) => await RefreshLeaderboardAsync(userInitiated: true).ConfigureAwait(true);
         BenchmarkPanel.ToggleLeaderboardScoreRequested += async (_, _) => await ToggleLeaderboardScoreAsync().ConfigureAwait(true);
         BenchmarkPanel.TelemetryZoomRequested += async (_, args) => await OpenBenchmarkTelemetryZoomAsync(args.Samples).ConfigureAwait(true);
         RefreshDashboardFlyoutLocalization();
@@ -986,7 +988,8 @@ public sealed partial class MainWindow : Window
         _viewModel.BenchmarkHashText = "--";
         _viewModel.BenchmarkCpuFrequencyText = "--";
         _viewModel.BenchmarkCpuTemperatureText = "--";
-        _viewModel.BenchmarkPowerThermalText = "--";
+        _viewModel.BenchmarkCpuEnergyText = "--";
+        _viewModel.BenchmarkPeakPowerText = "--";
         _viewModel.BenchmarkValidationText = "--";
         _viewModel.IsBenchmarkUploadAvailable = false;
         _viewModel.BenchmarkUploadStatusText = Localization.BenchmarkUploadNoResult;
@@ -1080,7 +1083,8 @@ public sealed partial class MainWindow : Window
         BenchmarkSensorSummary sensorSummary = _benchmarkSensors.Summarize();
         _viewModel.BenchmarkCpuFrequencyText = sensorSummary.AverageFrequencyText;
         _viewModel.BenchmarkCpuTemperatureText = sensorSummary.MaxTemperatureText;
-        _viewModel.BenchmarkPowerThermalText = sensorSummary.PowerThermalText;
+        _viewModel.BenchmarkCpuEnergyText = sensorSummary.EnergyText;
+        _viewModel.BenchmarkPeakPowerText = sensorSummary.PeakPowerText;
         _viewModel.BenchmarkValidationText = result.IsValid ? Localization.BenchmarkValidationOk : Localization.BenchmarkValidationFailed;
         _viewModel.BenchmarkStatusText = Localization.BenchmarkCompletedAt(DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
         _lastBenchmarkUpload = CreateBenchmarkUploadDto(result, sensorSummary);
@@ -1093,6 +1097,8 @@ public sealed partial class MainWindow : Window
     private BenchmarkUploadDto CreateBenchmarkUploadDto(BenchmarkResult result, BenchmarkSensorSummary sensorSummary)
     {
         CpuDeviceReading? cpu = _lastResult?.Snapshot?.Cpu;
+        string installationId = BenchmarkIdentityStore.GetOrCreateInstallationId();
+        string deviceId = BenchmarkIdentityStore.GetOrCreateDeviceId();
         BenchmarkUploadDto dto = new()
         {
             AppVersion = _viewModel.CurrentVersion,
@@ -1113,9 +1119,10 @@ public sealed partial class MainWindow : Window
             CpuThreads = PositiveOrNull(cpu?.LogicalProcessorCount),
             AvgFrequencyGhz = sensorSummary.AverageFrequencyGhz,
             MaxTemperatureC = sensorSummary.MaxTemperatureC,
-            PowerThermalStatus = sensorSummary.PowerThermalText,
+            PowerThermalStatus = sensorSummary.PeakPowerText,
             ValidationStatus = result.IsValid ? BenchmarkPayload.ValidationOk : "FAILED",
-            InstallationId = BenchmarkIdentityStore.GetOrCreateInstallationId(),
+            InstallationId = installationId,
+            DeviceId = deviceId,
             ClientCreatedAt = BenchmarkPayload.UtcTimestamp(DateTimeOffset.UtcNow),
             TelemetrySamples = sensorSummary.TelemetrySamples
         };
@@ -1132,6 +1139,8 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        DateTimeOffset cooldownStartedAt = DateTimeOffset.UtcNow;
+        _viewModel.IsBenchmarkUploadCooldownRunning = true;
         _viewModel.IsBenchmarkUploadRunning = true;
         _viewModel.BenchmarkUploadStatusText = Localization.BenchmarkUploading;
         _lastBenchmarkUpload.DisplayName = BenchmarkPayload.NormalizeDisplayName(_viewModel.BenchmarkDisplayNameText);
@@ -1143,13 +1152,14 @@ public sealed partial class MainWindow : Window
             _viewModel.BenchmarkUploadStatusText = result.Status switch
             {
                 BenchmarkUploadStatus.Uploaded => Localization.BenchmarkUploadSuccess,
+                BenchmarkUploadStatus.Updated => Localization.BenchmarkUploadUpdated,
                 BenchmarkUploadStatus.Duplicate => Localization.BenchmarkUploadDuplicate,
                 BenchmarkUploadStatus.RateLimited => Localization.BenchmarkUploadRateLimited,
                 BenchmarkUploadStatus.Invalid => Localization.BenchmarkUploadFailed(result.Message),
                 _ => Localization.BenchmarkUploadFailed(ShortError(result.Message))
             };
 
-            if (result.Status is BenchmarkUploadStatus.Uploaded or BenchmarkUploadStatus.Duplicate)
+            if (result.Status is BenchmarkUploadStatus.Uploaded or BenchmarkUploadStatus.Updated or BenchmarkUploadStatus.Duplicate)
             {
                 await RefreshLeaderboardAsync().ConfigureAwait(true);
             }
@@ -1163,6 +1173,56 @@ public sealed partial class MainWindow : Window
             if (!_isClosed)
             {
                 _viewModel.IsBenchmarkUploadRunning = false;
+            }
+
+            await FinishCooldownAsync(cooldownStartedAt, () => _viewModel.IsBenchmarkUploadCooldownRunning = false).ConfigureAwait(true);
+        }
+    }
+
+    private async Task DeleteBenchmarkAsync(LeaderboardEntryViewModel entry)
+    {
+        if (!_viewModel.CanDeleteBenchmarkResult || !entry.CanDelete)
+        {
+            return;
+        }
+
+        _viewModel.IsBenchmarkDeleteRunning = true;
+        _viewModel.BenchmarkUploadStatusText = Localization.BenchmarkDeleting;
+
+        try
+        {
+            BenchmarkDeleteRequest request = new()
+            {
+                DeviceId = BenchmarkIdentityStore.GetOrCreateDeviceId(),
+                DisplayName = entry.DisplayNameText,
+                BenchmarkVersion = entry.BenchmarkVersionValue,
+                Profile = entry.ProfileValue,
+                Mode = entry.ModeValue
+            };
+            BenchmarkDeleteResult result = await _benchmarkApi.DeleteAsync(request, _shutdown.Token).ConfigureAwait(true);
+            _viewModel.BenchmarkUploadStatusText = result.Status switch
+            {
+                BenchmarkDeleteStatus.Deleted => Localization.BenchmarkDeleteSuccess,
+                BenchmarkDeleteStatus.NotFound => Localization.BenchmarkDeleteNotFound,
+                BenchmarkDeleteStatus.RateLimited => Localization.BenchmarkUploadRateLimited,
+                BenchmarkDeleteStatus.Invalid => Localization.BenchmarkDeleteFailed(result.Message),
+                _ => Localization.BenchmarkDeleteFailed(ShortError(result.Message))
+            };
+
+            if (result.Status == BenchmarkDeleteStatus.Deleted)
+            {
+                await RefreshLeaderboardAsync().ConfigureAwait(true);
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Window shutdown cancels the delete flow.
+        }
+        finally
+        {
+            if (!_isClosed)
+            {
+                _viewModel.IsBenchmarkDeleteRunning = false;
             }
         }
     }
@@ -1178,11 +1238,17 @@ public sealed partial class MainWindow : Window
         await RefreshLeaderboardAsync().ConfigureAwait(true);
     }
 
-    private async Task RefreshLeaderboardAsync()
+    private async Task RefreshLeaderboardAsync(bool userInitiated = false)
     {
-        if (_viewModel.IsLeaderboardLoading)
+        if (_viewModel.IsLeaderboardLoading || (userInitiated && !_viewModel.CanRefreshLeaderboard))
         {
             return;
+        }
+
+        DateTimeOffset cooldownStartedAt = DateTimeOffset.UtcNow;
+        if (userInitiated)
+        {
+            _viewModel.IsLeaderboardRefreshCooldownRunning = true;
         }
 
         _viewModel.IsLeaderboardLoading = true;
@@ -1194,6 +1260,7 @@ public sealed partial class MainWindow : Window
             BenchmarkLeaderboardQuery query = new()
             {
                 BenchmarkVersion = _viewModel.ResolveBenchmarkVersion(),
+                DeviceId = BenchmarkIdentityStore.GetOrCreateDeviceId(),
                 Profile = BenchmarkPayload.ProfileToApiValue(_viewModel.ResolveBenchmarkProfile()),
                 Mode = BenchmarkPayload.ModeToApiValue(_viewModel.ResolveBenchmarkWorkerCount()),
                 ScoreKind = scoreKind,
@@ -1224,6 +1291,32 @@ public sealed partial class MainWindow : Window
             {
                 _viewModel.IsLeaderboardLoading = false;
             }
+
+            if (userInitiated)
+            {
+                await FinishCooldownAsync(cooldownStartedAt, () => _viewModel.IsLeaderboardRefreshCooldownRunning = false).ConfigureAwait(true);
+            }
+        }
+    }
+
+    private async Task FinishCooldownAsync(DateTimeOffset startedAt, Action clearCooldown)
+    {
+        TimeSpan remaining = BenchmarkNetworkActionCooldown - (DateTimeOffset.UtcNow - startedAt);
+        if (remaining > TimeSpan.Zero)
+        {
+            try
+            {
+                await Task.Delay(remaining, _shutdown.Token).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+
+        if (!_isClosed)
+        {
+            clearCooldown();
         }
     }
 
@@ -1648,7 +1741,10 @@ public sealed partial class MainWindow : Window
         private double _frequencyTotal;
         private int _frequencySamples;
         private float _maxTemperature = float.MinValue;
-        private string? _powerThermalText;
+        private double _energyWattSeconds;
+        private double? _lastPowerW;
+        private double? _lastPowerElapsedSeconds;
+        private double? _peakPowerW;
 
         public BenchmarkTelemetrySample? Add(CpuDeviceReading cpu)
         {
@@ -1670,14 +1766,16 @@ public sealed partial class MainWindow : Window
                     : Math.Max(maxTemperature.Value, sensor.Value);
             }
 
-            _powerThermalText ??= FindPowerThermalText(cpu);
+            double? packagePowerW = cpu.PackagePower?.Value;
+            AddEnergySample(elapsedSeconds, packagePowerW);
             BenchmarkTelemetrySample sample = new()
             {
                 ElapsedSeconds = elapsedSeconds,
                 CpuLoadPercent = Math.Clamp(cpu.AverageLoadPercent, 0, 100),
                 CpuMaxTemperatureC = maxTemperature,
-                CpuPackagePowerW = cpu.PackagePower?.Value,
-                CpuClockGhz = frequencyGhz
+                CpuPackagePowerW = packagePowerW,
+                CpuClockGhz = frequencyGhz,
+                CpuCoreClocksGhz = BuildCoreClockSamples(cpu.Cores)
             };
             _samples.Add(sample);
             return sample;
@@ -1701,42 +1799,60 @@ public sealed partial class MainWindow : Window
             return new BenchmarkSensorSummary(
                 frequencyText,
                 temperatureText,
-                _powerThermalText ?? Localization.NotReported,
+                BenchmarkTelemetrySummaries.FormatEnergy(_energyWattSeconds),
+                BenchmarkTelemetrySummaries.FormatPeakPower(_peakPowerW),
                 averageFrequencyGhz,
                 maxTemperatureC,
                 _samples.ToArray());
         }
 
-        private static string? FindPowerThermalText(CpuDeviceReading cpu)
+        private void AddEnergySample(double elapsedSeconds, double? packagePowerW)
         {
-            MetricReading? limitSensor = cpu.PowerSensors
-                .Concat(cpu.TemperatureSensors)
-                .Concat(cpu.ClockSensors)
-                .FirstOrDefault(IsLimitOrThrottlingSensor);
-            if (limitSensor is not null)
+            if (packagePowerW is not { } powerW || !double.IsFinite(powerW) || powerW < 0)
             {
-                return $"{limitSensor.Name}: {limitSensor.ValueText}";
+                return;
             }
 
-            return cpu.PackagePower is null
-                ? null
-                : $"{cpu.PackagePower.ValueText} / {Localization.NotReported}";
+            _peakPowerW = _peakPowerW is null ? powerW : Math.Max(_peakPowerW.Value, powerW);
+            if (_lastPowerW is { } lastPowerW && _lastPowerElapsedSeconds is { } lastElapsedSeconds)
+            {
+                double deltaSeconds = elapsedSeconds - lastElapsedSeconds;
+                if (double.IsFinite(deltaSeconds) && deltaSeconds > 0)
+                {
+                    _energyWattSeconds += ((lastPowerW + powerW) * 0.5d) * deltaSeconds;
+                }
+            }
+
+            _lastPowerW = powerW;
+            _lastPowerElapsedSeconds = elapsedSeconds;
         }
 
-        private static bool IsLimitOrThrottlingSensor(MetricReading sensor)
+        private static IReadOnlyList<double>? BuildCoreClockSamples(IReadOnlyList<CoreReading> cores)
         {
-            return sensor.Name.Contains("Throttle", StringComparison.OrdinalIgnoreCase)
-                || sensor.Name.Contains("Throttling", StringComparison.OrdinalIgnoreCase)
-                || sensor.Name.Contains("Power Limit", StringComparison.OrdinalIgnoreCase)
-                || sensor.Name.Contains("Thermal Limit", StringComparison.OrdinalIgnoreCase)
-                || sensor.Name.Contains("PROCHOT", StringComparison.OrdinalIgnoreCase);
+            if (cores.Count == 0)
+            {
+                return null;
+            }
+
+            List<double> clocks = new(cores.Count);
+            for (int i = 0; i < cores.Count; i++)
+            {
+                double clockGhz = cores[i].ClockGhz;
+                if (clockGhz > 0 && double.IsFinite(clockGhz))
+                {
+                    clocks.Add(clockGhz);
+                }
+            }
+
+            return clocks.Count == 0 ? null : clocks;
         }
     }
 
     private readonly record struct BenchmarkSensorSummary(
         string AverageFrequencyText,
         string MaxTemperatureText,
-        string PowerThermalText,
+        string EnergyText,
+        string PeakPowerText,
         double? AverageFrequencyGhz,
         double? MaxTemperatureC,
         IReadOnlyList<BenchmarkTelemetrySample> TelemetrySamples);

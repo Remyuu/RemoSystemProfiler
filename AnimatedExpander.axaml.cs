@@ -169,6 +169,11 @@ public sealed partial class AnimatedExpander : UserControl
 
     private void HeaderSurface_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (e.Source is Button)
+        {
+            return;
+        }
+
         if (!e.GetCurrentPoint(HeaderSurface).Properties.IsLeftButtonPressed)
         {
             return;
@@ -181,6 +186,11 @@ public sealed partial class AnimatedExpander : UserControl
 
     private void HeaderSurface_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (e.Source is Button)
+        {
+            return;
+        }
+
         if (!_isHeaderPressed)
         {
             return;
