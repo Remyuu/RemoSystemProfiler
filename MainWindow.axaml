@@ -1051,6 +1051,51 @@
         </Grid>
 
         <Grid
+            x:Name="BenchmarkTelemetryZoomOverlay"
+            Background="#01000000"
+            IsHitTestVisible="False"
+            IsVisible="False"
+            Opacity="0"
+            Panel.ZIndex="9"
+            PointerReleased="BenchmarkTelemetryZoomOverlay_PointerReleased">
+            <Border
+                x:Name="BenchmarkTelemetryZoomPanel"
+                Width="820"
+                MaxWidth="920"
+                Height="430"
+                MaxHeight="520"
+                Padding="18,16"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource StartupOverlayPanelBrush}"
+                BorderBrush="{DynamicResource StartupOverlayStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                RenderTransformOrigin="50%,50%">
+                <Border.RenderTransform>
+                    <ScaleTransform
+                        ScaleX="0.94"
+                        ScaleY="0.94" />
+                </Border.RenderTransform>
+                <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+                        <TextBlock
+                            Classes="emphasis"
+                            FontSize="15"
+                            Text="{DynamicResource Ui_BenchmarkTelemetry}" />
+                        <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
+                        <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
+                        <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
+                    </Grid>
+                    <local:BenchmarkTelemetryChart
+                        x:Name="BenchmarkTelemetryZoomChart"
+                        Grid.Row="1"
+                        Samples="{Binding BenchmarkTelemetrySamples}" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid
             Background="{DynamicResource StartupOverlayBackgroundBrush}"
             IsVisible="{Binding IsStartupOverlayVisible}"
             Opacity="{Binding StartupOverlayOpacity}">

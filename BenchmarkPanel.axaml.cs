@@ -1,7 +1,9 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using RemoSystemProfiler.Core;
+using System.Collections;
 
 namespace RemoSystemProfiler;
 
@@ -12,6 +14,7 @@ public sealed partial class BenchmarkPanel : UserControl
     public event EventHandler? UploadRequested;
     public event EventHandler? RefreshLeaderboardRequested;
     public event EventHandler? ToggleLeaderboardScoreRequested;
+    public event EventHandler<BenchmarkTelemetryZoomRequestedEventArgs>? TelemetryZoomRequested;
 
     public BenchmarkPanel()
     {
@@ -43,6 +46,22 @@ public sealed partial class BenchmarkPanel : UserControl
 
     private void ScoreToggleButton_Click(object? sender, RoutedEventArgs e) => ToggleLeaderboardScoreRequested?.Invoke(this, EventArgs.Empty);
 
+    private void BenchmarkTelemetryPanel_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        TelemetryZoomRequested?.Invoke(this, new BenchmarkTelemetryZoomRequestedEventArgs(MainBenchmarkTelemetryChart.Samples));
+        e.Handled = true;
+    }
+
+    private void LeaderboardTelemetryPanel_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (sender is Control { DataContext: LeaderboardEntryViewModel entry })
+        {
+            TelemetryZoomRequested?.Invoke(this, new BenchmarkTelemetryZoomRequestedEventArgs(entry.TelemetrySamples));
+        }
+
+        e.Handled = true;
+    }
+
     private static void RefreshSelectionBox(ComboBox comboBox)
     {
         int selectedIndex = comboBox.SelectedIndex;
@@ -54,4 +73,9 @@ public sealed partial class BenchmarkPanel : UserControl
         comboBox.SelectedIndex = -1;
         comboBox.SelectedIndex = selectedIndex;
     }
+}
+
+public sealed class BenchmarkTelemetryZoomRequestedEventArgs(IEnumerable? samples) : EventArgs
+{
+    public IEnumerable? Samples { get; } = samples;
 }

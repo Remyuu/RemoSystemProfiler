@@ -64,7 +64,7 @@ public readonly record struct BenchmarkResult(
 
 public static class BenchmarkRunner
 {
-    public const string Version = "2.2";
+    public const string Version = "2.1";
     public const string LegacyVersion = "2.0";
 
     private const int SciMarkKernelCount = 5;

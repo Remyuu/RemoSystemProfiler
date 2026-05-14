@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window
     private const int StartupOverlayCompletionHoldMilliseconds = 180;
     private const double BenchmarkCurtainHeight = 600;
     private const int BenchmarkCurtainAnimationMilliseconds = 220;
+    private const int BenchmarkTelemetryZoomAnimationMilliseconds = 160;
     private const double DashboardContentVerticalMargin = 14;
     private const double PressScale = 0.985;
 
@@ -48,6 +49,8 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _sidebarWidthAnimation;
     private bool _isBenchmarkCurtainOpen;
     private CancellationTokenSource? _benchmarkCurtainAnimation;
+    private bool _isBenchmarkTelemetryZoomOpen;
+    private CancellationTokenSource? _benchmarkTelemetryZoomAnimation;
     private CancellationTokenSource? _benchmarkCancellation;
     private BenchmarkSensorAccumulator _benchmarkSensors = new();
     private BenchmarkUploadDto? _lastBenchmarkUpload;
@@ -71,6 +74,7 @@ public sealed partial class MainWindow : Window
         BenchmarkPanel.UploadRequested += async (_, _) => await UploadBenchmarkAsync().ConfigureAwait(true);
         BenchmarkPanel.RefreshLeaderboardRequested += async (_, _) => await RefreshLeaderboardAsync().ConfigureAwait(true);
         BenchmarkPanel.ToggleLeaderboardScoreRequested += async (_, _) => await ToggleLeaderboardScoreAsync().ConfigureAwait(true);
+        BenchmarkPanel.TelemetryZoomRequested += async (_, args) => await OpenBenchmarkTelemetryZoomAsync(args.Samples).ConfigureAwait(true);
         RefreshDashboardFlyoutLocalization();
         Opened += OnOpened;
         Closed += OnClosed;
@@ -1322,6 +1326,85 @@ public sealed partial class MainWindow : Window
         _benchmarkCurtainAnimation?.Cancel();
     }
 
+    private async Task OpenBenchmarkTelemetryZoomAsync(System.Collections.IEnumerable? samples)
+    {
+        BenchmarkTelemetryZoomChart.Samples = samples ?? _viewModel.BenchmarkTelemetrySamples;
+        await AnimateBenchmarkTelemetryZoomAsync(open: true).ConfigureAwait(true);
+    }
+
+    private async void BenchmarkTelemetryZoomOverlay_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        e.Handled = true;
+        await AnimateBenchmarkTelemetryZoomAsync(open: false).ConfigureAwait(true);
+    }
+
+    private async Task AnimateBenchmarkTelemetryZoomAsync(bool open)
+    {
+        StopBenchmarkTelemetryZoomAnimation();
+        CancellationTokenSource animation = new();
+        _benchmarkTelemetryZoomAnimation = animation;
+        CancellationToken token = animation.Token;
+
+        if (open)
+        {
+            BenchmarkTelemetryZoomOverlay.IsVisible = true;
+            BenchmarkTelemetryZoomOverlay.IsHitTestVisible = true;
+        }
+
+        double fromOpacity = BenchmarkTelemetryZoomOverlay.Opacity;
+        double toOpacity = open ? 1 : 0;
+        ScaleTransform zoomScale = BenchmarkTelemetryZoomPanel.RenderTransform as ScaleTransform
+            ?? new ScaleTransform { ScaleX = 0.94, ScaleY = 0.94 };
+        BenchmarkTelemetryZoomPanel.RenderTransform = zoomScale;
+
+        double fromScale = zoomScale.ScaleX;
+        double toScale = open ? 1 : 0.94;
+
+        try
+        {
+            for (int frame = 1; frame <= DashboardAnimation.Frames; frame++)
+            {
+                token.ThrowIfCancellationRequested();
+                double t = frame / (double)DashboardAnimation.Frames;
+                double eased = open ? DashboardAnimation.EaseOutCubic(t) : t;
+                double opacity = DashboardAnimation.Lerp(fromOpacity, toOpacity, eased);
+                double scale = DashboardAnimation.Lerp(fromScale, toScale, eased);
+                BenchmarkTelemetryZoomOverlay.Opacity = opacity;
+                zoomScale.ScaleX = scale;
+                zoomScale.ScaleY = scale;
+                await Task.Delay(BenchmarkTelemetryZoomAnimationMilliseconds / DashboardAnimation.Frames, token).ConfigureAwait(true);
+            }
+
+            BenchmarkTelemetryZoomOverlay.Opacity = toOpacity;
+            zoomScale.ScaleX = toScale;
+            zoomScale.ScaleY = toScale;
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by another telemetry zoom animation or window shutdown.
+        }
+        finally
+        {
+            if (ReferenceEquals(_benchmarkTelemetryZoomAnimation, animation))
+            {
+                _isBenchmarkTelemetryZoomOpen = open;
+                BenchmarkTelemetryZoomOverlay.IsHitTestVisible = open;
+                if (!open)
+                {
+                    BenchmarkTelemetryZoomOverlay.IsVisible = false;
+                }
+
+                animation.Dispose();
+                _benchmarkTelemetryZoomAnimation = null;
+            }
+        }
+    }
+
+    private void StopBenchmarkTelemetryZoomAnimation()
+    {
+        _benchmarkTelemetryZoomAnimation?.Cancel();
+    }
+
     private async void PawnIoLink_Click(object? sender, RoutedEventArgs e)
     {
         if (_viewModel.IsPawnIoInstallRunning)
@@ -1551,6 +1634,7 @@ public sealed partial class MainWindow : Window
         CancelCpuBenchmark();
         StopSidebarWidthAnimation();
         StopBenchmarkCurtainAnimation();
+        StopBenchmarkTelemetryZoomAnimation();
         Closed -= OnClosed;
         _backend.Dispose();
         _benchmarkApi.Dispose();
