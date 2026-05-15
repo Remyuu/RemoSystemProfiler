@@ -34,8 +34,7 @@ public readonly record struct BenchmarkProgress(
     string StageName,
     TimeSpan Elapsed,
     TimeSpan Duration,
-    BenchmarkWorkloadResult? CompletedWorkload = null,
-    double? ZstdRatio = null);
+    BenchmarkWorkloadResult? CompletedWorkload = null);
 
 public readonly record struct BenchmarkWorkloadResult(
     string Name,
@@ -55,7 +54,6 @@ public readonly record struct BenchmarkResult(
     BenchmarkWorkloadResult SciMark,
     BenchmarkWorkloadResult ZstdCompression,
     BenchmarkWorkloadResult ZstdDecompression,
-    double ZstdRatio,
     BenchmarkWorkloadResult Hash,
     bool IsValid)
 {
@@ -65,7 +63,6 @@ public readonly record struct BenchmarkResult(
 public static class BenchmarkRunner
 {
     public const string Version = "2.1";
-    public const string LegacyVersion = "2.0";
 
     private const int SciMarkKernelCount = 5;
     private const int ZstdPayloadBytes = 1 * 1024 * 1024;
@@ -80,28 +77,13 @@ public static class BenchmarkRunner
 
     public static int RecommendedWorkerCount => MaxWorkerCount;
 
-    public static BenchmarkProfilePlan GetPlan(BenchmarkRunProfile profile) => GetPlan(profile, Version);
-
-    public static BenchmarkProfilePlan GetPlan(BenchmarkRunProfile profile, string? benchmarkVersion)
-    {
-        return IsLegacyVersion(benchmarkVersion)
-            ? GetLegacyPlan(profile)
-            : GetCurrentPlan(profile);
-    }
+    public static BenchmarkProfilePlan GetPlan(BenchmarkRunProfile profile) => GetCurrentPlan(profile);
 
     public static bool IsSupportedVersion(string? benchmarkVersion)
     {
         string version = NormalizeVersion(benchmarkVersion);
-        return string.Equals(version, Version, StringComparison.Ordinal)
-            || string.Equals(version, LegacyVersion, StringComparison.Ordinal);
+        return string.Equals(version, Version, StringComparison.Ordinal);
     }
-
-    public static bool IsLegacyVersion(string? benchmarkVersion)
-    {
-        return string.Equals(NormalizeVersion(benchmarkVersion), LegacyVersion, StringComparison.Ordinal);
-    }
-
-    public static bool SupportsCpuCoreScore(string? benchmarkVersion) => !IsLegacyVersion(benchmarkVersion);
 
     public static string NormalizeVersion(string? benchmarkVersion)
     {
@@ -135,48 +117,14 @@ public static class BenchmarkRunner
             TimeSpan.FromSeconds(8))
     };
 
-    private static BenchmarkProfilePlan GetLegacyPlan(BenchmarkRunProfile profile) => profile switch
-    {
-        BenchmarkRunProfile.Quick => new(
-            profile,
-            TimeSpan.FromSeconds(7),
-            TimeSpan.FromSeconds(12),
-            TimeSpan.FromSeconds(6),
-            TimeSpan.FromSeconds(6),
-            TimeSpan.FromSeconds(8)),
-        BenchmarkRunProfile.Sustained => new(
-            profile,
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(40),
-            TimeSpan.FromSeconds(75),
-            TimeSpan.FromSeconds(45),
-            TimeSpan.FromSeconds(25)),
-        _ => new(
-            BenchmarkRunProfile.Standard,
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(20),
-            TimeSpan.FromSeconds(18),
-            TimeSpan.FromSeconds(12),
-            TimeSpan.FromSeconds(12))
-    };
-
     public static async Task<BenchmarkResult> RunAsync(
-        BenchmarkRunProfile profile,
-        int workerCount,
-        IProgress<BenchmarkProgress>? progress,
-        CancellationToken cancellationToken) => await RunAsync(Version, profile, workerCount, progress, cancellationToken).ConfigureAwait(false);
-
-    public static async Task<BenchmarkResult> RunAsync(
-        string? benchmarkVersion,
         BenchmarkRunProfile profile,
         int workerCount,
         IProgress<BenchmarkProgress>? progress,
         CancellationToken cancellationToken)
     {
-        string version = NormalizeVersion(benchmarkVersion);
-        BenchmarkProfilePlan plan = GetPlan(profile, version);
+        BenchmarkProfilePlan plan = GetPlan(profile);
         workerCount = Math.Clamp(workerCount, 1, MaxWorkerCount);
-        bool legacyScoring = IsLegacyVersion(version);
 
         long startedAt = Stopwatch.GetTimestamp();
         TimeSpan completed = TimeSpan.Zero;
@@ -212,10 +160,7 @@ public static class BenchmarkRunner
             completed += sciMarkDurations[i];
         }
         BenchmarkWorkloadResult sciMark = BuildSciMarkResult(sciMarkTotal, plan.SciMark);
-        if (!legacyScoring)
-        {
-            sciMark = NormalizeCurrentWorkloadScore(sciMark, CurrentSciMarkScoreReference);
-        }
+        sciMark = NormalizeCurrentWorkloadScore(sciMark, CurrentSciMarkScoreReference);
 
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, sciMark);
 
@@ -231,13 +176,9 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.ZstdCompression;
         BenchmarkWorkloadResult zstdCompression = BuildZstdCompressionResult(zstdCompressionResult, plan.ZstdCompression);
-        if (!legacyScoring)
-        {
-            zstdCompression = NormalizeCurrentWorkloadScore(zstdCompression, CurrentZstdCompressionScoreReference);
-        }
+        zstdCompression = NormalizeCurrentWorkloadScore(zstdCompression, CurrentZstdCompressionScoreReference);
 
-        double ratio = zstdCompressionResult.ExtraUnits <= 0 ? 0 : zstdCompressionResult.Units / zstdCompressionResult.ExtraUnits;
-        ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdCompression, legacyScoring ? ratio : null);
+        ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdCompression);
 
         WorkerResult zstdDecompressionResult = await RunWorkloadStageAsync(
             "zstd decompress",
@@ -251,12 +192,9 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.ZstdDecompression;
         BenchmarkWorkloadResult zstdDecompression = BuildZstdDecompressionResult(zstdDecompressionResult, plan.ZstdDecompression);
-        if (!legacyScoring)
-        {
-            zstdDecompression = NormalizeCurrentWorkloadScore(zstdDecompression, CurrentZstdDecompressionScoreReference);
-        }
+        zstdDecompression = NormalizeCurrentWorkloadScore(zstdDecompression, CurrentZstdDecompressionScoreReference);
 
-        ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdDecompression, legacyScoring ? ratio : null);
+        ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, zstdDecompression);
 
         WorkerResult hashResult = await RunWorkloadStageAsync(
             "XxHash3",
@@ -270,22 +208,17 @@ public static class BenchmarkRunner
             cancellationToken).ConfigureAwait(false);
         completed += plan.Hash;
         BenchmarkWorkloadResult hash = BuildHashResult(hashResult, plan.Hash);
-        if (!legacyScoring)
-        {
-            hash = NormalizeCurrentWorkloadScore(hash, CurrentHashScoreReference);
-        }
+        hash = NormalizeCurrentWorkloadScore(hash, CurrentHashScoreReference);
 
         ReportCompletedWorkload(progress, startedAt, plan.TotalDuration, completed, hash);
 
         double elapsedSeconds = Math.Max(0.001, (Stopwatch.GetTimestamp() - startedAt) / (double)Stopwatch.Frequency);
-        double mixedScore = legacyScoring
-            ? GeometricMean(sciMark.Score, zstdCompression.Score, zstdDecompression.Score, hash.Score)
-            : WeightedGeometricMean(
-                (sciMark.Score, 70d),
-                (zstdCompression.Score, 10d),
-                (zstdDecompression.Score, 10d),
-                (hash.Score, 10d));
-        double coreScore = legacyScoring ? mixedScore : sciMark.Score;
+        double mixedScore = WeightedGeometricMean(
+            (sciMark.Score, 70d),
+            (zstdCompression.Score, 10d),
+            (zstdDecompression.Score, 10d),
+            (hash.Score, 10d));
+        double coreScore = sciMark.Score;
         ulong checksum = sciMark.Checksum
             ^ BitOperations.RotateLeft(zstdCompression.Checksum, 13)
             ^ BitOperations.RotateLeft(zstdDecompression.Checksum, 29)
@@ -293,8 +226,8 @@ public static class BenchmarkRunner
 
         progress?.Report(new BenchmarkProgress(1, "Complete", TimeSpan.FromSeconds(elapsedSeconds), plan.TotalDuration));
 
-        bool isValid = IsValidResult(plan, elapsedSeconds, mixedScore, coreScore, sciMark, zstdCompression, zstdDecompression, ratio, hash, requireZstdRatio: legacyScoring);
-        return new BenchmarkResult(version, plan.Profile, elapsedSeconds, workerCount, mixedScore, coreScore, checksum, sciMark, zstdCompression, zstdDecompression, legacyScoring ? ratio : 0, hash, isValid);
+        bool isValid = IsValidResult(plan, elapsedSeconds, mixedScore, coreScore, sciMark, zstdCompression, zstdDecompression, hash);
+        return new BenchmarkResult(Version, plan.Profile, elapsedSeconds, workerCount, mixedScore, coreScore, checksum, sciMark, zstdCompression, zstdDecompression, hash, isValid);
     }
 
     private static BenchmarkWorkloadResult BuildSciMarkResult(WorkerResult result, TimeSpan duration)
@@ -350,9 +283,7 @@ public static class BenchmarkRunner
         BenchmarkWorkloadResult sciMark,
         BenchmarkWorkloadResult zstdCompression,
         BenchmarkWorkloadResult zstdDecompression,
-        double zstdRatio,
-        BenchmarkWorkloadResult hash,
-        bool requireZstdRatio)
+        BenchmarkWorkloadResult hash)
     {
         return elapsedSeconds >= plan.TotalDuration.TotalSeconds * 0.85
             && IsFinitePositive(score)
@@ -362,7 +293,6 @@ public static class BenchmarkRunner
             && IsFinitePositive(zstdDecompression.Score)
             && IsFinitePositive(zstdCompression.ThroughputGbps)
             && IsFinitePositive(zstdDecompression.ThroughputGbps)
-            && (!requireZstdRatio || IsFinitePositive(zstdRatio))
             && IsFinitePositive(hash.Score)
             && IsFinitePositive(hash.ThroughputGbps);
     }
@@ -377,8 +307,7 @@ public static class BenchmarkRunner
         long benchmarkStartedAt,
         TimeSpan totalDuration,
         TimeSpan completed,
-        BenchmarkWorkloadResult workload,
-        double? zstdRatio = null)
+        BenchmarkWorkloadResult workload)
     {
         if (progress is null)
         {
@@ -387,7 +316,7 @@ public static class BenchmarkRunner
 
         TimeSpan elapsed = TimeSpan.FromSeconds((Stopwatch.GetTimestamp() - benchmarkStartedAt) / (double)Stopwatch.Frequency);
         double ratio = Math.Clamp(completed.TotalSeconds / totalDuration.TotalSeconds, 0, 1);
-        progress.Report(new BenchmarkProgress(ratio, $"{workload.Name} complete", elapsed, totalDuration, workload, zstdRatio));
+        progress.Report(new BenchmarkProgress(ratio, $"{workload.Name} complete", elapsed, totalDuration, workload));
     }
 
     private static async Task<WorkerResult> RunWorkloadStageAsync(

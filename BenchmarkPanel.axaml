@@ -167,15 +167,11 @@
                     RowDefinitions="Auto,*">
                     <StackPanel HorizontalAlignment="Right" Spacing="3">
                         <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkVersion}" />
-                        <ComboBox
-                            x:Name="BenchmarkVersionPicker"
-                            MinWidth="96"
+                        <TextBlock
+                            x:Name="BenchmarkVersionText"
+                            Classes="small-value"
                             HorizontalAlignment="Right"
-                            IsEnabled="{Binding AreBenchmarkSettingsEnabled}"
-                            SelectedIndex="{Binding SelectedBenchmarkVersionIndex, Mode=TwoWay}">
-                            <ComboBoxItem x:Name="BenchmarkVersion21Item" Content="2.1" />
-                            <ComboBoxItem x:Name="BenchmarkVersion20Item" Content="2.0" />
-                        </ComboBox>
+                            Text="2.1" />
                     </StackPanel>
                     <StackPanel
                         Grid.Row="1"

@@ -38,6 +38,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string? _statusToolTip;
     private IBrush _statusBrush = DashboardBrushes.Amber;
     private bool _isPawnIoDownloadVisible;
+    private bool _isAdminRestartVisible;
     private bool _isPawnIoInstallRunning;
     private bool _isPawnIoPromptVisible;
     private string _pawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
@@ -75,7 +76,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _leaderboardStatusText = Localization.LeaderboardReady;
     private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
     private double _benchmarkProgressValue;
-    private int _selectedBenchmarkVersionIndex;
     private int _selectedBenchmarkModeIndex = 1;
     private int _selectedBenchmarkProfileIndex = 1;
     private int _selectedLeaderboardScoreIndex;
@@ -152,6 +152,10 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public IBrush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
 
     public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
+
+    public bool IsAdminRestartVisible { get => _isAdminRestartVisible; set => SetProperty(ref _isAdminRestartVisible, value); }
+
+    public string AdminRestartButtonText => Localization.RestartAsAdministrator;
 
     public bool IsPawnIoInstallRunning
     {
@@ -450,20 +454,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public double BenchmarkProgressValue { get => _benchmarkProgressValue; set => SetProperty(ref _benchmarkProgressValue, value); }
 
-    public int SelectedBenchmarkVersionIndex
-    {
-        get => _selectedBenchmarkVersionIndex;
-        set
-        {
-            if (SetProperty(ref _selectedBenchmarkVersionIndex, Math.Clamp(value, 0, 1)))
-            {
-                SelectedLeaderboardScoreIndex = BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion()) ? 0 : 1;
-                RefreshBenchmarkDisplay();
-                RefreshLeaderboardScoreChrome();
-            }
-        }
-    }
-
     public int SelectedBenchmarkModeIndex
     {
         get => _selectedBenchmarkModeIndex;
@@ -501,7 +491,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         }
     }
 
-    public bool IsLeaderboardScorePickerEnabled => BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion());
+    public bool IsLeaderboardScorePickerEnabled => true;
 
     public bool IsLeaderboardCpuCoreSelected => ResolveLeaderboardScoreKind() == BenchmarkScoreKind.CpuCore;
 
@@ -572,6 +562,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             PawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
         }
 
+        RaisePropertyChanged(nameof(AdminRestartButtonText));
         RaisePropertyChanged(nameof(PawnIoPromptTitleText));
         RaisePropertyChanged(nameof(PawnIoPromptSubtitleText));
         RefreshCpuCoreGraphChrome();
@@ -665,21 +656,11 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public BenchmarkProfilePlan ResolveBenchmarkPlan()
     {
-        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile(), ResolveBenchmarkVersion());
-    }
-
-    public string ResolveBenchmarkVersion()
-    {
-        return SelectedBenchmarkVersionIndex == 1 ? BenchmarkRunner.LegacyVersion : BenchmarkRunner.Version;
+        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile());
     }
 
     public BenchmarkScoreKind ResolveLeaderboardScoreKind()
     {
-        if (!BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion()))
-        {
-            return BenchmarkScoreKind.CpuMixed;
-        }
-
         return SelectedLeaderboardScoreIndex == 1
             ? BenchmarkScoreKind.CpuMixed
             : BenchmarkScoreKind.CpuCore;
@@ -786,34 +767,43 @@ public interface IDashboardItem<in TData, out TKey>
     void Update(TData data);
 }
 
-public sealed class LeaderboardEntryViewModel
+public sealed class LeaderboardEntryViewModel : ObservableDashboardItem
 {
     private bool _isExpanded;
+    private bool _isDetailLoaded;
+    private bool _isDetailLoading;
+    private IReadOnlyList<BenchmarkTelemetrySample> _telemetrySamples = [];
+    private bool _hasTelemetrySamples;
+    private BenchmarkLeaderboardEntry _entry;
+    private readonly int _rank;
 
     public LeaderboardEntryViewModel(int rank, BenchmarkLeaderboardEntry entry, BenchmarkScoreKind scoreKind)
     {
         double score = ResolveScore(entry, scoreKind);
-        RankText = $"#{rank}";
+        int displayRank = entry.Rank is > 0 ? entry.Rank.Value : rank;
+        _entry = entry;
+        _rank = displayRank;
+        RunId = entry.RunId;
+        RankText = $"#{displayRank}";
         CountryCodeText = NormalizeCountryCode(entry.CountryCode);
         DisplayNameText = string.IsNullOrWhiteSpace(entry.DisplayName)
             ? BenchmarkPayload.DefaultDisplayName
             : entry.DisplayName;
-        CpuNameText = string.IsNullOrWhiteSpace(entry.CpuName) ? "--" : entry.CpuName;
-        ScoreText = score.ToString("N0", CultureInfo.InvariantCulture);
+        CpuNameText = ResolveCpuName(entry);
+        ScoreText = score > 0 ? score.ToString("N0", CultureInfo.InvariantCulture) : "--";
         ProfileModeText = $"{entry.Profile} / {entry.Mode}";
-        VersionText = $"bench {entry.BenchmarkVersion} | app {entry.AppVersion}";
-        BenchmarkVersionValue = entry.BenchmarkVersion;
-        ProfileValue = entry.Profile;
-        ModeValue = entry.Mode;
-        CanDelete = entry.IsCurrentDevice || entry.IsOwnDevice || entry.CanDelete;
+        VersionText = $"suite {entry.SuiteVersion} | app {entry.AppVersion}";
+        CanDelete = BenchmarkOwnershipStore.HasCredential(entry.RunId);
         OwnerFrameBrush = CanDelete ? DashboardBrushes.Teal : Brushes.Transparent;
         OwnerFrameThickness = CanDelete ? new Thickness(2) : new Thickness(0);
         OwnerFramePadding = CanDelete ? new Thickness(2) : new Thickness(0);
         DetailText = BuildDetailText(entry);
         TelemetrySamples = entry.TelemetrySamples is { Count: > 0 } samples ? samples : [];
         HasTelemetrySamples = TelemetrySamples.Count > 1;
-        DetailItems = BuildDetailItems(rank, entry, DisplayNameText, CpuNameText, ScoreText, ProfileModeText, VersionText);
+        ReplaceDetailItems(BuildDetailItems(displayRank, entry, DisplayNameText, CpuNameText, ScoreText, ProfileModeText, VersionText));
     }
+
+    public event EventHandler? DetailRequested;
 
     public string RankText { get; }
 
@@ -831,11 +821,7 @@ public sealed class LeaderboardEntryViewModel
 
     public string DetailText { get; }
 
-    public string BenchmarkVersionValue { get; }
-
-    public string ProfileValue { get; }
-
-    public string ModeValue { get; }
+    public string RunId { get; }
 
     public bool CanDelete { get; }
 
@@ -847,22 +833,117 @@ public sealed class LeaderboardEntryViewModel
 
     public Thickness OwnerFramePadding { get; }
 
-    public IReadOnlyList<LeaderboardDetailItemViewModel> DetailItems { get; }
+    public ObservableCollection<LeaderboardDetailItemViewModel> DetailItems { get; } = [];
 
-    public IReadOnlyList<BenchmarkTelemetrySample> TelemetrySamples { get; }
+    public IReadOnlyList<BenchmarkTelemetrySample> TelemetrySamples
+    {
+        get => _telemetrySamples;
+        private set
+        {
+            if (!ReferenceEquals(_telemetrySamples, value))
+            {
+                _telemetrySamples = value;
+                RaisePropertyChanged();
+                HasTelemetrySamples = _telemetrySamples.Count > 1;
+            }
+        }
+    }
 
-    public bool HasTelemetrySamples { get; }
+    public bool HasTelemetrySamples
+    {
+        get => _hasTelemetrySamples;
+        private set => SetProperty(ref _hasTelemetrySamples, value);
+    }
 
     public bool IsExpanded
     {
         get => _isExpanded;
-        set => _isExpanded = value;
+        set
+        {
+            if (SetProperty(ref _isExpanded, value)
+                && value
+                && !_isDetailLoaded
+                && !_isDetailLoading
+                && !string.IsNullOrWhiteSpace(RunId))
+            {
+                DetailRequested?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
+    public void MarkDetailLoading()
+    {
+        _isDetailLoading = true;
+    }
+
+    public void MarkDetailFailed()
+    {
+        _isDetailLoading = false;
+    }
+
+    public void ApplyDetail(BenchmarkRunDetail? detail, IReadOnlyList<BenchmarkTelemetrySample> telemetrySamples)
+    {
+        if (detail is not null)
+        {
+            _entry = MergeDetail(_entry, detail, telemetrySamples);
+            ReplaceDetailItems(BuildDetailItems(_rank, _entry, DisplayNameText, CpuNameText, ScoreText, ProfileModeText, VersionText));
+        }
+
+        if (telemetrySamples.Count > 0)
+        {
+            TelemetrySamples = telemetrySamples;
+        }
+
+        _isDetailLoaded = true;
+        _isDetailLoading = false;
+    }
+
+    private void ReplaceDetailItems(IReadOnlyList<LeaderboardDetailItemViewModel> items)
+    {
+        DetailItems.Clear();
+        foreach (LeaderboardDetailItemViewModel item in items)
+        {
+            DetailItems.Add(item);
+        }
+    }
+
+    private static BenchmarkLeaderboardEntry MergeDetail(
+        BenchmarkLeaderboardEntry current,
+        BenchmarkRunDetail detail,
+        IReadOnlyList<BenchmarkTelemetrySample> telemetrySamples)
+    {
+        return new BenchmarkLeaderboardEntry
+        {
+            RunId = string.IsNullOrWhiteSpace(detail.RunId) ? current.RunId : detail.RunId,
+            Rank = current.Rank,
+            DisplayName = string.IsNullOrWhiteSpace(detail.DisplayName) ? current.DisplayName : detail.DisplayName,
+            CountryCode = current.CountryCode,
+            RankingKey = current.RankingKey,
+            RankingScore = current.RankingScore,
+            AppVersion = current.AppVersion,
+            SuiteId = string.IsNullOrWhiteSpace(detail.SuiteId) ? current.SuiteId : detail.SuiteId,
+            SuiteVersion = string.IsNullOrWhiteSpace(detail.SuiteVersion) ? current.SuiteVersion : detail.SuiteVersion,
+            Profile = string.IsNullOrWhiteSpace(detail.Profile) ? current.Profile : detail.Profile,
+            Mode = string.IsNullOrWhiteSpace(detail.Mode) ? current.Mode : detail.Mode,
+            CpuName = current.CpuName,
+            CpuCores = current.CpuCores,
+            CpuThreads = current.CpuThreads,
+            Hardware = detail.Hardware ?? current.Hardware,
+            Scores = detail.Scores.Count == 0 ? current.Scores : detail.Scores,
+            Metrics = detail.Metrics.Count == 0 ? current.Metrics : detail.Metrics,
+            HasDetail = true,
+            HasTelemetry = current.HasTelemetry || telemetrySamples.Count > 0,
+            ClientCreatedAt = current.ClientCreatedAt,
+            ServerCreatedAt = current.ServerCreatedAt,
+            TelemetrySamples = telemetrySamples.Count == 0 ? current.TelemetrySamples : telemetrySamples
+        };
     }
 
     private static string BuildDetailText(BenchmarkLeaderboardEntry entry)
     {
-        string cpu = string.IsNullOrWhiteSpace(entry.CpuName) ? "--" : entry.CpuName;
-        string cores = entry.CpuCores is { } coreCount && entry.CpuThreads is { } threadCount
+        string cpu = ResolveCpuName(entry);
+        (int? coresValue, int? threadsValue) = ResolveCpuTopology(entry);
+        string cores = coresValue is { } coreCount && threadsValue is { } threadCount
             ? $"{coreCount}c/{threadCount}t"
             : "--";
         return $"{cpu} | {cores}";
@@ -893,15 +974,12 @@ public sealed class LeaderboardEntryViewModel
         string profileMode,
         string version)
     {
-        string cores = entry.CpuCores is { } coreCount && entry.CpuThreads is { } threadCount
+        (int? coresValue, int? threadsValue) = ResolveCpuTopology(entry);
+        string cores = coresValue is { } coreCount && threadsValue is { } threadCount
             ? $"{coreCount}c / {threadCount}t"
             : "--";
         string energyText = BenchmarkTelemetrySummaries.FormatEnergy(entry.TelemetrySamples);
         string peakPowerText = BenchmarkTelemetrySummaries.FormatPeakPower(entry.TelemetrySamples);
-        if (peakPowerText == "--" && !string.IsNullOrWhiteSpace(entry.PowerThermalStatus))
-        {
-            peakPowerText = entry.PowerThermalStatus;
-        }
 
         return
         [
@@ -909,23 +987,23 @@ public sealed class LeaderboardEntryViewModel
             new("Name", displayName),
             new("Country", NormalizeCountryCode(entry.CountryCode)),
             new("Ranking Score", score),
-            new("CPU Core Score", FormatNumber(entry.CpuCoreScore)),
-            new("CPU Mixed Score", FormatNumber(entry.CpuMixedScore ?? entry.Score)),
+            new("CPU Core Score", FormatNumber(FindScore(entry, BenchmarkPayload.CpuCoreScoreKey))),
+            new("CPU Mixed Score", FormatNumber(FindScore(entry, BenchmarkPayload.CpuMixedScoreKey))),
             new("Profile / Mode", profileMode),
             new("Version", version),
             new("CPU", cpuName),
             new("Cores / Threads", cores),
-            new("SciMark", FormatNumber(entry.SciMarkScore)),
-            new("zstd compression", FormatGbps(entry.ZstdCompressGbps)),
-            new("zstd decompression", FormatGbps(entry.ZstdDecompressGbps)),
-            new("XxHash3", FormatGbps(entry.XxHash3Gbps)),
-            new("Avg frequency", entry.AvgFrequencyGhz is { } frequency ? $"{frequency:0.00} GHz" : "--"),
-            new("Max temp", entry.MaxTemperatureC is { } temperature ? $"{temperature:0.#} C" : "--"),
+            new("SciMark", FormatNumber(FindMetric(entry, BenchmarkPayload.SciMarkMetricKey))),
+            new("zstd compression", FormatMetric(entry, BenchmarkPayload.ZstdCompressMetricKey, "GB/s")),
+            new("zstd decompression", FormatMetric(entry, BenchmarkPayload.ZstdDecompressMetricKey, "GB/s")),
+            new("XxHash3", FormatMetric(entry, BenchmarkPayload.XxHash3MetricKey, "GB/s")),
+            new("Avg frequency", FormatMetric(entry, BenchmarkPayload.CpuAverageFrequencyMetricKey, "GHz")),
+            new("Max temp", FormatMetric(entry, BenchmarkPayload.CpuMaxTemperatureMetricKey, "C")),
             new("CPU energy", energyText),
             new("Peak power", peakPowerText),
             new("Client time", string.IsNullOrWhiteSpace(entry.ClientCreatedAt) ? "--" : entry.ClientCreatedAt),
             new("Server time", string.IsNullOrWhiteSpace(entry.ServerCreatedAt) ? "--" : entry.ServerCreatedAt),
-            new("ID", string.IsNullOrWhiteSpace(entry.Id) ? "--" : entry.Id)
+            new("ID", string.IsNullOrWhiteSpace(entry.RunId) ? "--" : entry.RunId)
         ];
     }
 
@@ -933,9 +1011,25 @@ public sealed class LeaderboardEntryViewModel
         ? number.ToString("N0", CultureInfo.InvariantCulture)
         : "--";
 
-    private static string FormatGbps(double? value) => value is { } number
-        ? $"{number:0.00} GB/s"
-        : "--";
+    private static string FormatMetric(BenchmarkLeaderboardEntry entry, string key, string fallbackUnit)
+    {
+        BenchmarkValueDto? metric = FindValue(entry.Metrics, key);
+        if (metric is null)
+        {
+            return "--";
+        }
+
+        string unit = string.IsNullOrWhiteSpace(metric.Unit) ? fallbackUnit : metric.Unit;
+        return unit switch
+        {
+            "GB/s" => $"{metric.Value:0.00} GB/s",
+            "GHz" => $"{metric.Value:0.00} GHz",
+            "C" => $"{metric.Value:0.#} C",
+            _ => string.IsNullOrWhiteSpace(unit)
+                ? metric.Value.ToString("N0", CultureInfo.InvariantCulture)
+                : $"{metric.Value:0.##} {unit}"
+        };
+    }
 
     private static double ResolveScore(BenchmarkLeaderboardEntry entry, BenchmarkScoreKind scoreKind)
     {
@@ -944,9 +1038,37 @@ public sealed class LeaderboardEntryViewModel
             return rankingScore;
         }
 
-        return scoreKind == BenchmarkScoreKind.CpuCore
-            ? entry.CpuCoreScore ?? entry.Score
-            : entry.CpuMixedScore ?? entry.Score;
+        string scoreKey = BenchmarkPayload.ScoreKindToApiValue(scoreKind);
+        if (FindScore(entry, scoreKey) is { } score)
+        {
+            return score;
+        }
+
+        return FindScore(entry, BenchmarkPayload.CpuMixedScoreKey) ?? 0;
+    }
+
+    private static string ResolveCpuName(BenchmarkLeaderboardEntry entry)
+    {
+        string? cpuName = string.IsNullOrWhiteSpace(entry.CpuName)
+            ? entry.Hardware?.Cpu?.Name
+            : entry.CpuName;
+        return string.IsNullOrWhiteSpace(cpuName) ? "--" : cpuName;
+    }
+
+    private static (int? Cores, int? Threads) ResolveCpuTopology(BenchmarkLeaderboardEntry entry)
+    {
+        int? cores = entry.CpuCores ?? entry.Hardware?.Cpu?.Cores;
+        int? threads = entry.CpuThreads ?? entry.Hardware?.Cpu?.Threads;
+        return (cores, threads);
+    }
+
+    private static double? FindScore(BenchmarkLeaderboardEntry entry, string key) => FindValue(entry.Scores, key)?.Value;
+
+    private static double? FindMetric(BenchmarkLeaderboardEntry entry, string key) => FindValue(entry.Metrics, key)?.Value;
+
+    private static BenchmarkValueDto? FindValue(IReadOnlyList<BenchmarkValueDto>? values, string key)
+    {
+        return values?.FirstOrDefault(value => string.Equals(value.Key, key, StringComparison.Ordinal));
     }
 }
 
