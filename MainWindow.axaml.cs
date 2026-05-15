@@ -535,7 +535,7 @@ public sealed partial class MainWindow : Window
         _overviewBuffer.Clear();
         if (snapshot.Cpu is { } cpu)
         {
-            _overviewBuffer.Add(new("cpu", "CPU", cpu.AverageLoadText, cpu.ClockText, cpu.PackagePowerText, cpu.AverageLoadPercent, DashboardBrushes.Blue));
+            _overviewBuffer.Add(new("cpu", "CPU", cpu.AverageLoadText, cpu.ClockText, $"{cpu.PackagePowerText} | {cpu.MaxTemperatureText}", cpu.AverageLoadPercent, DashboardBrushes.Blue));
         }
 
         if (snapshot.Memory is { } memory)
