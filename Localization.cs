@@ -736,6 +736,42 @@ public static class Localization
         "Installiere PawnIO und starte Remo System Profiler als Administrator neu.",
         "Installez PawnIO, puis redémarrez Remo System Profiler en tant qu'administrateur.");
 
+    public static string RestartAsAdministrator => Text(
+        "Restart as administrator",
+        "以管理员身份重启",
+        "管理者として再起動",
+        "以系統管理員身分重新啟動",
+        "Reiniciar como administrador",
+        "Als Administrator neu starten",
+        "Redémarrer en administrateur");
+
+    public static string AdminRestartCannotFindExecutable => Text(
+        "Cannot find the current executable to restart as administrator.",
+        "无法找到当前程序，不能以管理员身份重启。",
+        "管理者として再起動するための現在の実行ファイルが見つかりません。",
+        "找不到目前程式，無法以系統管理員身分重新啟動。",
+        "No se encuentra el ejecutable actual para reiniciar como administrador.",
+        "Die aktuelle Programmdatei für den Administrator-Neustart wurde nicht gefunden.",
+        "Impossible de trouver l'exécutable actuel pour redémarrer en administrateur.");
+
+    public static string AdminRestartCanceled => Text(
+        "Administrator restart was canceled.",
+        "已取消管理员重启。",
+        "管理者としての再起動はキャンセルされました。",
+        "已取消系統管理員重新啟動。",
+        "Se canceló el reinicio como administrador.",
+        "Der Neustart als Administrator wurde abgebrochen.",
+        "Le redémarrage en administrateur a été annulé.");
+
+    public static string AdminRestartFailed(string detail) => Text(
+        "Administrator restart failed: " + detail,
+        "管理员重启失败：" + detail,
+        "管理者としての再起動に失敗しました: " + detail,
+        "系統管理員重新啟動失敗：" + detail,
+        "Error al reiniciar como administrador: " + detail,
+        "Neustart als Administrator fehlgeschlagen: " + detail,
+        "Échec du redémarrage en administrateur : " + detail);
+
     public static string PawnIoInstallerSource => Text(
         "Downloads the official PawnIO installer from GitHub Releases.",
         "从 GitHub Releases 下载官方 PawnIO 安装器。",

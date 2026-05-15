@@ -565,7 +565,7 @@
                         Grid.Row="1"
                         Classes="panel"
                         IsVisible="{Binding IsSidebarExpanded}">
-                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
                             <Ellipse
                                 Width="8"
                                 Height="8"
@@ -580,6 +580,13 @@
                                 Text="{Binding StatusText}"
                                 TextWrapping="Wrap"
                                 ToolTip.Tip="{Binding StatusToolTip}" />
+                            <Button
+                                Grid.Column="2"
+                                Classes="link"
+                                Click="RestartAsAdmin_Click"
+                                Content="{Binding AdminRestartButtonText}"
+                                IsVisible="{Binding IsAdminRestartVisible}"
+                                ToolTip.Tip="{Binding AdminRestartButtonText}" />
                             <Button
                                 Grid.Row="1"
                                 Grid.Column="1"

@@ -38,6 +38,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string? _statusToolTip;
     private IBrush _statusBrush = DashboardBrushes.Amber;
     private bool _isPawnIoDownloadVisible;
+    private bool _isAdminRestartVisible;
     private bool _isPawnIoInstallRunning;
     private bool _isPawnIoPromptVisible;
     private string _pawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
@@ -152,6 +153,10 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public IBrush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
 
     public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
+
+    public bool IsAdminRestartVisible { get => _isAdminRestartVisible; set => SetProperty(ref _isAdminRestartVisible, value); }
+
+    public string AdminRestartButtonText => Localization.RestartAsAdministrator;
 
     public bool IsPawnIoInstallRunning
     {
@@ -572,6 +577,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
             PawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
         }
 
+        RaisePropertyChanged(nameof(AdminRestartButtonText));
         RaisePropertyChanged(nameof(PawnIoPromptTitleText));
         RaisePropertyChanged(nameof(PawnIoPromptSubtitleText));
         RefreshCpuCoreGraphChrome();

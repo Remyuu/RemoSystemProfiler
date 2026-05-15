@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using RemoSystemProfiler.Backends.Windows;
 using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -30,6 +31,9 @@ public sealed partial class MainWindow : Window
     private const int BenchmarkTelemetryZoomAnimationMilliseconds = 160;
     private const double DashboardContentVerticalMargin = 14;
     private const double PressScale = 0.985;
+    private const string PawnIoInstalledNotLoadedMessage = "PawnIO installed but not loaded; restart as administrator";
+    private const string NoSupportedSensorsAdminMessage = "No supported hardware sensors found; try running as administrator";
+    private const int ErrorCancelled = 1223;
 
     private static readonly TimeSpan BenchmarkNetworkActionCooldown = TimeSpan.FromSeconds(5);
     private static readonly int[] ChartRangesSeconds = [10, 30, 60, 300];
@@ -357,6 +361,7 @@ public sealed partial class MainWindow : Window
             : Localization.ConnectedStatus(snapshot.Source, Localization.DriverSummary(result.DriverStatus));
         _viewModel.StatusToolTip = limited ? BuildLimitedStatusTooltip(result) : null;
         _viewModel.IsPawnIoDownloadVisible = ShouldShowPawnIoInstaller(result.DriverStatus);
+        _viewModel.IsAdminRestartVisible = ShouldShowAdminRestart(result);
         _viewModel.UpdatedText = snapshot.SampledAtText;
         _viewModel.HardwareSummaryText = Localization.HardwareSummary(snapshot.Gpus.Count, snapshot.StorageDevices.Count);
 
@@ -428,6 +433,7 @@ public sealed partial class MainWindow : Window
         _viewModel.StatusText = driverStatus.NeedsInstallation ? localizedDriverMessage : localizedMessage;
         _viewModel.StatusToolTip = driverStatus.NeedsInstallation ? $"{localizedDriverMessage}\n{localizedMessage}" : localizedMessage;
         _viewModel.IsPawnIoDownloadVisible = ShouldShowPawnIoInstaller(driverStatus);
+        _viewModel.IsAdminRestartVisible = ShouldShowAdminRestart(message, driverStatus);
         _viewModel.HardwareSummaryText = Localization.HardwareSensorsUnavailable;
         ShowCpu(null);
         ShowMemory(null);
@@ -455,6 +461,24 @@ public sealed partial class MainWindow : Window
             || status.Message.Equals(
                 "PawnIO installation found but the driver is unavailable; uninstall PawnIO, then install again",
                 StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldShowAdminRestart(HardwareMonitorReadResult result)
+    {
+        return result.RequiresAdministrator || ShouldShowAdminRestart(result.Message, result.DriverStatus);
+    }
+
+    private static bool ShouldShowAdminRestart(string message, SensorDriverStatus status)
+    {
+        return IsPawnIoAdminRestartState(status)
+            || message.Equals(NoSupportedSensorsAdminMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsPawnIoAdminRestartState(SensorDriverStatus status)
+    {
+        return status.IsInstalled
+            && !status.IsLoaded
+            && status.Message.Equals(PawnIoInstalledNotLoadedMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsLegacyPawnIoVersion(string? versionText)
@@ -1496,6 +1520,50 @@ public sealed partial class MainWindow : Window
     private void StopBenchmarkTelemetryZoomAnimation()
     {
         _benchmarkTelemetryZoomAnimation?.Cancel();
+    }
+
+    private void RestartAsAdmin_Click(object? sender, RoutedEventArgs e)
+    {
+        string? executablePath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            _viewModel.StatusBrush = DashboardBrushes.OrangeRed;
+            _viewModel.StatusText = Localization.AdminRestartCannotFindExecutable;
+            _viewModel.StatusToolTip = _viewModel.StatusText;
+            return;
+        }
+
+        try
+        {
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = executablePath,
+                UseShellExecute = true,
+                Verb = "runas",
+                WorkingDirectory = AppContext.BaseDirectory
+            };
+
+            string[] args = Environment.GetCommandLineArgs();
+            for (int i = 1; i < args.Length; i++)
+            {
+                startInfo.ArgumentList.Add(args[i]);
+            }
+
+            Process.Start(startInfo);
+            Close();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
+        {
+            _viewModel.StatusBrush = DashboardBrushes.OrangeRed;
+            _viewModel.StatusText = Localization.AdminRestartCanceled;
+            _viewModel.StatusToolTip = _viewModel.StatusText;
+        }
+        catch (Exception ex)
+        {
+            _viewModel.StatusBrush = DashboardBrushes.OrangeRed;
+            _viewModel.StatusText = Localization.AdminRestartFailed(ShortError(ex.Message));
+            _viewModel.StatusToolTip = _viewModel.StatusText;
+        }
     }
 
     private async void PawnIoLink_Click(object? sender, RoutedEventArgs e)
