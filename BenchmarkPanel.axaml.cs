@@ -48,14 +48,12 @@ public sealed partial class BenchmarkPanel : UserControl
 
     public void RefreshLocalization()
     {
-        BenchmarkVersion21Item.Content = BenchmarkRunner.Version;
-        BenchmarkVersion20Item.Content = BenchmarkRunner.LegacyVersion;
+        BenchmarkVersionText.Text = BenchmarkRunner.Version;
         Dispatcher.UIThread.Post(RefreshLocalizedSelectionBoxes, DispatcherPriority.Render);
     }
 
     public void RefreshLocalizedSelectionBoxes()
     {
-        RefreshSelectionBox(BenchmarkVersionPicker);
         RefreshSelectionBox(BenchmarkProfilePicker);
         RefreshSelectionBox(BenchmarkModePicker);
     }

@@ -56,6 +56,8 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _benchmarkCurtainAnimation;
     private bool _isBenchmarkTelemetryZoomOpen;
     private CancellationTokenSource? _benchmarkTelemetryZoomAnimation;
+    private bool _isBenchmarkSelectionRefreshRunning;
+    private bool _isBenchmarkSelectionRefreshPending;
     private CancellationTokenSource? _benchmarkCancellation;
     private BenchmarkSensorAccumulator _benchmarkSensors = new();
     private BenchmarkUploadDto? _lastBenchmarkUpload;
@@ -74,6 +76,7 @@ public sealed partial class MainWindow : Window
         ApplyStoredDashboardSettings(DashboardSettingsStore.Load());
         InitializeComponent();
         DataContext = _viewModel;
+        _viewModel.PropertyChanged += MainWindowViewModel_PropertyChanged;
         BenchmarkPanel.RunRequested += async (_, _) => await RunCpuBenchmarkAsync().ConfigureAwait(true);
         BenchmarkPanel.CancelRequested += (_, _) => CancelCpuBenchmark();
         BenchmarkPanel.UploadRequested += async (_, _) => await UploadBenchmarkAsync().ConfigureAwait(true);
@@ -98,6 +101,60 @@ public sealed partial class MainWindow : Window
             ?? new TranslateTransform();
         DashboardContent.RenderTransform = _dashboardContentTransform;
         UpdateDashboardContentHeight(DashboardScrollViewer.Bounds.Height);
+    }
+
+    private void MainWindowViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_isClosed || _isApplyingStoredSettings || _isRefreshingLocalizedSelectionBoxes)
+        {
+            return;
+        }
+
+        if (e.PropertyName is nameof(MainWindowViewModel.SelectedBenchmarkProfileIndex)
+            or nameof(MainWindowViewModel.SelectedBenchmarkModeIndex))
+        {
+            RequestBenchmarkSelectionLeaderboardRefresh();
+        }
+    }
+
+    private void RequestBenchmarkSelectionLeaderboardRefresh()
+    {
+        _isBenchmarkSelectionRefreshPending = true;
+        if (!_isBenchmarkSelectionRefreshRunning)
+        {
+            _ = RefreshLeaderboardForBenchmarkSelectionAsync();
+        }
+    }
+
+    private async Task RefreshLeaderboardForBenchmarkSelectionAsync()
+    {
+        _isBenchmarkSelectionRefreshRunning = true;
+        try
+        {
+            while (_isBenchmarkSelectionRefreshPending && !_isClosed)
+            {
+                if (_viewModel.IsLeaderboardLoading)
+                {
+                    await Task.Delay(100, _shutdown.Token).ConfigureAwait(true);
+                    continue;
+                }
+
+                _isBenchmarkSelectionRefreshPending = false;
+                await RefreshLeaderboardAsync().ConfigureAwait(true);
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Window shutdown cancels pending leaderboard refresh work.
+        }
+        finally
+        {
+            _isBenchmarkSelectionRefreshRunning = false;
+            if (_isBenchmarkSelectionRefreshPending && !_isClosed)
+            {
+                _ = RefreshLeaderboardForBenchmarkSelectionAsync();
+            }
+        }
     }
 
     private void PressableControl_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -989,7 +1046,6 @@ public sealed partial class MainWindow : Window
         _benchmarkCancellation = benchmark;
         int workerCount = _viewModel.ResolveBenchmarkWorkerCount();
         BenchmarkRunProfile profile = _viewModel.ResolveBenchmarkProfile();
-        string benchmarkVersion = _viewModel.ResolveBenchmarkVersion();
         BenchmarkProfilePlan plan = _viewModel.ResolveBenchmarkPlan();
         string modeText = _viewModel.ResolveBenchmarkModeText();
 
@@ -1024,7 +1080,7 @@ public sealed partial class MainWindow : Window
         Progress<BenchmarkProgress> progress = new(ShowBenchmarkProgress);
         try
         {
-            BenchmarkResult result = await BenchmarkRunner.RunAsync(benchmarkVersion, profile, workerCount, progress, benchmark.Token).ConfigureAwait(true);
+            BenchmarkResult result = await BenchmarkRunner.RunAsync(profile, workerCount, progress, benchmark.Token).ConfigureAwait(true);
             ShowBenchmarkResult(result);
         }
         catch (OperationCanceledException)
@@ -1094,9 +1150,7 @@ public sealed partial class MainWindow : Window
     {
         _viewModel.BenchmarkProgressValue = 100;
         _viewModel.BenchmarkProgressText = MainWindowViewModel.FormatBenchmarkProgress(100, TimeSpan.FromSeconds(result.ElapsedSeconds), TimeSpan.FromSeconds(result.ElapsedSeconds));
-        _viewModel.BenchmarkScoreText = BenchmarkRunner.SupportsCpuCoreScore(result.Version)
-            ? Math.Round(result.CpuCoreScore).ToString("N0", CultureInfo.InvariantCulture)
-            : "--";
+        _viewModel.BenchmarkScoreText = Math.Round(result.CpuCoreScore).ToString("N0", CultureInfo.InvariantCulture);
         _viewModel.BenchmarkMixedScoreText = Math.Round(result.CpuMixedScore).ToString("N0", CultureInfo.InvariantCulture);
         _viewModel.BenchmarkModeText = Localization.BenchmarkModeText(result.WorkerCount == 1 ? 0 : 1);
         _viewModel.BenchmarkSciMarkText = Math.Round(result.SciMark.Score).ToString("N0", CultureInfo.InvariantCulture);
@@ -1122,11 +1176,7 @@ public sealed partial class MainWindow : Window
     {
         CpuDeviceReading? cpu = _lastResult?.Snapshot?.Cpu;
         List<BenchmarkValueDto> scores = [];
-        if (BenchmarkRunner.SupportsCpuCoreScore(result.Version))
-        {
-            scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuCoreScoreKey, Value = result.CpuCoreScore, Unit = "score" });
-        }
-
+        scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuCoreScoreKey, Value = result.CpuCoreScore, Unit = "score" });
         scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuMixedScoreKey, Value = result.CpuMixedScore, Unit = "score" });
 
         List<BenchmarkValueDto> metrics =
@@ -1136,10 +1186,6 @@ public sealed partial class MainWindow : Window
             new() { Key = BenchmarkPayload.ZstdDecompressMetricKey, Value = result.ZstdDecompression.ThroughputGbps, Unit = "GB/s" },
             new() { Key = BenchmarkPayload.XxHash3MetricKey, Value = result.Hash.ThroughputGbps, Unit = "GB/s" }
         ];
-        if (BenchmarkRunner.IsLegacyVersion(result.Version) && double.IsFinite(result.ZstdRatio) && result.ZstdRatio >= 0)
-        {
-            metrics.Add(new BenchmarkValueDto { Key = BenchmarkPayload.ZstdRatioMetricKey, Value = result.ZstdRatio });
-        }
 
         if (sensorSummary.AverageFrequencyGhz is { } averageFrequencyGhz)
         {
@@ -1330,7 +1376,7 @@ public sealed partial class MainWindow : Window
             BenchmarkLeaderboardQuery query = new()
             {
                 SuiteId = BenchmarkPayload.CpuSuiteId,
-                SuiteVersion = _viewModel.ResolveBenchmarkVersion(),
+                SuiteVersion = BenchmarkRunner.Version,
                 Profile = BenchmarkPayload.ProfileToApiValue(_viewModel.ResolveBenchmarkProfile()),
                 Mode = BenchmarkPayload.ModeToApiValue(_viewModel.ResolveBenchmarkWorkerCount()),
                 ScoreKind = scoreKind,
@@ -1873,6 +1919,7 @@ public sealed partial class MainWindow : Window
         StopBenchmarkCurtainAnimation();
         StopBenchmarkTelemetryZoomAnimation();
         Closed -= OnClosed;
+        _viewModel.PropertyChanged -= MainWindowViewModel_PropertyChanged;
         _backend.Dispose();
         _benchmarkApi.Dispose();
         _shutdown.Dispose();

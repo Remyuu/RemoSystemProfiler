@@ -900,7 +900,6 @@ public static class BenchmarkPayload
     public const string SciMarkMetricKey = "scimark.total";
     public const string ZstdCompressMetricKey = "zstd.compress_gbps";
     public const string ZstdDecompressMetricKey = "zstd.decompress_gbps";
-    public const string ZstdRatioMetricKey = "zstd.ratio";
     public const string XxHash3MetricKey = "xxhash3.gbps";
     public const string CpuAverageFrequencyMetricKey = "cpu.avg_frequency_ghz";
     public const string CpuMaxTemperatureMetricKey = "cpu.max_temperature_c";
@@ -1020,8 +1019,7 @@ public static class BenchmarkPayload
             return false;
         }
 
-        if (BenchmarkRunner.SupportsCpuCoreScore(dto.SuiteVersion)
-            && !dto.Scores.Any(score => score.Key == CpuCoreScoreKey && IsAcceptedScore(score.Value)))
+        if (!dto.Scores.Any(score => score.Key == CpuCoreScoreKey && IsAcceptedScore(score.Value)))
         {
             error = "Missing CPU core score.";
             return false;

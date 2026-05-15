@@ -76,7 +76,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     private string _leaderboardStatusText = Localization.LeaderboardReady;
     private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
     private double _benchmarkProgressValue;
-    private int _selectedBenchmarkVersionIndex;
     private int _selectedBenchmarkModeIndex = 1;
     private int _selectedBenchmarkProfileIndex = 1;
     private int _selectedLeaderboardScoreIndex;
@@ -455,20 +454,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public double BenchmarkProgressValue { get => _benchmarkProgressValue; set => SetProperty(ref _benchmarkProgressValue, value); }
 
-    public int SelectedBenchmarkVersionIndex
-    {
-        get => _selectedBenchmarkVersionIndex;
-        set
-        {
-            if (SetProperty(ref _selectedBenchmarkVersionIndex, Math.Clamp(value, 0, 1)))
-            {
-                SelectedLeaderboardScoreIndex = BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion()) ? 0 : 1;
-                RefreshBenchmarkDisplay();
-                RefreshLeaderboardScoreChrome();
-            }
-        }
-    }
-
     public int SelectedBenchmarkModeIndex
     {
         get => _selectedBenchmarkModeIndex;
@@ -506,7 +491,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         }
     }
 
-    public bool IsLeaderboardScorePickerEnabled => BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion());
+    public bool IsLeaderboardScorePickerEnabled => true;
 
     public bool IsLeaderboardCpuCoreSelected => ResolveLeaderboardScoreKind() == BenchmarkScoreKind.CpuCore;
 
@@ -671,21 +656,11 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public BenchmarkProfilePlan ResolveBenchmarkPlan()
     {
-        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile(), ResolveBenchmarkVersion());
-    }
-
-    public string ResolveBenchmarkVersion()
-    {
-        return SelectedBenchmarkVersionIndex == 1 ? BenchmarkRunner.LegacyVersion : BenchmarkRunner.Version;
+        return BenchmarkRunner.GetPlan(ResolveBenchmarkProfile());
     }
 
     public BenchmarkScoreKind ResolveLeaderboardScoreKind()
     {
-        if (!BenchmarkRunner.SupportsCpuCoreScore(ResolveBenchmarkVersion()))
-        {
-            return BenchmarkScoreKind.CpuMixed;
-        }
-
         return SelectedLeaderboardScoreIndex == 1
             ? BenchmarkScoreKind.CpuMixed
             : BenchmarkScoreKind.CpuCore;
