@@ -1121,38 +1121,61 @@ public sealed partial class MainWindow : Window
     private BenchmarkUploadDto CreateBenchmarkUploadDto(BenchmarkResult result, BenchmarkSensorSummary sensorSummary)
     {
         CpuDeviceReading? cpu = _lastResult?.Snapshot?.Cpu;
-        string installationId = BenchmarkIdentityStore.GetOrCreateInstallationId();
-        string deviceId = BenchmarkIdentityStore.GetOrCreateDeviceId();
+        List<BenchmarkValueDto> scores = [];
+        if (BenchmarkRunner.SupportsCpuCoreScore(result.Version))
+        {
+            scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuCoreScoreKey, Value = result.CpuCoreScore, Unit = "score" });
+        }
+
+        scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuMixedScoreKey, Value = result.CpuMixedScore, Unit = "score" });
+
+        List<BenchmarkValueDto> metrics =
+        [
+            new() { Key = BenchmarkPayload.SciMarkMetricKey, Value = result.SciMark.Score, Unit = "score" },
+            new() { Key = BenchmarkPayload.ZstdCompressMetricKey, Value = result.ZstdCompression.ThroughputGbps, Unit = "GB/s" },
+            new() { Key = BenchmarkPayload.ZstdDecompressMetricKey, Value = result.ZstdDecompression.ThroughputGbps, Unit = "GB/s" },
+            new() { Key = BenchmarkPayload.XxHash3MetricKey, Value = result.Hash.ThroughputGbps, Unit = "GB/s" }
+        ];
+        if (BenchmarkRunner.IsLegacyVersion(result.Version) && double.IsFinite(result.ZstdRatio) && result.ZstdRatio >= 0)
+        {
+            metrics.Add(new BenchmarkValueDto { Key = BenchmarkPayload.ZstdRatioMetricKey, Value = result.ZstdRatio });
+        }
+
+        if (sensorSummary.AverageFrequencyGhz is { } averageFrequencyGhz)
+        {
+            metrics.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuAverageFrequencyMetricKey, Value = averageFrequencyGhz, Unit = "GHz" });
+        }
+
+        if (sensorSummary.MaxTemperatureC is { } maxTemperatureC)
+        {
+            metrics.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuMaxTemperatureMetricKey, Value = maxTemperatureC, Unit = "C" });
+        }
+
         BenchmarkUploadDto dto = new()
         {
+            SchemaVersion = BenchmarkPayload.SchemaVersion,
+            SuiteId = BenchmarkPayload.CpuSuiteId,
             AppVersion = _viewModel.CurrentVersion,
-            BenchmarkVersion = result.Version,
+            SuiteVersion = result.Version,
             Profile = BenchmarkPayload.ProfileToApiValue(result.Profile),
             Mode = BenchmarkPayload.ModeToApiValue(result.WorkerCount),
             DisplayName = BenchmarkPayload.NormalizeDisplayName(_viewModel.BenchmarkDisplayNameText),
-            Score = result.CpuMixedScore,
-            CpuCoreScore = BenchmarkRunner.SupportsCpuCoreScore(result.Version) ? result.CpuCoreScore : null,
-            CpuMixedScore = result.CpuMixedScore,
-            SciMarkScore = result.SciMark.Score,
-            ZstdCompressGbps = result.ZstdCompression.ThroughputGbps,
-            ZstdDecompressGbps = result.ZstdDecompression.ThroughputGbps,
-            ZstdRatio = BenchmarkRunner.IsLegacyVersion(result.Version) ? result.ZstdRatio : null,
-            XxHash3Gbps = result.Hash.ThroughputGbps,
-            CpuName = string.IsNullOrWhiteSpace(cpu?.Name) ? null : cpu.Name,
-            CpuCores = PositiveOrNull(cpu?.CoreCount),
-            CpuThreads = PositiveOrNull(cpu?.LogicalProcessorCount),
-            AvgFrequencyGhz = sensorSummary.AverageFrequencyGhz,
-            MaxTemperatureC = sensorSummary.MaxTemperatureC,
-            PowerThermalStatus = sensorSummary.PeakPowerText,
-            ValidationStatus = result.IsValid ? BenchmarkPayload.ValidationOk : "FAILED",
-            InstallationId = installationId,
-            DeviceId = deviceId,
             ClientCreatedAt = BenchmarkPayload.UtcTimestamp(DateTimeOffset.UtcNow),
-            TelemetrySamples = sensorSummary.TelemetrySamples
+            Hardware = new BenchmarkHardwareInfo
+            {
+                Cpu = new BenchmarkCpuHardwareInfo
+                {
+                    Name = string.IsNullOrWhiteSpace(cpu?.Name) ? null : cpu.Name,
+                    Cores = PositiveOrNull(cpu?.CoreCount),
+                    Threads = PositiveOrNull(cpu?.LogicalProcessorCount)
+                }
+            },
+            Scores = scores,
+            Metrics = metrics,
+            LocalTelemetrySamples = sensorSummary.TelemetrySamples
         };
 
         BenchmarkPayload.NormalizeMetrics(dto);
-        dto.Checksum = result.IsValid ? BenchmarkPayload.ComputeChecksum(dto) : string.Empty;
         return dto;
     }
 
@@ -1185,6 +1208,7 @@ public sealed partial class MainWindow : Window
 
             if (result.Status is BenchmarkUploadStatus.Uploaded or BenchmarkUploadStatus.Updated or BenchmarkUploadStatus.Duplicate)
             {
+                SaveBenchmarkOwnership(result);
                 await RefreshLeaderboardAsync().ConfigureAwait(true);
             }
         }
@@ -1203,6 +1227,24 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void SaveBenchmarkOwnership(BenchmarkUploadResult result)
+    {
+        if (string.IsNullOrWhiteSpace(result.RunId) || string.IsNullOrWhiteSpace(result.OwnerToken) || _lastBenchmarkUpload is null)
+        {
+            return;
+        }
+
+        BenchmarkOwnershipStore.Save(new BenchmarkOwnerRecord
+        {
+            RunId = result.RunId,
+            OwnerToken = result.OwnerToken,
+            SuiteId = _lastBenchmarkUpload.SuiteId,
+            SuiteVersion = _lastBenchmarkUpload.SuiteVersion,
+            DisplayName = _lastBenchmarkUpload.DisplayName,
+            CreatedAt = BenchmarkPayload.UtcTimestamp(DateTimeOffset.UtcNow)
+        });
+    }
+
     private async Task DeleteBenchmarkAsync(LeaderboardEntryViewModel entry)
     {
         if (!_viewModel.CanDeleteBenchmarkResult || !entry.CanDelete)
@@ -1215,13 +1257,16 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            if (!BenchmarkOwnershipStore.TryGetCredential(entry.RunId, out BenchmarkOwnerCredential credential))
+            {
+                _viewModel.BenchmarkUploadStatusText = Localization.BenchmarkDeleteFailed("Missing owner token.");
+                return;
+            }
+
             BenchmarkDeleteRequest request = new()
             {
-                DeviceId = BenchmarkIdentityStore.GetOrCreateDeviceId(),
-                DisplayName = entry.DisplayNameText,
-                BenchmarkVersion = entry.BenchmarkVersionValue,
-                Profile = entry.ProfileValue,
-                Mode = entry.ModeValue
+                RunId = credential.RunId,
+                OwnerToken = credential.OwnerToken
             };
             BenchmarkDeleteResult result = await _benchmarkApi.DeleteAsync(request, _shutdown.Token).ConfigureAwait(true);
             _viewModel.BenchmarkUploadStatusText = result.Status switch
@@ -1235,6 +1280,7 @@ public sealed partial class MainWindow : Window
 
             if (result.Status == BenchmarkDeleteStatus.Deleted)
             {
+                BenchmarkOwnershipStore.Remove(entry.RunId);
                 await RefreshLeaderboardAsync().ConfigureAwait(true);
             }
         }
@@ -1283,8 +1329,8 @@ public sealed partial class MainWindow : Window
             BenchmarkScoreKind scoreKind = _viewModel.ResolveLeaderboardScoreKind();
             BenchmarkLeaderboardQuery query = new()
             {
-                BenchmarkVersion = _viewModel.ResolveBenchmarkVersion(),
-                DeviceId = BenchmarkIdentityStore.GetOrCreateDeviceId(),
+                SuiteId = BenchmarkPayload.CpuSuiteId,
+                SuiteVersion = _viewModel.ResolveBenchmarkVersion(),
                 Profile = BenchmarkPayload.ProfileToApiValue(_viewModel.ResolveBenchmarkProfile()),
                 Mode = BenchmarkPayload.ModeToApiValue(_viewModel.ResolveBenchmarkWorkerCount()),
                 ScoreKind = scoreKind,
@@ -1295,7 +1341,9 @@ public sealed partial class MainWindow : Window
             _viewModel.LeaderboardEntries.Clear();
             for (int i = 0; i < entries.Count; i++)
             {
-                _viewModel.LeaderboardEntries.Add(new LeaderboardEntryViewModel(i + 1, entries[i], scoreKind));
+                LeaderboardEntryViewModel entry = new(i + 1, entries[i], scoreKind);
+                entry.DetailRequested += LeaderboardEntry_DetailRequested;
+                _viewModel.LeaderboardEntries.Add(entry);
             }
             _viewModel.LeaderboardStatusText = entries.Count == 0
                 ? Localization.LeaderboardEmpty
@@ -1320,6 +1368,34 @@ public sealed partial class MainWindow : Window
             {
                 await FinishCooldownAsync(cooldownStartedAt, () => _viewModel.IsLeaderboardRefreshCooldownRunning = false).ConfigureAwait(true);
             }
+        }
+    }
+
+    private void LeaderboardEntry_DetailRequested(object? sender, EventArgs e)
+    {
+        if (sender is LeaderboardEntryViewModel entry)
+        {
+            _ = LoadLeaderboardEntryDetailAsync(entry);
+        }
+    }
+
+    private async Task LoadLeaderboardEntryDetailAsync(LeaderboardEntryViewModel entry)
+    {
+        entry.MarkDetailLoading();
+        try
+        {
+            Task<BenchmarkRunDetail?> detailTask = _benchmarkApi.GetRunAsync(entry.RunId, _shutdown.Token);
+            Task<IReadOnlyList<BenchmarkTelemetrySample>> telemetryTask = _benchmarkApi.GetTelemetryAsync(entry.RunId, BenchmarkPayload.MaxTelemetrySamples, _shutdown.Token);
+            await Task.WhenAll(detailTask, telemetryTask).ConfigureAwait(true);
+            entry.ApplyDetail(detailTask.Result, telemetryTask.Result);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Window shutdown cancels deferred leaderboard detail loading.
+        }
+        catch
+        {
+            entry.MarkDetailFailed();
         }
     }
 
