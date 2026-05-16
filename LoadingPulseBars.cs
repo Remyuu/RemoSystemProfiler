@@ -116,7 +116,10 @@ public sealed class LoadingPulseBars : Control
 
         double x = -segmentWidth + cycle * (width + segmentWidth);
         Rect segment = new(x, y, segmentWidth, height);
-        context.DrawRectangle(segmentBrush, null, segment, height / 2);
+        using (context.PushClip(track))
+        {
+            context.DrawRectangle(segmentBrush, null, segment, height / 2);
+        }
     }
 
     private void Timer_Tick(object? sender, EventArgs e)
