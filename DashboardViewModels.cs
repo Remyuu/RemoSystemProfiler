@@ -870,6 +870,8 @@ public sealed partial class LeaderboardEntryViewModel : ObservableDashboardItem
             : "--";
         string energyText = BenchmarkTelemetrySummaries.FormatEnergy(entry.TelemetrySamples);
         string peakPowerText = BenchmarkTelemetrySummaries.FormatPeakPower(entry.TelemetrySamples);
+        string memoryType = string.IsNullOrWhiteSpace(entry.Hardware?.Memory?.Type) ? "--" : entry.Hardware.Memory.Type;
+        string memorySpeed = string.IsNullOrWhiteSpace(entry.Hardware?.Memory?.Speed) ? "--" : entry.Hardware.Memory.Speed;
 
         return
         [
@@ -883,6 +885,8 @@ public sealed partial class LeaderboardEntryViewModel : ObservableDashboardItem
             new("Version", version),
             new("CPU", cpuName),
             new("Cores / Threads", cores),
+            new("Memory type", memoryType),
+            new("Memory speed", memorySpeed),
             new("SciMark", FormatNumber(FindMetric(entry, BenchmarkPayload.SciMarkMetricKey))),
             new("zstd compression", FormatMetric(entry, BenchmarkPayload.ZstdCompressMetricKey, "GB/s")),
             new("zstd decompression", FormatMetric(entry, BenchmarkPayload.ZstdDecompressMetricKey, "GB/s")),

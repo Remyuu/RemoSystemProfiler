@@ -115,12 +115,13 @@
                                     IsVisible="{Binding HasTelemetrySamples}"
                                     PointerReleased="LeaderboardTelemetryPanel_PointerReleased"
                                     Spacing="4">
-                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                                         <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
                                         <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
                                         <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
                                         <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
                                         <TextBlock Grid.Column="4" Classes="label" Foreground="{StaticResource GreenBrush}" Text="{DynamicResource Ui_Speed}" />
+                                        <TextBlock Grid.Column="5" Classes="label" Foreground="{StaticResource PurpleBrush}" Text="{DynamicResource Ui_Voltage}" />
                                     </Grid>
                                     <local:BenchmarkTelemetryChart
                                         Height="68"
@@ -242,12 +243,13 @@
                     Padding="8,6"
                     PointerReleased="BenchmarkTelemetryPanel_PointerReleased">
                     <Grid RowDefinitions="Auto,*" RowSpacing="4">
-                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                             <TextBlock Classes="label" Text="{DynamicResource Ui_BenchmarkTelemetry}" />
                             <TextBlock Grid.Column="1" Classes="label" Foreground="{StaticResource BlueBrush}" Text="{DynamicResource Ui_Load}" />
                             <TextBlock Grid.Column="2" Classes="label" Foreground="{StaticResource RedBrush}" Text="{DynamicResource Ui_Temp}" />
                             <TextBlock Grid.Column="3" Classes="label" Foreground="{StaticResource AmberBrush}" Text="{DynamicResource Ui_Power}" />
                             <TextBlock Grid.Column="4" Classes="label" Foreground="{StaticResource GreenBrush}" Text="{DynamicResource Ui_Speed}" />
+                            <TextBlock Grid.Column="5" Classes="label" Foreground="{StaticResource PurpleBrush}" Text="{DynamicResource Ui_Voltage}" />
                         </Grid>
                         <local:BenchmarkTelemetryChart
                             x:Name="MainBenchmarkTelemetryChart"

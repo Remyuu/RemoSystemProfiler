@@ -14,6 +14,8 @@ public sealed class BenchmarkTelemetryChart : Control
     public static readonly StyledProperty<IEnumerable?> SamplesProperty =
         AvaloniaProperty.Register<BenchmarkTelemetryChart, IEnumerable?>(nameof(Samples));
 
+    private const double CpuVoltageScaleMax = 2d;
+
     private INotifyCollectionChanged? _observedCollection;
     private bool _isPointerInside;
     private Point _pointerPosition;
@@ -66,6 +68,7 @@ public sealed class BenchmarkTelemetryChart : Control
         DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuMaxTemperatureC, 100, DashboardBrushes.Red);
         DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuPackagePowerW, maxPower, DashboardBrushes.Amber);
         DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuClockGhz, maxClock, DashboardBrushes.Green);
+        DrawSeries(context, chart, samples, maxElapsed, sample => sample.CpuVoltageV, CpuVoltageScaleMax, DashboardBrushes.Purple);
         DrawHoverReadout(context, bounds, chart, samples, maxElapsed);
     }
 
@@ -257,6 +260,12 @@ public sealed class BenchmarkTelemetryChart : Control
             context.DrawEllipse(DashboardBrushes.Green, null, clockPoint, 2.5, 2.5);
         }
 
+        if (sample.CpuVoltageV is not null)
+        {
+            Point voltagePoint = ChartPoint(chart, sample, maxElapsed, item => item.CpuVoltageV, CpuVoltageScaleMax);
+            context.DrawEllipse(DashboardBrushes.Purple, null, voltagePoint, 2.5, 2.5);
+        }
+
         DrawTooltip(context, bounds, sample);
     }
 
@@ -268,7 +277,8 @@ public sealed class BenchmarkTelemetryChart : Control
             $"{Localization.Resource("Ui_Load")}  {FormatPercent(sample.CpuLoadPercent)}",
             $"{Localization.Resource("Ui_Temp")}  {FormatTemperature(sample.CpuMaxTemperatureC)}",
             $"{Localization.Resource("Ui_Power")}  {FormatPower(sample.CpuPackagePowerW)}",
-            $"{Localization.Resource("Ui_Speed")}  {FormatClock(sample.CpuClockGhz)}"
+            $"{Localization.Resource("Ui_Speed")}  {FormatClock(sample.CpuClockGhz)}",
+            $"{Localization.SensorGroupTitle("voltage")}  {FormatVoltage(sample.CpuVoltageV)}"
         ];
 
         FormattedText[] texts = lines
@@ -322,5 +332,9 @@ public sealed class BenchmarkTelemetryChart : Control
 
     private static string FormatClock(double? value) => value is { } number && double.IsFinite(number)
         ? $"{number:0.00} GHz"
+        : "--";
+
+    private static string FormatVoltage(double? value) => value is { } number && double.IsFinite(number)
+        ? $"{number:0.###} V"
         : "--";
 }
