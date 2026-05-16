@@ -1,108 +1,268 @@
 using Avalonia;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using RemoSystemProfiler.Core;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace RemoSystemProfiler;
 
-public abstract class ObservableDashboardItem : INotifyPropertyChanged
+public abstract class ObservableDashboardItem : ObservableObject
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     protected void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value))
-        {
-            return false;
-        }
-
-        field = value;
-        RaisePropertyChanged(propertyName);
-        return true;
+        OnPropertyChanged(propertyName);
     }
 }
 
-public sealed class MainWindowViewModel : ObservableDashboardItem
+public sealed partial class MainWindowViewModel : ObservableDashboardItem
 {
+    [ObservableProperty]
     private string _hardwareSummaryText = Localization.WaitingForHardwareSensors;
+
+    [ObservableProperty]
     private string _statusText = Localization.WaitingForSensors;
+
+    [ObservableProperty]
     private string? _statusToolTip;
+
+    [ObservableProperty]
     private IBrush _statusBrush = DashboardBrushes.Amber;
+
+    [ObservableProperty]
     private bool _isPawnIoDownloadVisible;
+
+    [ObservableProperty]
     private bool _isAdminRestartVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPawnIoInstallAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsPawnIoPromptCancelAvailable))]
     private bool _isPawnIoInstallRunning;
+
+    [ObservableProperty]
     private bool _isPawnIoPromptVisible;
+
+    [ObservableProperty]
     private string _pawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
+
+    [ObservableProperty]
     private string _updatedText = "--:--:--";
+
+    [ObservableProperty]
     private string _cpuNameText = "--";
+
+    [ObservableProperty]
     private string _cpuLoadSummaryText = "--";
+
+    [ObservableProperty]
     private string _clockText = "--";
+
+    [ObservableProperty]
     private string _cpuPackagePowerText = "--";
+
+    [ObservableProperty]
     private string _cpuPeakTempText = "--";
+
+    [ObservableProperty]
     private string _coreCountText = "--";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCpuLogicalProcessorView))]
+    [NotifyPropertyChangedFor(nameof(CpuCoreGraphTitle))]
+    [NotifyPropertyChangedFor(nameof(CpuCoreGraphToggleText))]
+    [NotifyPropertyChangedFor(nameof(CpuCoreGraphToggleToolTip))]
+    [NotifyPropertyChangedFor(nameof(CpuLogicalGraphOpacity))]
+    [NotifyPropertyChangedFor(nameof(CpuOverallGraphOpacity))]
+    [NotifyPropertyChangedFor(nameof(CpuLogicalGraphScale))]
+    [NotifyPropertyChangedFor(nameof(CpuOverallGraphScale))]
     private bool _isCpuOverallView;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBenchmarkStartEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsBenchmarkCancelVisible))]
+    [NotifyPropertyChangedFor(nameof(BenchmarkStartButtonText))]
+    [NotifyPropertyChangedFor(nameof(AreBenchmarkSettingsEnabled))]
+    [NotifyPropertyChangedFor(nameof(CanUploadBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(CanDeleteBenchmarkResult))]
     private bool _isBenchmarkRunning;
+
+    [ObservableProperty]
     private string _benchmarkStatusText = Localization.BenchmarkReady;
+
+    [ObservableProperty]
     private string _benchmarkModeText = Localization.BenchmarkModeText(1);
+
+    [ObservableProperty]
     private string _benchmarkScoreText = "--";
+
+    [ObservableProperty]
     private string _benchmarkMixedScoreText = "--";
+
+    [ObservableProperty]
     private string _benchmarkSciMarkText = "--";
+
+    [ObservableProperty]
     private string _benchmarkZstdCompressionText = "--";
+
+    [ObservableProperty]
     private string _benchmarkZstdDecompressionText = "--";
+
+    [ObservableProperty]
     private string _benchmarkHashText = "--";
+
+    [ObservableProperty]
     private string _benchmarkThreadsText = Localization.BenchmarkThreadCount(BenchmarkRunner.MaxWorkerCount);
+
+    [ObservableProperty]
     private string _benchmarkCpuFrequencyText = "--";
+
+    [ObservableProperty]
     private string _benchmarkCpuTemperatureText = "--";
+
+    [ObservableProperty]
     private string _benchmarkCpuEnergyText = "--";
+
+    [ObservableProperty]
     private string _benchmarkPeakPowerText = "--";
+
+    [ObservableProperty]
     private string _benchmarkValidationText = "--";
+
+    [ObservableProperty]
     private string _benchmarkDisplayNameText = BenchmarkPayload.DefaultDisplayName;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUploadBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(BenchmarkUploadButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanDeleteBenchmarkResult))]
     private bool _isBenchmarkUploadAvailable;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUploadBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(BenchmarkUploadButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanDeleteBenchmarkResult))]
     private bool _isBenchmarkUploadRunning;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUploadBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(BenchmarkUploadButtonText))]
     private bool _isBenchmarkUploadCooldownRunning;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUploadBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(CanDeleteBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(BenchmarkDeleteButtonText))]
     private bool _isBenchmarkDeleteRunning;
+
+    [ObservableProperty]
     private string _benchmarkUploadStatusText = Localization.BenchmarkUploadNoResult;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRefreshLeaderboard))]
+    [NotifyPropertyChangedFor(nameof(CanDeleteBenchmarkResult))]
+    [NotifyPropertyChangedFor(nameof(LeaderboardButtonText))]
     private bool _isLeaderboardLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRefreshLeaderboard))]
+    [NotifyPropertyChangedFor(nameof(LeaderboardButtonText))]
     private bool _isLeaderboardRefreshCooldownRunning;
+
+    [ObservableProperty]
     private string _leaderboardStatusText = Localization.LeaderboardReady;
+
+    [ObservableProperty]
     private string _benchmarkProgressText = FormatBenchmarkProgress(0, TimeSpan.Zero, BenchmarkRunner.GetPlan(BenchmarkRunProfile.Standard).TotalDuration);
+
+    [ObservableProperty]
     private double _benchmarkProgressValue;
+
     private int _selectedBenchmarkModeIndex = 1;
     private int _selectedBenchmarkProfileIndex = 1;
     private int _selectedLeaderboardScoreIndex;
+
+    [ObservableProperty]
     private string _memoryUsageText = "--";
+
+    [ObservableProperty]
     private string _memoryCapacityText = "--";
+
+    [ObservableProperty]
     private string _memoryTempText = "";
+
+    [ObservableProperty]
+    private string _memoryTypeText = "--";
+
+    [ObservableProperty]
+    private string _memorySpeedText = "--";
+
+    [ObservableProperty]
     private bool _isStartupOverlayVisible = true;
+
+    [ObservableProperty]
     private double _startupOverlayOpacity = 1;
+
+    [ObservableProperty]
     private string _startupStatusText = Localization.OpeningSensorBackend;
+
+    [ObservableProperty]
     private int _selectedChartRangeIndex;
+
+    [ObservableProperty]
     private int _selectedUpdateIntervalIndex = 1;
+
+    [ObservableProperty]
     private int _selectedThemeIndex;
+
+    [ObservableProperty]
     private int _selectedLanguageIndex = Localization.CurrentLanguageIndex;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidebarExpanded))]
+    [NotifyPropertyChangedFor(nameof(SidebarToggleToolTip))]
     private bool _isSidebarCompact;
-    private bool _isSidebarExpanded = true;
-    private string _sidebarToggleToolTip = Localization.CollapseSidebar;
+
+    [ObservableProperty]
     private Thickness _sidebarMargin = new(8, 10);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateCheckAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateInstallAvailable))]
     private bool _isUpdateCheckRunning;
+
+    [ObservableProperty]
     private bool _isReleaseNotesVisible;
+
+    [ObservableProperty]
     private bool _isOpenReleaseVisible;
+
+    [ObservableProperty]
     private bool _isInstallUpdateVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateCheckAvailable))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateInstallAvailable))]
     private bool _isUpdateInstallRunning;
+
+    [ObservableProperty]
     private bool _isUpdateProgressVisible;
+
+    [ObservableProperty]
     private double _updateProgressValue;
+
+    [ObservableProperty]
     private string _updateProgressText = "0%";
+
+    [ObservableProperty]
     private string _updateStatusText = Localization.UpdateIdle;
+
+    [ObservableProperty]
     private string _releaseNotesText = string.Empty;
+
+    [ObservableProperty]
     private string _latestReleaseUrl = "https://github.com/Remyuu/RemoSystemProfiler/releases";
     private static readonly string ApplicationVersion = ResolveApplicationVersion();
     private readonly Dictionary<BenchmarkMetricCardKey, BenchmarkMetricCardViewModel> _benchmarkMetricCardsByKey = [];
@@ -143,123 +303,23 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public ObservableCollection<BenchmarkTelemetrySample> BenchmarkTelemetrySamples { get; } = [];
 
-    public string HardwareSummaryText { get => _hardwareSummaryText; set => SetProperty(ref _hardwareSummaryText, value); }
-
-    public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
-
-    public string? StatusToolTip { get => _statusToolTip; set => SetProperty(ref _statusToolTip, value); }
-
-    public IBrush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
-
-    public bool IsPawnIoDownloadVisible { get => _isPawnIoDownloadVisible; set => SetProperty(ref _isPawnIoDownloadVisible, value); }
-
-    public bool IsAdminRestartVisible { get => _isAdminRestartVisible; set => SetProperty(ref _isAdminRestartVisible, value); }
-
     public string AdminRestartButtonText => Localization.RestartAsAdministrator;
-
-    public bool IsPawnIoInstallRunning
-    {
-        get => _isPawnIoInstallRunning;
-        set
-        {
-            if (SetProperty(ref _isPawnIoInstallRunning, value))
-            {
-                RaisePropertyChanged(nameof(IsPawnIoInstallAvailable));
-                RaisePropertyChanged(nameof(IsPawnIoPromptCancelAvailable));
-            }
-        }
-    }
 
     public bool IsPawnIoInstallAvailable => !IsPawnIoInstallRunning;
 
     public bool IsPawnIoPromptCancelAvailable => !IsPawnIoInstallRunning;
 
-    public bool IsPawnIoPromptVisible { get => _isPawnIoPromptVisible; set => SetProperty(ref _isPawnIoPromptVisible, value); }
-
-    public string PawnIoInstallButtonText { get => _pawnIoInstallButtonText; set => SetProperty(ref _pawnIoInstallButtonText, value); }
-
     public string PawnIoPromptTitleText => Localization.PawnIoRequired;
 
     public string PawnIoPromptSubtitleText => Localization.InstallPawnIoRestartAdmin;
-
-    public string UpdatedText { get => _updatedText; set => SetProperty(ref _updatedText, value); }
 
     public string VersionText => $"v{ApplicationVersion}";
 
     public string CurrentVersion => ApplicationVersion;
 
-    public bool IsUpdateCheckRunning
-    {
-        get => _isUpdateCheckRunning;
-        set
-        {
-            if (SetProperty(ref _isUpdateCheckRunning, value))
-            {
-                RaisePropertyChanged(nameof(IsUpdateCheckAvailable));
-                RaisePropertyChanged(nameof(IsUpdateInstallAvailable));
-            }
-        }
-    }
-
     public bool IsUpdateCheckAvailable => !IsUpdateCheckRunning && !IsUpdateInstallRunning;
 
-    public bool IsUpdateInstallRunning
-    {
-        get => _isUpdateInstallRunning;
-        set
-        {
-            if (SetProperty(ref _isUpdateInstallRunning, value))
-            {
-                RaisePropertyChanged(nameof(IsUpdateCheckAvailable));
-                RaisePropertyChanged(nameof(IsUpdateInstallAvailable));
-            }
-        }
-    }
-
     public bool IsUpdateInstallAvailable => !IsUpdateCheckRunning && !IsUpdateInstallRunning;
-
-    public bool IsReleaseNotesVisible { get => _isReleaseNotesVisible; set => SetProperty(ref _isReleaseNotesVisible, value); }
-
-    public bool IsOpenReleaseVisible { get => _isOpenReleaseVisible; set => SetProperty(ref _isOpenReleaseVisible, value); }
-
-    public bool IsInstallUpdateVisible { get => _isInstallUpdateVisible; set => SetProperty(ref _isInstallUpdateVisible, value); }
-
-    public bool IsUpdateProgressVisible { get => _isUpdateProgressVisible; set => SetProperty(ref _isUpdateProgressVisible, value); }
-
-    public double UpdateProgressValue { get => _updateProgressValue; set => SetProperty(ref _updateProgressValue, value); }
-
-    public string UpdateProgressText { get => _updateProgressText; set => SetProperty(ref _updateProgressText, value); }
-
-    public string UpdateStatusText { get => _updateStatusText; set => SetProperty(ref _updateStatusText, value); }
-
-    public string ReleaseNotesText { get => _releaseNotesText; set => SetProperty(ref _releaseNotesText, value); }
-
-    public string LatestReleaseUrl { get => _latestReleaseUrl; set => SetProperty(ref _latestReleaseUrl, value); }
-
-    public string CpuNameText { get => _cpuNameText; set => SetProperty(ref _cpuNameText, value); }
-
-    public string CpuLoadSummaryText { get => _cpuLoadSummaryText; set => SetProperty(ref _cpuLoadSummaryText, value); }
-
-    public string ClockText { get => _clockText; set => SetProperty(ref _clockText, value); }
-
-    public string CpuPackagePowerText { get => _cpuPackagePowerText; set => SetProperty(ref _cpuPackagePowerText, value); }
-
-    public string CpuPeakTempText { get => _cpuPeakTempText; set => SetProperty(ref _cpuPeakTempText, value); }
-
-    public string CoreCountText { get => _coreCountText; set => SetProperty(ref _coreCountText, value); }
-
-    public bool IsCpuOverallView
-    {
-        get => _isCpuOverallView;
-        set
-        {
-            if (SetProperty(ref _isCpuOverallView, value))
-            {
-                RaisePropertyChanged(nameof(IsCpuLogicalProcessorView));
-                RefreshCpuCoreGraphChrome();
-            }
-        }
-    }
 
     public bool IsCpuLogicalProcessorView => !IsCpuOverallView;
 
@@ -283,23 +343,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public double CpuOverallGraphScale => IsCpuOverallView ? 1d : 0.985d;
 
-    public bool IsBenchmarkRunning
-    {
-        get => _isBenchmarkRunning;
-        set
-        {
-            if (SetProperty(ref _isBenchmarkRunning, value))
-            {
-                RaisePropertyChanged(nameof(IsBenchmarkStartEnabled));
-                RaisePropertyChanged(nameof(IsBenchmarkCancelVisible));
-                RaisePropertyChanged(nameof(BenchmarkStartButtonText));
-                RaisePropertyChanged(nameof(AreBenchmarkSettingsEnabled));
-                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
-                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
-            }
-        }
-    }
-
     public bool IsBenchmarkStartEnabled => !IsBenchmarkRunning;
 
     public bool AreBenchmarkSettingsEnabled => !IsBenchmarkRunning;
@@ -307,95 +350,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     public bool IsBenchmarkCancelVisible => IsBenchmarkRunning;
 
     public string BenchmarkStartButtonText => IsBenchmarkRunning ? Localization.BenchmarkRunningButton : Localization.BenchmarkRunButton;
-
-    public string BenchmarkStatusText { get => _benchmarkStatusText; set => SetProperty(ref _benchmarkStatusText, value); }
-
-    public string BenchmarkModeText { get => _benchmarkModeText; set => SetBenchmarkText(ref _benchmarkModeText, value, BenchmarkMetricCardKey.Mode); }
-
-    public string BenchmarkScoreText { get => _benchmarkScoreText; set => SetBenchmarkText(ref _benchmarkScoreText, value, BenchmarkMetricCardKey.CpuCoreScore); }
-
-    public string BenchmarkMixedScoreText { get => _benchmarkMixedScoreText; set => SetBenchmarkText(ref _benchmarkMixedScoreText, value, BenchmarkMetricCardKey.CpuMixedScore); }
-
-    public string BenchmarkSciMarkText { get => _benchmarkSciMarkText; set => SetBenchmarkText(ref _benchmarkSciMarkText, value, BenchmarkMetricCardKey.SciMark); }
-
-    public string BenchmarkZstdCompressionText { get => _benchmarkZstdCompressionText; set => SetBenchmarkText(ref _benchmarkZstdCompressionText, value, BenchmarkMetricCardKey.ZstdCompression); }
-
-    public string BenchmarkZstdDecompressionText { get => _benchmarkZstdDecompressionText; set => SetBenchmarkText(ref _benchmarkZstdDecompressionText, value, BenchmarkMetricCardKey.ZstdDecompression); }
-
-    public string BenchmarkHashText { get => _benchmarkHashText; set => SetBenchmarkText(ref _benchmarkHashText, value, BenchmarkMetricCardKey.XxHash3); }
-
-    public string BenchmarkThreadsText { get => _benchmarkThreadsText; set => SetProperty(ref _benchmarkThreadsText, value); }
-
-    public string BenchmarkCpuFrequencyText { get => _benchmarkCpuFrequencyText; set => SetBenchmarkText(ref _benchmarkCpuFrequencyText, value, BenchmarkMetricCardKey.CpuAverageFrequency); }
-
-    public string BenchmarkCpuTemperatureText { get => _benchmarkCpuTemperatureText; set => SetBenchmarkText(ref _benchmarkCpuTemperatureText, value, BenchmarkMetricCardKey.CpuMaxTemperature); }
-
-    public string BenchmarkCpuEnergyText { get => _benchmarkCpuEnergyText; set => SetBenchmarkText(ref _benchmarkCpuEnergyText, value, BenchmarkMetricCardKey.CpuEnergy); }
-
-    public string BenchmarkPeakPowerText { get => _benchmarkPeakPowerText; set => SetBenchmarkText(ref _benchmarkPeakPowerText, value, BenchmarkMetricCardKey.CpuPeakPower); }
-
-    public string BenchmarkValidationText { get => _benchmarkValidationText; set => SetBenchmarkText(ref _benchmarkValidationText, value, BenchmarkMetricCardKey.Validation); }
-
-    public string BenchmarkDisplayNameText
-    {
-        get => _benchmarkDisplayNameText;
-        set => SetProperty(ref _benchmarkDisplayNameText, value);
-    }
-
-    public bool IsBenchmarkUploadAvailable
-    {
-        get => _isBenchmarkUploadAvailable;
-        set
-        {
-            if (SetProperty(ref _isBenchmarkUploadAvailable, value))
-            {
-                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
-                RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
-                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
-            }
-        }
-    }
-
-    public bool IsBenchmarkUploadRunning
-    {
-        get => _isBenchmarkUploadRunning;
-        set
-        {
-            if (SetProperty(ref _isBenchmarkUploadRunning, value))
-            {
-                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
-                RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
-                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
-            }
-        }
-    }
-
-    public bool IsBenchmarkUploadCooldownRunning
-    {
-        get => _isBenchmarkUploadCooldownRunning;
-        set
-        {
-            if (SetProperty(ref _isBenchmarkUploadCooldownRunning, value))
-            {
-                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
-                RaisePropertyChanged(nameof(BenchmarkUploadButtonText));
-            }
-        }
-    }
-
-    public bool IsBenchmarkDeleteRunning
-    {
-        get => _isBenchmarkDeleteRunning;
-        set
-        {
-            if (SetProperty(ref _isBenchmarkDeleteRunning, value))
-            {
-                RaisePropertyChanged(nameof(CanUploadBenchmarkResult));
-                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
-                RaisePropertyChanged(nameof(BenchmarkDeleteButtonText));
-            }
-        }
-    }
 
     public bool CanUploadBenchmarkResult => IsBenchmarkUploadAvailable && !IsBenchmarkRunning && !IsBenchmarkUploadRunning && !IsBenchmarkUploadCooldownRunning && !IsBenchmarkDeleteRunning;
 
@@ -411,35 +365,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         ? Localization.BenchmarkDeleting
         : Localization.BenchmarkDeleteButton;
 
-    public string BenchmarkUploadStatusText { get => _benchmarkUploadStatusText; set => SetProperty(ref _benchmarkUploadStatusText, value); }
-
-    public bool IsLeaderboardLoading
-    {
-        get => _isLeaderboardLoading;
-        set
-        {
-            if (SetProperty(ref _isLeaderboardLoading, value))
-            {
-                RaisePropertyChanged(nameof(CanRefreshLeaderboard));
-                RaisePropertyChanged(nameof(CanDeleteBenchmarkResult));
-                RaisePropertyChanged(nameof(LeaderboardButtonText));
-            }
-        }
-    }
-
-    public bool IsLeaderboardRefreshCooldownRunning
-    {
-        get => _isLeaderboardRefreshCooldownRunning;
-        set
-        {
-            if (SetProperty(ref _isLeaderboardRefreshCooldownRunning, value))
-            {
-                RaisePropertyChanged(nameof(CanRefreshLeaderboard));
-                RaisePropertyChanged(nameof(LeaderboardButtonText));
-            }
-        }
-    }
-
     public bool CanRefreshLeaderboard => !IsLeaderboardLoading && !IsLeaderboardRefreshCooldownRunning;
 
     public string LeaderboardButtonText => IsLeaderboardLoading
@@ -447,12 +372,6 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         : IsLeaderboardRefreshCooldownRunning
         ? Localization.ActionCooldown
         : Localization.LeaderboardRefreshButton;
-
-    public string LeaderboardStatusText { get => _leaderboardStatusText; set => SetProperty(ref _leaderboardStatusText, value); }
-
-    public string BenchmarkProgressText { get => _benchmarkProgressText; set => SetProperty(ref _benchmarkProgressText, value); }
-
-    public double BenchmarkProgressValue { get => _benchmarkProgressValue; set => SetProperty(ref _benchmarkProgressValue, value); }
 
     public int SelectedBenchmarkModeIndex
     {
@@ -507,44 +426,9 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public IBrush LeaderboardSwitchBrush => DashboardBrushes.Teal;
 
-    public string MemoryUsageText { get => _memoryUsageText; set => SetProperty(ref _memoryUsageText, value); }
+    public bool IsSidebarExpanded => !IsSidebarCompact;
 
-    public string MemoryCapacityText { get => _memoryCapacityText; set => SetProperty(ref _memoryCapacityText, value); }
-
-    public string MemoryTempText { get => _memoryTempText; set => SetProperty(ref _memoryTempText, value); }
-
-    public bool IsStartupOverlayVisible { get => _isStartupOverlayVisible; set => SetProperty(ref _isStartupOverlayVisible, value); }
-
-    public double StartupOverlayOpacity { get => _startupOverlayOpacity; set => SetProperty(ref _startupOverlayOpacity, value); }
-
-    public string StartupStatusText { get => _startupStatusText; set => SetProperty(ref _startupStatusText, value); }
-
-    public int SelectedChartRangeIndex { get => _selectedChartRangeIndex; set => SetProperty(ref _selectedChartRangeIndex, value); }
-
-    public int SelectedUpdateIntervalIndex { get => _selectedUpdateIntervalIndex; set => SetProperty(ref _selectedUpdateIntervalIndex, value); }
-
-    public int SelectedThemeIndex { get => _selectedThemeIndex; set => SetProperty(ref _selectedThemeIndex, value); }
-
-    public int SelectedLanguageIndex { get => _selectedLanguageIndex; set => SetProperty(ref _selectedLanguageIndex, value); }
-
-    public bool IsSidebarCompact
-    {
-        get => _isSidebarCompact;
-        set
-        {
-            if (SetProperty(ref _isSidebarCompact, value))
-            {
-                IsSidebarExpanded = !value;
-                SidebarToggleToolTip = value ? Localization.ExpandSidebar : Localization.CollapseSidebar;
-            }
-        }
-    }
-
-    public bool IsSidebarExpanded { get => _isSidebarExpanded; private set => SetProperty(ref _isSidebarExpanded, value); }
-
-    public string SidebarToggleToolTip { get => _sidebarToggleToolTip; private set => SetProperty(ref _sidebarToggleToolTip, value); }
-
-    public Thickness SidebarMargin { get => _sidebarMargin; set => SetProperty(ref _sidebarMargin, value); }
+    public string SidebarToggleToolTip => IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
 
     public void RefreshWaitingText()
     {
@@ -556,7 +440,7 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
 
     public void RefreshLocalizedChrome()
     {
-        SidebarToggleToolTip = IsSidebarCompact ? Localization.ExpandSidebar : Localization.CollapseSidebar;
+        RaisePropertyChanged(nameof(SidebarToggleToolTip));
         if (!IsPawnIoInstallRunning)
         {
             PawnIoInstallButtonText = Localization.Resource("Ui_InstallPawnIo");
@@ -613,13 +497,29 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
         }
     }
 
-    private void SetBenchmarkText(ref string field, string value, BenchmarkMetricCardKey key, [CallerMemberName] string? propertyName = null)
-    {
-        if (SetProperty(ref field, value, propertyName))
-        {
-            SetBenchmarkMetric(key, value);
-        }
-    }
+    partial void OnBenchmarkModeTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.Mode, value);
+
+    partial void OnBenchmarkScoreTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.CpuCoreScore, value);
+
+    partial void OnBenchmarkMixedScoreTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.CpuMixedScore, value);
+
+    partial void OnBenchmarkSciMarkTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.SciMark, value);
+
+    partial void OnBenchmarkZstdCompressionTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.ZstdCompression, value);
+
+    partial void OnBenchmarkZstdDecompressionTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.ZstdDecompression, value);
+
+    partial void OnBenchmarkHashTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.XxHash3, value);
+
+    partial void OnBenchmarkCpuFrequencyTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.CpuAverageFrequency, value);
+
+    partial void OnBenchmarkCpuTemperatureTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.CpuMaxTemperature, value);
+
+    partial void OnBenchmarkCpuEnergyTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.CpuEnergy, value);
+
+    partial void OnBenchmarkPeakPowerTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.CpuPeakPower, value);
+
+    partial void OnBenchmarkValidationTextChanged(string value) => SetBenchmarkMetric(BenchmarkMetricCardKey.Validation, value);
 
     private void RefreshBenchmarkMetricCards()
     {
@@ -724,8 +624,9 @@ public sealed class MainWindowViewModel : ObservableDashboardItem
     }
 }
 
-public sealed class BenchmarkMetricCardViewModel : ObservableDashboardItem
+public sealed partial class BenchmarkMetricCardViewModel : ObservableDashboardItem
 {
+    [ObservableProperty]
     private string _valueText;
 
     public BenchmarkMetricCardViewModel(string titleResourceKey, string valueText, bool isPrimary)
@@ -747,12 +648,6 @@ public sealed class BenchmarkMetricCardViewModel : ObservableDashboardItem
 
     public FontWeight ValueFontWeight => IsPrimary ? FontWeight.Bold : FontWeight.SemiBold;
 
-    public string ValueText
-    {
-        get => _valueText;
-        set => SetProperty(ref _valueText, value);
-    }
-
     public void RefreshLocalization()
     {
         RaisePropertyChanged(nameof(TitleText));
@@ -767,12 +662,13 @@ public interface IDashboardItem<in TData, out TKey>
     void Update(TData data);
 }
 
-public sealed class LeaderboardEntryViewModel : ObservableDashboardItem
+public sealed partial class LeaderboardEntryViewModel : ObservableDashboardItem
 {
     private bool _isExpanded;
     private bool _isDetailLoaded;
     private bool _isDetailLoading;
     private IReadOnlyList<BenchmarkTelemetrySample> _telemetrySamples = [];
+    [ObservableProperty]
     private bool _hasTelemetrySamples;
     private BenchmarkLeaderboardEntry _entry;
     private readonly int _rank;
@@ -847,12 +743,6 @@ public sealed class LeaderboardEntryViewModel : ObservableDashboardItem
                 HasTelemetrySamples = _telemetrySamples.Count > 1;
             }
         }
-    }
-
-    public bool HasTelemetrySamples
-    {
-        get => _hasTelemetrySamples;
-        private set => SetProperty(ref _hasTelemetrySamples, value);
     }
 
     public bool IsExpanded
@@ -980,6 +870,8 @@ public sealed class LeaderboardEntryViewModel : ObservableDashboardItem
             : "--";
         string energyText = BenchmarkTelemetrySummaries.FormatEnergy(entry.TelemetrySamples);
         string peakPowerText = BenchmarkTelemetrySummaries.FormatPeakPower(entry.TelemetrySamples);
+        string memoryType = string.IsNullOrWhiteSpace(entry.Hardware?.Memory?.Type) ? "--" : entry.Hardware.Memory.Type;
+        string memorySpeed = string.IsNullOrWhiteSpace(entry.Hardware?.Memory?.Speed) ? "--" : entry.Hardware.Memory.Speed;
 
         return
         [
@@ -993,6 +885,8 @@ public sealed class LeaderboardEntryViewModel : ObservableDashboardItem
             new("Version", version),
             new("CPU", cpuName),
             new("Cores / Threads", cores),
+            new("Memory type", memoryType),
+            new("Memory speed", memorySpeed),
             new("SciMark", FormatNumber(FindMetric(entry, BenchmarkPayload.SciMarkMetricKey))),
             new("zstd compression", FormatMetric(entry, BenchmarkPayload.ZstdCompressMetricKey, "GB/s")),
             new("zstd decompression", FormatMetric(entry, BenchmarkPayload.ZstdDecompressMetricKey, "GB/s")),
@@ -1148,9 +1042,12 @@ internal static class BenchmarkTelemetrySummaries
 
 public sealed record LeaderboardDetailItemViewModel(string LabelText, string ValueText);
 
-public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardItem<MetricReading, string>
+public sealed partial class MetricItemViewModel : ObservableDashboardItem, IDashboardItem<MetricReading, string>
 {
+    [ObservableProperty]
     private string _label = string.Empty;
+
+    [ObservableProperty]
     private string _valueText = "--";
 
     public MetricItemViewModel(MetricReading reading)
@@ -1160,10 +1057,6 @@ public sealed class MetricItemViewModel : ObservableDashboardItem, IDashboardIte
     }
 
     public string Key { get; }
-
-    public string Label { get => _label; private set => SetProperty(ref _label, value); }
-
-    public string ValueText { get => _valueText; private set => SetProperty(ref _valueText, value); }
 
     public void Update(MetricReading reading)
     {
@@ -1180,16 +1073,35 @@ public sealed record SensorGroupReading(
     IReadOnlyList<MetricReading> Metrics,
     bool IsExpandedByDefault);
 
-public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardItem<SensorGroupReading, string>
+public sealed partial class SensorGroupViewModel : ObservableDashboardItem, IDashboardItem<SensorGroupReading, string>
 {
+    private SensorGroupReading? _latestReading;
+
+    [ObservableProperty]
     private string _title = string.Empty;
+
+    [ObservableProperty]
     private string _statusText = "--";
+
+    [ObservableProperty]
     private string _summaryOneLabel = "--";
+
+    [ObservableProperty]
     private string _summaryOneText = "--";
+
+    [ObservableProperty]
     private string _summaryTwoLabel = "--";
+
+    [ObservableProperty]
     private string _summaryTwoText = "--";
+
+    [ObservableProperty]
     private string _summaryThreeLabel = "--";
+
+    [ObservableProperty]
     private string _summaryThreeText = "--";
+
+    [ObservableProperty]
     private bool _isExpanded;
 
     public SensorGroupViewModel(SensorGroupReading reading)
@@ -1203,29 +1115,28 @@ public sealed class SensorGroupViewModel : ObservableDashboardItem, IDashboardIt
 
     public ObservableCollection<MetricItemViewModel> Metrics { get; } = [];
 
-    public string Title { get => _title; private set => SetProperty(ref _title, value); }
-
-    public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
-
-    public string SummaryOneLabel { get => _summaryOneLabel; private set => SetProperty(ref _summaryOneLabel, value); }
-
-    public string SummaryOneText { get => _summaryOneText; private set => SetProperty(ref _summaryOneText, value); }
-
-    public string SummaryTwoLabel { get => _summaryTwoLabel; private set => SetProperty(ref _summaryTwoLabel, value); }
-
-    public string SummaryTwoText { get => _summaryTwoText; private set => SetProperty(ref _summaryTwoText, value); }
-
-    public string SummaryThreeLabel { get => _summaryThreeLabel; private set => SetProperty(ref _summaryThreeLabel, value); }
-
-    public string SummaryThreeText { get => _summaryThreeText; private set => SetProperty(ref _summaryThreeText, value); }
-
-    public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
-
     public void Update(SensorGroupReading reading)
     {
+        _latestReading = reading;
         Title = reading.Title;
         StatusText = DashboardStatus.SensorGroupStatus(reading.Metrics);
         ApplySummary(reading);
+        if (IsExpanded)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value && _latestReading is { } reading)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    private void SyncMetrics(SensorGroupReading reading)
+    {
         DashboardCollection.SyncItems(
             Metrics,
             reading.Metrics,
@@ -1467,15 +1378,35 @@ public static class ChartHistorySettings
     public static int MaxSamples => Math.Max(2, (int)Math.Ceiling(DisplaySeconds / SampleIntervalSeconds));
 }
 
-public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
+public sealed partial class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
 {
+    private const double GaugeSampleThreshold = 0.5;
+    private bool _hasSample;
+    private double _lastSampledGaugeValue;
+
+    [ObservableProperty]
     private string _title = string.Empty;
+
+    [ObservableProperty]
     private string _primaryText = "--";
+
+    [ObservableProperty]
     private string _secondaryText = "--";
+
+    [ObservableProperty]
     private string _detailText = "--";
+
+    [ObservableProperty]
     private IBrush _accentBrush = DashboardBrushes.Blue;
+
+    [ObservableProperty]
     private double _gaugeValue;
+
+    [ObservableProperty]
     private int _sampleVersion;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExpandedView))]
     private bool _isCompact;
 
     public OverviewItemViewModel(OverviewReading reading)
@@ -1485,32 +1416,6 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
     }
 
     public string Key { get; }
-
-    public string Title { get => _title; private set => SetProperty(ref _title, value); }
-
-    public string PrimaryText { get => _primaryText; private set => SetProperty(ref _primaryText, value); }
-
-    public string SecondaryText { get => _secondaryText; private set => SetProperty(ref _secondaryText, value); }
-
-    public string DetailText { get => _detailText; private set => SetProperty(ref _detailText, value); }
-
-    public IBrush AccentBrush { get => _accentBrush; private set => SetProperty(ref _accentBrush, value); }
-
-    public double GaugeValue { get => _gaugeValue; private set => SetProperty(ref _gaugeValue, value); }
-
-    public int SampleVersion { get => _sampleVersion; private set => SetProperty(ref _sampleVersion, value); }
-
-    public bool IsCompact
-    {
-        get => _isCompact;
-        set
-        {
-            if (SetProperty(ref _isCompact, value))
-            {
-                RaisePropertyChanged(nameof(IsExpandedView));
-            }
-        }
-    }
 
     public bool IsExpandedView => !IsCompact;
 
@@ -1522,17 +1427,36 @@ public sealed class OverviewItemViewModel : ObservableDashboardItem, IDashboardI
         DetailText = reading.DetailText;
         AccentBrush = reading.AccentBrush;
         GaugeValue = reading.GaugeValue;
-        SampleVersion = unchecked(SampleVersion + 1);
+        if (ShouldAdvanceSample(reading.GaugeValue))
+        {
+            _hasSample = true;
+            _lastSampledGaugeValue = reading.GaugeValue;
+            SampleVersion = unchecked(SampleVersion + 1);
+        }
+    }
+
+    private bool ShouldAdvanceSample(double gaugeValue)
+    {
+        return !_hasSample || Math.Abs(gaugeValue - _lastSampledGaugeValue) >= GaugeSampleThreshold;
     }
 }
 
-public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
+public sealed partial class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
     private static readonly IBrush[] LoadBrushCache = BuildLoadBrushCache();
+    private bool _hasSample;
+    private int _lastSampledLoadPercent;
 
+    [ObservableProperty]
     private string _loadText = "--";
+
+    [ObservableProperty]
     private IBrush _loadBrush = DashboardBrushes.Blue;
+
+    [ObservableProperty]
     private double _loadPercent;
+
+    [ObservableProperty]
     private int _sampleVersion;
 
     public CoreItemViewModel(CoreReading reading)
@@ -1543,23 +1467,25 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
 
     public int Key { get; }
 
-    public string LoadText { get => _loadText; private set => SetProperty(ref _loadText, value); }
-
-    public IBrush LoadBrush { get => _loadBrush; private set => SetProperty(ref _loadBrush, value); }
-
-    public double LoadPercent { get => _loadPercent; private set => SetProperty(ref _loadPercent, value); }
-
-    public int SampleVersion { get => _sampleVersion; private set => SetProperty(ref _sampleVersion, value); }
-
     public void Update(CoreReading reading)
     {
         LoadText = reading.LoadText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
         LoadPercent = reading.LoadPercent;
-        SampleVersion = unchecked(SampleVersion + 1);
+        if (ShouldAdvanceSample(reading.LoadPercent))
+        {
+            _hasSample = true;
+            _lastSampledLoadPercent = reading.LoadPercent;
+            SampleVersion = unchecked(SampleVersion + 1);
+        }
     }
 
     private static IBrush BuildLoadBrush(int loadPercent) => LoadBrushCache[Math.Clamp(loadPercent, 0, LoadBrushCache.Length - 1)];
+
+    private bool ShouldAdvanceSample(int loadPercent)
+    {
+        return !_hasSample || loadPercent != _lastSampledLoadPercent;
+    }
 
     private static IBrush[] BuildLoadBrushCache()
     {
@@ -1584,13 +1510,26 @@ public sealed class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<
     private static double Lerp(double start, double end, double amount) => start + ((end - start) * amount);
 }
 
-public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem<GpuDeviceReading, string>
+public sealed partial class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem<GpuDeviceReading, string>
 {
+    private GpuDeviceReading? _latestReading;
+
+    [ObservableProperty]
     private string _name = string.Empty;
+
+    [ObservableProperty]
     private string _loadText = "--";
+
+    [ObservableProperty]
     private string _temperatureText = "--";
+
+    [ObservableProperty]
     private string _powerText = "--";
+
+    [ObservableProperty]
     private string _statusText = "--";
+
+    [ObservableProperty]
     private bool _isExpanded;
 
     public GpuDeviceViewModel(GpuDeviceReading reading)
@@ -1607,20 +1546,9 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem
 
     public ObservableCollection<MetricItemViewModel> MemorySensors { get; } = [];
 
-    public string Name { get => _name; private set => SetProperty(ref _name, value); }
-
-    public string LoadText { get => _loadText; private set => SetProperty(ref _loadText, value); }
-
-    public string TemperatureText { get => _temperatureText; private set => SetProperty(ref _temperatureText, value); }
-
-    public string PowerText { get => _powerText; private set => SetProperty(ref _powerText, value); }
-
-    public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
-
-    public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
-
     public void Update(GpuDeviceReading reading)
     {
+        _latestReading = reading;
         Name = reading.Name;
         LoadText = reading.LoadText;
         TemperatureText = reading.TemperatureText;
@@ -1630,6 +1558,22 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem
             reading.LoadSensors,
             85,
             75);
+        if (IsExpanded)
+        {
+            SyncDetailSensors(reading);
+        }
+    }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value && _latestReading is { } reading)
+        {
+            SyncDetailSensors(reading);
+        }
+    }
+
+    private void SyncDetailSensors(GpuDeviceReading reading)
+    {
         DashboardCollection.SyncItems(
             PowerSensors,
             reading.PowerSensors,
@@ -1648,11 +1592,20 @@ public sealed class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem
     }
 }
 
-public sealed class StorageDeviceViewModel : ObservableDashboardItem, IDashboardItem<StorageDeviceReading, string>
+public sealed partial class StorageDeviceViewModel : ObservableDashboardItem, IDashboardItem<StorageDeviceReading, string>
 {
+    private StorageDeviceReading? _latestReading;
+
+    [ObservableProperty]
     private string _name = string.Empty;
+
+    [ObservableProperty]
     private string _usageText = "--";
+
+    [ObservableProperty]
     private string _statusText = "--";
+
+    [ObservableProperty]
     private bool _isExpanded;
 
     public StorageDeviceViewModel(StorageDeviceReading reading)
@@ -1665,16 +1618,9 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem, IDashboard
 
     public ObservableCollection<MetricItemViewModel> Metrics { get; } = [];
 
-    public string Name { get => _name; private set => SetProperty(ref _name, value); }
-
-    public string UsageText { get => _usageText; private set => SetProperty(ref _usageText, value); }
-
-    public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
-
-    public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
-
     public void Update(StorageDeviceReading reading)
     {
+        _latestReading = reading;
         Name = reading.Name;
         UsageText = reading.UsageText;
         StatusText = DashboardStatus.DeviceStatus(
@@ -1682,6 +1628,22 @@ public sealed class StorageDeviceViewModel : ObservableDashboardItem, IDashboard
             reading.UsageSensors,
             60,
             50);
+        if (IsExpanded)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value && _latestReading is { } reading)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    private void SyncMetrics(StorageDeviceReading reading)
+    {
         DashboardCollection.SyncItems(
             Metrics,
             reading.Metrics,

@@ -112,7 +112,7 @@ public static class BenchmarkOwnershipStore
     {
         try
         {
-            string path = StorePath;
+            string path = ResolveReadPath();
             if (!File.Exists(path))
             {
                 return new BenchmarkOwnerStoreDocument();
@@ -132,7 +132,7 @@ public static class BenchmarkOwnershipStore
         try
         {
             string path = StorePath;
-            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? AppContext.BaseDirectory);
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ApplicationDataStore.RootDirectory);
             File.WriteAllText(path, JsonSerializer.Serialize(document, SerializerOptions));
         }
         catch
@@ -141,7 +141,21 @@ public static class BenchmarkOwnershipStore
         }
     }
 
-    private static string StorePath => Path.Combine(AppContext.BaseDirectory, DirectoryName, FileName);
+    private static string ResolveReadPath()
+    {
+        string path = StorePath;
+        if (File.Exists(path))
+        {
+            return path;
+        }
+
+        string legacyPath = LegacyStorePath;
+        return File.Exists(legacyPath) ? legacyPath : path;
+    }
+
+    private static string StorePath => Path.Combine(ApplicationDataStore.BenchmarkResultsDirectory, FileName);
+
+    private static string LegacyStorePath => Path.Combine(AppContext.BaseDirectory, DirectoryName, FileName);
 
     private sealed class BenchmarkOwnerStoreDocument
     {

@@ -66,6 +66,9 @@ public sealed class BenchmarkHardwareInfo
 {
     [JsonPropertyName("cpu")]
     public BenchmarkCpuHardwareInfo? Cpu { get; init; }
+
+    [JsonPropertyName("memory")]
+    public BenchmarkMemoryHardwareInfo? Memory { get; init; }
 }
 
 public sealed class BenchmarkCpuHardwareInfo
@@ -78,6 +81,15 @@ public sealed class BenchmarkCpuHardwareInfo
 
     [JsonPropertyName("threads")]
     public int? Threads { get; init; }
+}
+
+public sealed class BenchmarkMemoryHardwareInfo
+{
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+
+    [JsonPropertyName("speed")]
+    public string? Speed { get; init; }
 }
 
 public sealed class BenchmarkTelemetryManifest
@@ -240,6 +252,9 @@ public sealed class BenchmarkTelemetrySample
 
     [JsonPropertyName("cpu_clock_ghz")]
     public double? CpuClockGhz { get; init; }
+
+    [JsonPropertyName("cpu_voltage_v")]
+    public double? CpuVoltageV { get; init; }
 
     [JsonPropertyName("cpu_core_clocks_ghz")]
     public IReadOnlyList<double>? CpuCoreClocksGhz { get; init; }
@@ -517,7 +532,7 @@ public sealed class BenchmarkApiClient : IDisposable
         }
 
         StringBuilder query = new();
-        AppendQuery(query, "series", "cpu.load_percent,cpu.max_temperature_c,cpu.package_power_w,cpu.clock_ghz");
+        AppendQuery(query, "series", "cpu.load_percent,cpu.max_temperature_c,cpu.package_power_w,cpu.clock_ghz,cpu.voltage_v");
         AppendQuery(query, "max_points", Math.Clamp(maxPoints, 1, BenchmarkPayload.MaxTelemetrySamples).ToString(CultureInfo.InvariantCulture));
         Uri requestUri = new($"{BuildTelemetryUri(runId)}?{query}");
         using HttpResponseMessage response = await _http.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
@@ -850,6 +865,7 @@ public sealed class BenchmarkApiClient : IDisposable
         private double? _temperatureC;
         private double? _packagePowerW;
         private double? _clockGhz;
+        private double? _voltageV;
 
         public void Set(string key, double value)
         {
@@ -867,6 +883,9 @@ public sealed class BenchmarkApiClient : IDisposable
                 case "cpu.clock_ghz":
                     _clockGhz = value;
                     break;
+                case "cpu.voltage_v":
+                    _voltageV = value;
+                    break;
             }
         }
 
@@ -883,7 +902,8 @@ public sealed class BenchmarkApiClient : IDisposable
                 CpuLoadPercent = _loadPercent,
                 CpuMaxTemperatureC = _temperatureC,
                 CpuPackagePowerW = _packagePowerW,
-                CpuClockGhz = _clockGhz
+                CpuClockGhz = _clockGhz,
+                CpuVoltageV = _voltageV
             };
         }
     }
@@ -964,7 +984,8 @@ public static class BenchmarkPayload
                     "cpu.load_percent",
                     "cpu.max_temperature_c",
                     "cpu.package_power_w",
-                    "cpu.clock_ghz"
+                    "cpu.clock_ghz",
+                    "cpu.voltage_v"
                 ]
             }
             : new BenchmarkTelemetryManifest { Available = false };
@@ -1073,6 +1094,7 @@ public static class BenchmarkPayload
         List<double[]> temperature = [];
         List<double[]> power = [];
         List<double[]> clock = [];
+        List<double[]> voltage = [];
         foreach (BenchmarkTelemetrySample sample in samples.Take(MaxTelemetrySamples))
         {
             double elapsed = RoundMetric(sample.ElapsedSeconds, 3);
@@ -1080,6 +1102,7 @@ public static class BenchmarkPayload
             AddTelemetryPoint(temperature, elapsed, sample.CpuMaxTemperatureC, 2);
             AddTelemetryPoint(power, elapsed, sample.CpuPackagePowerW, 3);
             AddTelemetryPoint(clock, elapsed, sample.CpuClockGhz, 3);
+            AddTelemetryPoint(voltage, elapsed, sample.CpuVoltageV, 3);
         }
 
         Dictionary<string, IReadOnlyList<double[]>> series = [];
@@ -1087,6 +1110,7 @@ public static class BenchmarkPayload
         AddSeries(series, "cpu.max_temperature_c", temperature);
         AddSeries(series, "cpu.package_power_w", power);
         AddSeries(series, "cpu.clock_ghz", clock);
+        AddSeries(series, "cpu.voltage_v", voltage);
         return new BenchmarkTelemetryChunkDto { ChunkIndex = 0, Series = series };
     }
 
@@ -1142,6 +1166,7 @@ public static class BenchmarkPayload
                 CpuMaxTemperatureC = RoundNullable(sample.CpuMaxTemperatureC, 2),
                 CpuPackagePowerW = RoundNullable(sample.CpuPackagePowerW, 3),
                 CpuClockGhz = RoundNullable(sample.CpuClockGhz, 3),
+                CpuVoltageV = RoundNullable(sample.CpuVoltageV, 3),
                 CpuCoreClocksGhz = NormalizeCoreClocks(sample.CpuCoreClocksGhz)
             });
         }
@@ -1207,6 +1232,7 @@ public static class BenchmarkPayload
                 || !IsAcceptedTelemetryValue(sample.CpuMaxTemperatureC, 130)
                 || !IsAcceptedTelemetryValue(sample.CpuPackagePowerW, 1000)
                 || !IsAcceptedTelemetryValue(sample.CpuClockGhz, 10)
+                || !IsAcceptedTelemetryValue(sample.CpuVoltageV, 5)
                 || !CoreClocksAreValid(sample.CpuCoreClocksGhz))
             {
                 return false;

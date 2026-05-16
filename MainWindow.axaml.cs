@@ -472,6 +472,8 @@ public sealed partial class MainWindow : Window
             _viewModel.MemoryUsageText = "--";
             _viewModel.MemoryCapacityText = "--";
             _viewModel.MemoryTempText = string.Empty;
+            _viewModel.MemoryTypeText = "--";
+            _viewModel.MemorySpeedText = "--";
             SyncDeviceCollection(_viewModel.MemoryMetrics, Array.Empty<MetricReading>(), MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
             return;
         }
@@ -479,6 +481,8 @@ public sealed partial class MainWindow : Window
         _viewModel.MemoryUsageText = memory.UsageText;
         _viewModel.MemoryTempText = memory.TemperatureText;
         _viewModel.MemoryCapacityText = memory.CapacityText;
+        _viewModel.MemoryTypeText = memory.TypeText;
+        _viewModel.MemorySpeedText = memory.SpeedText;
         SyncDeviceCollection(_viewModel.MemoryMetrics, memory.Metrics, MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
     }
 
@@ -791,6 +795,7 @@ public sealed partial class MainWindow : Window
         FlyoutSpanishItem.Content = Localization.Resource("Ui_Spanish");
         FlyoutGermanItem.Content = Localization.Resource("Ui_German");
         FlyoutFrenchItem.Content = Localization.Resource("Ui_French");
+        FlyoutOpenDataFolderButton.Content = Localization.Resource("Ui_OpenDataFolder");
 
         FlyoutAboutTitle.Text = Localization.Resource("Ui_About");
         FlyoutAppSubtitleText.Text = Localization.Resource("Ui_AppSubtitle");
@@ -878,6 +883,19 @@ public sealed partial class MainWindow : Window
 
         await AnimateSidebarWidthAsync(SidebarRoot.Bounds.Width, _lastExpandedSidebarWidth).ConfigureAwait(true);
         ApplySidebarMode(false);
+    }
+
+    private void OpenDataFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            DashboardSettingsStore.EnsureDataDirectory();
+            Process.Start(new ProcessStartInfo(DashboardSettingsStore.DataDirectory) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Opening the data folder is a convenience action; monitoring should keep running if Explorer is blocked.
+        }
     }
 
     private void SidebarRoot_SizeChanged(object? sender, SizeChangedEventArgs e)
@@ -1175,6 +1193,7 @@ public sealed partial class MainWindow : Window
     private BenchmarkUploadDto CreateBenchmarkUploadDto(BenchmarkResult result, BenchmarkSensorSummary sensorSummary)
     {
         CpuDeviceReading? cpu = _lastResult?.Snapshot?.Cpu;
+        MemoryDeviceReading? memory = _lastResult?.Snapshot?.Memory;
         List<BenchmarkValueDto> scores = [];
         scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuCoreScoreKey, Value = result.CpuCoreScore, Unit = "score" });
         scores.Add(new BenchmarkValueDto { Key = BenchmarkPayload.CpuMixedScoreKey, Value = result.CpuMixedScore, Unit = "score" });
@@ -1214,6 +1233,11 @@ public sealed partial class MainWindow : Window
                     Name = string.IsNullOrWhiteSpace(cpu?.Name) ? null : cpu.Name,
                     Cores = PositiveOrNull(cpu?.CoreCount),
                     Threads = PositiveOrNull(cpu?.LogicalProcessorCount)
+                },
+                Memory = new BenchmarkMemoryHardwareInfo
+                {
+                    Type = NormalizeHardwareText(memory?.TypeText),
+                    Speed = NormalizeHardwareText(memory?.SpeedText)
                 }
             },
             Scores = scores,
@@ -1223,6 +1247,13 @@ public sealed partial class MainWindow : Window
 
         BenchmarkPayload.NormalizeMetrics(dto);
         return dto;
+    }
+
+    private static string? NormalizeHardwareText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) || value.Trim() == "--"
+            ? null
+            : value.Trim();
     }
 
     private async Task UploadBenchmarkAsync()
@@ -1966,6 +1997,7 @@ public sealed partial class MainWindow : Window
                 CpuMaxTemperatureC = maxTemperature,
                 CpuPackagePowerW = packagePowerW,
                 CpuClockGhz = frequencyGhz,
+                CpuVoltageV = ResolveCpuVoltage(cpu.VoltageSensors),
                 CpuCoreClocksGhz = BuildCoreClockSamples(cpu.Cores)
             };
             _samples.Add(sample);
@@ -2036,6 +2068,35 @@ public sealed partial class MainWindow : Window
             }
 
             return clocks.Count == 0 ? null : clocks;
+        }
+
+        private static double? ResolveCpuVoltage(IReadOnlyList<MetricReading> voltageSensors)
+        {
+            if (voltageSensors.Count == 0)
+            {
+                return null;
+            }
+
+            MetricReading? preferred = voltageSensors.FirstOrDefault(IsPreferredCpuVoltage);
+            return preferred?.Value;
+        }
+
+        private static bool IsPreferredCpuVoltage(MetricReading sensor)
+        {
+            return IsUsableVoltage(sensor)
+                && (sensor.Name.Contains("VCore", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("CPU VCore", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("CPU Core Voltage", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("Core Voltage", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("Core VID", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Equals("CPU Core", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsUsableVoltage(MetricReading sensor)
+        {
+            return sensor.Value > 0
+                && sensor.Value <= 5
+                && float.IsFinite(sensor.Value);
         }
     }
 

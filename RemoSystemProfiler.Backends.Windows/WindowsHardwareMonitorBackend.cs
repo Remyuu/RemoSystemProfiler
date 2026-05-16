@@ -13,6 +13,9 @@ namespace RemoSystemProfiler.Backends.Windows;
 public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 {
     private static readonly Regex CoreNumberRegex = new(@"Core\s*#?\s*(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly TimeSpan StatusCacheDuration = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan FixedDriveFallbackCacheDuration = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan SlowHardwareUpdateInterval = TimeSpan.FromSeconds(3);
 
     private readonly Computer _computer = new()
     {
@@ -24,10 +27,22 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
     };
     private readonly PdhCpuFrequencyReader _cpuFrequencyReader = new();
     private readonly WindowsLogicalProcessorLoadReader _logicalProcessorLoadReader = new();
+    private readonly List<IHardware> _hardwareTreeBuffer = new(capacity: 16);
 
     private bool _opened;
+    private SensorDriverStatus? _cachedPawnIoStatus;
+    private DateTimeOffset _cachedPawnIoStatusAt;
+    private bool? _cachedIsAdministrator;
+    private DateTimeOffset _cachedIsAdministratorAt;
+    private CpuTopology? _cachedCpuTopology;
+    private MemoryModuleInfo? _cachedMemoryModuleInfo;
+    private StorageDeviceReading[]? _cachedFixedDriveFallback;
+    private DateTimeOffset _cachedFixedDriveFallbackAt;
+    private DateTimeOffset _lastSlowHardwareUpdateAt;
 
     private sealed record CpuTopology(int PhysicalCores, int LogicalProcessors);
+
+    private sealed record MemoryModuleInfo(string TypeText, string SpeedText);
 
     public string Name => "Windows LibreHardwareMonitor";
 
@@ -47,32 +62,49 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 
     public HardwareMonitorReadResult Read()
     {
-        SensorDriverStatus driverStatus = ReadPawnIoStatus();
+        SensorDriverStatus driverStatus = GetPawnIoStatus();
         try
         {
             EnsureOpen();
-            driverStatus = ReadPawnIoStatus();
+            driverStatus = GetPawnIoStatus();
 
-            foreach (IHardware hardware in _computer.Hardware)
+            UpdateHardwareDomains();
+
+            IReadOnlyList<IHardware> hardwareTree = BuildHardwareTree();
+            bool requiresAdministrator = !GetIsRunningAsAdministrator();
+            IHardware? cpuHardware = null;
+            IHardware? memoryHardware = null;
+            List<IHardware> gpuHardware = [];
+            List<IHardware> storageHardware = [];
+            for (int i = 0; i < hardwareTree.Count; i++)
             {
-                UpdateHardwareTree(hardware);
+                IHardware hardware = hardwareTree[i];
+                if (hardware.HardwareType == HardwareType.Cpu)
+                {
+                    cpuHardware ??= hardware;
+                }
+                else if (hardware.HardwareType == HardwareType.Memory)
+                {
+                    memoryHardware ??= hardware;
+                }
+                else if (hardware.HardwareType == HardwareType.Storage)
+                {
+                    storageHardware.Add(hardware);
+                }
+                else if (IsGpuHardware(hardware))
+                {
+                    gpuHardware.Add(hardware);
+                }
             }
-
-            IHardware[] hardwareTree = _computer.Hardware.SelectMany(FlattenHardware).ToArray();
-            bool requiresAdministrator = !IsRunningAsAdministrator();
-            StorageDeviceReading[] storageDevices = hardwareTree
-                .Where(hardware => hardware.HardwareType == HardwareType.Storage)
-                .Select(BuildStorage)
-                .ToArray();
 
             SystemSnapshot snapshot = new(
                 DateTimeOffset.Now,
                 "LibreHardwareMonitor",
                 driverStatus,
-                BuildCpu(hardwareTree.FirstOrDefault(hardware => hardware.HardwareType == HardwareType.Cpu)),
-                BuildMemory(hardwareTree),
-                hardwareTree.Where(IsGpuHardware).Select(BuildGpu).ToArray(),
-                storageDevices.Length == 0 ? BuildFixedDriveStorageFallback() : storageDevices);
+                BuildCpu(cpuHardware),
+                BuildMemory(hardwareTree, memoryHardware),
+                BuildGpus(gpuHardware),
+                storageHardware.Count == 0 ? GetFixedDriveStorageFallback() : BuildStorageDevices(storageHardware));
 
             if (snapshot.Cpu is null && snapshot.Memory is null && snapshot.Gpus.Count == 0 && snapshot.StorageDevices.Count == 0)
             {
@@ -108,13 +140,81 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         _opened = true;
     }
 
-    private static void UpdateHardwareTree(IHardware hardware)
+    private void UpdateHardwareDomains()
     {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        bool updateSlowHardware = _lastSlowHardwareUpdateAt == default
+            || now - _lastSlowHardwareUpdateAt >= SlowHardwareUpdateInterval;
+
+        foreach (IHardware hardware in _computer.Hardware)
+        {
+            UpdateHardwareTree(hardware, updateSlowHardware, parentAllowsUpdate: true);
+        }
+
+        if (updateSlowHardware)
+        {
+            _lastSlowHardwareUpdateAt = now;
+        }
+    }
+
+    private static void UpdateHardwareTree(IHardware hardware, bool updateSlowHardware, bool parentAllowsUpdate)
+    {
+        bool updateThisHardware = parentAllowsUpdate && ShouldUpdateHardware(hardware, updateSlowHardware);
+        if (!updateThisHardware)
+        {
+            return;
+        }
+
         hardware.Update();
         foreach (IHardware subHardware in hardware.SubHardware)
         {
-            UpdateHardwareTree(subHardware);
+            UpdateHardwareTree(subHardware, updateSlowHardware, updateThisHardware);
         }
+    }
+
+    private static bool ShouldUpdateHardware(IHardware hardware, bool updateSlowHardware)
+    {
+        return hardware.HardwareType switch
+        {
+            HardwareType.Cpu or HardwareType.Memory => true,
+            HardwareType.GpuAmd or HardwareType.GpuIntel or HardwareType.GpuNvidia => updateSlowHardware,
+            HardwareType.Storage or HardwareType.Motherboard or HardwareType.SuperIO => updateSlowHardware,
+            _ => updateSlowHardware
+        };
+    }
+
+    private IReadOnlyList<IHardware> BuildHardwareTree()
+    {
+        _hardwareTreeBuffer.Clear();
+        foreach (IHardware hardware in _computer.Hardware)
+        {
+            AddHardwareTree(hardware, _hardwareTreeBuffer);
+        }
+
+        return _hardwareTreeBuffer;
+    }
+
+    private static void AddHardwareTree(IHardware hardware, List<IHardware> hardwareTree)
+    {
+        hardwareTree.Add(hardware);
+        foreach (IHardware subHardware in hardware.SubHardware)
+        {
+            AddHardwareTree(subHardware, hardwareTree);
+        }
+    }
+
+    private bool GetIsRunningAsAdministrator()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (_cachedIsAdministrator.HasValue && now - _cachedIsAdministratorAt < StatusCacheDuration)
+        {
+            return _cachedIsAdministrator.Value;
+        }
+
+        bool value = IsRunningAsAdministrator();
+        _cachedIsAdministrator = value;
+        _cachedIsAdministratorAt = now;
+        return value;
     }
 
     private static bool IsRunningAsAdministrator()
@@ -122,6 +222,20 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         using WindowsIdentity identity = WindowsIdentity.GetCurrent();
         WindowsPrincipal principal = new(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    private SensorDriverStatus GetPawnIoStatus()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (_cachedPawnIoStatus is not null && now - _cachedPawnIoStatusAt < StatusCacheDuration)
+        {
+            return _cachedPawnIoStatus;
+        }
+
+        SensorDriverStatus status = ReadPawnIoStatus();
+        _cachedPawnIoStatus = status;
+        _cachedPawnIoStatusAt = now;
+        return status;
     }
 
     private static SensorDriverStatus ReadPawnIoStatus()
@@ -230,18 +344,6 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         return !handle.IsInvalid && !handle.IsClosed;
     }
 
-    private static IEnumerable<IHardware> FlattenHardware(IHardware hardware)
-    {
-        yield return hardware;
-        foreach (IHardware subHardware in hardware.SubHardware)
-        {
-            foreach (IHardware nested in FlattenHardware(subHardware))
-            {
-                yield return nested;
-            }
-        }
-    }
-
     private CpuDeviceReading? BuildCpu(IHardware? cpu)
     {
         if (cpu is null)
@@ -252,14 +354,14 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         ISensor[] sensors = ActiveSensors(cpu);
         IReadOnlyList<CoreReading> sensorCores = BuildCoreReadings(sensors);
         IReadOnlyDictionary<int, float> coreClocks = BuildCoreClockReadings(sensors);
-        CpuTopology topology = ReadCpuTopology(sensorCores.Count);
+        CpuTopology topology = ReadCpuTopologyCached(sensorCores.Count);
         IReadOnlyList<CoreReading> cores = AttachCoreClocks(
             _logicalProcessorLoadReader.ReadLoadPercentages(topology.LogicalProcessors)
                 ?? NormalizeCoreReadings(sensorCores, topology.LogicalProcessors),
             coreClocks);
         float averageLoad = FindSensor(sensors, SensorType.Load, "CPU Total")?.Value
             ?? FindSensor(sensors, SensorType.Load, "Total")?.Value
-            ?? Average(cores.Select(core => (float)core.LoadPercent));
+            ?? AverageCoreLoad(cores);
         float clockMHz = _cpuFrequencyReader.ReadEffectiveClockMHz() ?? ReadCpuClockFromSensors(sensors);
 
         return new CpuDeviceReading(
@@ -273,6 +375,21 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             BuildMetricReadings(sensors, SensorType.Clock),
             BuildMetricReadings(sensors, SensorType.Voltage),
             cores);
+    }
+
+    private CpuTopology ReadCpuTopologyCached(int sensorLogicalProcessorCount)
+    {
+        if (_cachedCpuTopology is { } topology)
+        {
+            return topology.LogicalProcessors > 0
+                ? topology
+                : new CpuTopology(
+                    Math.Max(1, sensorLogicalProcessorCount),
+                    Math.Max(sensorLogicalProcessorCount, Environment.ProcessorCount));
+        }
+
+        _cachedCpuTopology = ReadCpuTopology(sensorLogicalProcessorCount);
+        return _cachedCpuTopology;
     }
 
     private static CpuTopology ReadCpuTopology(int sensorLogicalProcessorCount)
@@ -303,9 +420,8 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         return new CpuTopology(physicalCores, logicalProcessors);
     }
 
-    private static MemoryDeviceReading? BuildMemory(IReadOnlyList<IHardware> hardwareTree)
+    private MemoryDeviceReading? BuildMemory(IReadOnlyList<IHardware> hardwareTree, IHardware? memory)
     {
-        IHardware? memory = hardwareTree.FirstOrDefault(hardware => hardware.HardwareType == HardwareType.Memory);
         PhysicalMemorySnapshot? physicalMemory = ReadPhysicalMemory();
         if (physicalMemory is null && memory is null)
         {
@@ -323,35 +439,139 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
                 new MetricReading("Total", "Data", physicalMemory.TotalGiB, MetricFormatter.FormatDataGigabytes(physicalMemory.TotalGiB), 0),
                 new MetricReading("Available", "Data", physicalMemory.AvailableGiB, MetricFormatter.FormatDataGigabytes(physicalMemory.AvailableGiB), 0)
             ];
+        MemoryModuleInfo moduleInfo = GetMemoryModuleInfo();
 
         return new MemoryDeviceReading(
             memory?.Name ?? "Physical Memory",
             usageSensors,
             BuildMemoryTemperatureReadings(hardwareTree, sensors),
-            dataSensors);
+            dataSensors,
+            moduleInfo.TypeText,
+            moduleInfo.SpeedText);
+    }
+
+    private MemoryModuleInfo GetMemoryModuleInfo()
+    {
+        if (_cachedMemoryModuleInfo is { } moduleInfo)
+        {
+            return moduleInfo;
+        }
+
+        _cachedMemoryModuleInfo = ReadMemoryModuleInfo();
+        return _cachedMemoryModuleInfo;
+    }
+
+    private static MemoryModuleInfo ReadMemoryModuleInfo()
+    {
+        try
+        {
+            SortedSet<string> types = new(StringComparer.OrdinalIgnoreCase);
+            SortedSet<int> speeds = [];
+            using ManagementObjectSearcher searcher = new(
+                "SELECT SMBIOSMemoryType, MemoryType, ConfiguredClockSpeed, Speed FROM Win32_PhysicalMemory");
+            foreach (ManagementBaseObject item in searcher.Get())
+            {
+                string type = FormatMemoryType(ReadUInt16(item, "SMBIOSMemoryType"), ReadUInt16(item, "MemoryType"));
+                if (!string.IsNullOrWhiteSpace(type))
+                {
+                    types.Add(type);
+                }
+
+                int speed = ReadInt32(item, "ConfiguredClockSpeed");
+                if (speed <= 0)
+                {
+                    speed = ReadInt32(item, "Speed");
+                }
+
+                if (speed > 0)
+                {
+                    speeds.Add(speed);
+                }
+            }
+
+            string typeText = types.Count == 0 ? "--" : string.Join(" / ", types);
+            string speedText = speeds.Count == 0 ? "--" : string.Join(" / ", speeds.Select(speed => $"{speed} MT/s"));
+            return new MemoryModuleInfo(typeText, speedText);
+        }
+        catch (Exception ex) when (ex is ManagementException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return new MemoryModuleInfo("--", "--");
+        }
+    }
+
+    private static ushort ReadUInt16(ManagementBaseObject item, string propertyName)
+    {
+        return item[propertyName] is null ? (ushort)0 : Convert.ToUInt16(item[propertyName]);
+    }
+
+    private static int ReadInt32(ManagementBaseObject item, string propertyName)
+    {
+        return item[propertyName] is null ? 0 : Convert.ToInt32(item[propertyName]);
+    }
+
+    private static string FormatMemoryType(ushort smbiosMemoryType, ushort legacyMemoryType)
+    {
+        return smbiosMemoryType switch
+        {
+            20 => "DDR",
+            21 => "DDR2",
+            24 => "DDR3",
+            26 => "DDR4",
+            30 => "LPDDR",
+            31 => "LPDDR2",
+            32 => "LPDDR3",
+            33 => "LPDDR4",
+            34 => "DDR5",
+            35 => "LPDDR5",
+            _ => legacyMemoryType switch
+            {
+                20 => "DDR",
+                21 => "DDR2",
+                24 => "DDR3",
+                26 => "DDR4",
+                _ => string.Empty
+            }
+        };
     }
 
     private static IReadOnlyList<MetricReading> BuildMemoryTemperatureReadings(
         IReadOnlyList<IHardware> hardwareTree,
         IReadOnlyList<ISensor> memorySensors)
     {
-        MetricReading[] directReadings = BuildMetricReadings(memorySensors, SensorType.Temperature, IsMemoryModuleTemperatureSensor).ToArray();
-        if (directReadings.Length > 0)
+        IReadOnlyList<MetricReading> directReadings = BuildMetricReadings(memorySensors, SensorType.Temperature, IsMemoryModuleTemperatureSensor);
+        if (directReadings.Count > 0)
         {
             return directReadings;
         }
 
-        MetricReading[] moduleReadings = hardwareTree
-            .SelectMany(hardware => hardware.Sensors.Select(sensor => new HardwareSensor(hardware, sensor)))
-            .Where(item => item.Sensor.SensorType == SensorType.Temperature
-                && item.Sensor.Value.HasValue
-                && IsMemoryTemperatureSensor(item.Hardware, item.Sensor))
-            .OrderBy(item => item.Hardware.Name)
-            .ThenBy(item => item.Sensor.Index)
-            .ThenBy(item => item.Sensor.Name)
-            .Select(item => ToMetricReading(item.Sensor))
-            .ToArray();
-        return moduleReadings;
+        List<HardwareSensor> moduleSensors = [];
+        for (int i = 0; i < hardwareTree.Count; i++)
+        {
+            IHardware hardware = hardwareTree[i];
+            foreach (ISensor sensor in hardware.Sensors)
+            {
+                if (sensor.SensorType == SensorType.Temperature
+                    && sensor.Value.HasValue
+                    && IsMemoryTemperatureSensor(hardware, sensor))
+                {
+                    moduleSensors.Add(new HardwareSensor(hardware, sensor));
+                }
+            }
+        }
+
+        if (moduleSensors.Count == 0)
+        {
+            return [];
+        }
+
+        moduleSensors.Sort(CompareHardwareSensor);
+        MetricReading[] readings = new MetricReading[moduleSensors.Count];
+        for (int i = 0; i < readings.Length; i++)
+        {
+            readings[i] = ToMetricReading(moduleSensors[i].Sensor);
+        }
+
+        return readings;
     }
 
     private static GpuDeviceReading BuildGpu(IHardware gpu)
@@ -365,6 +585,22 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             BuildMetricReadings(sensors, [SensorType.Load, SensorType.Data, SensorType.SmallData, SensorType.Temperature], IsMemoryNamed));
     }
 
+    private static GpuDeviceReading[] BuildGpus(IReadOnlyList<IHardware> gpuHardware)
+    {
+        if (gpuHardware.Count == 0)
+        {
+            return [];
+        }
+
+        GpuDeviceReading[] readings = new GpuDeviceReading[gpuHardware.Count];
+        for (int i = 0; i < readings.Length; i++)
+        {
+            readings[i] = BuildGpu(gpuHardware[i]);
+        }
+
+        return readings;
+    }
+
     private static StorageDeviceReading BuildStorage(IHardware storage)
     {
         ISensor[] sensors = ActiveSensors(storage);
@@ -376,13 +612,27 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             BuildMetricReadings(sensors, [SensorType.Data, SensorType.SmallData]));
     }
 
+    private static StorageDeviceReading[] BuildStorageDevices(IReadOnlyList<IHardware> storageHardware)
+    {
+        if (storageHardware.Count == 0)
+        {
+            return [];
+        }
+
+        StorageDeviceReading[] readings = new StorageDeviceReading[storageHardware.Count];
+        for (int i = 0; i < readings.Length; i++)
+        {
+            readings[i] = BuildStorage(storageHardware[i]);
+        }
+
+        return readings;
+    }
+
     private static IReadOnlyList<MetricReading> BuildStorageTemperatureReadings(IReadOnlyList<ISensor> sensors)
     {
-        ISensor[] temperatures = SensorsOfType(sensors, SensorType.Temperature)
-            .OrderBy(sensor => sensor.Index)
-            .ThenBy(sensor => sensor.Name)
-            .ToArray();
-        if (temperatures.Length == 0)
+        List<ISensor> temperatures = MatchingSensors(sensors, SensorType.Temperature, null);
+        temperatures.Sort(CompareSensor);
+        if (temperatures.Count == 0)
         {
             return [];
         }
@@ -392,6 +642,19 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             ?? temperatures.FirstOrDefault(sensor => sensor.Name.Equals("Temperature 1", StringComparison.OrdinalIgnoreCase))
             ?? temperatures[0];
         return [ToMetricReading(primary)];
+    }
+
+    private StorageDeviceReading[] GetFixedDriveStorageFallback()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (_cachedFixedDriveFallback is not null && now - _cachedFixedDriveFallbackAt < FixedDriveFallbackCacheDuration)
+        {
+            return _cachedFixedDriveFallback;
+        }
+
+        _cachedFixedDriveFallback = BuildFixedDriveStorageFallback();
+        _cachedFixedDriveFallbackAt = now;
+        return _cachedFixedDriveFallback;
     }
 
     private static StorageDeviceReading[] BuildFixedDriveStorageFallback()
@@ -428,7 +691,9 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         Dictionary<int, int> loads = new();
         HashSet<int> usedIndexes = [];
         int fallbackIndex = 0;
-        foreach (ISensor sensor in SensorsOfType(sensors, SensorType.Load).Where(IsCoreNamed).OrderBy(sensor => sensor.Index).ThenBy(sensor => sensor.Name))
+        List<ISensor> loadSensors = MatchingSensors(sensors, SensorType.Load, IsCoreNamed);
+        loadSensors.Sort(CompareSensor);
+        foreach (ISensor sensor in loadSensors)
         {
             int index = TryGetCoreIndex(sensor.Name) ?? fallbackIndex;
             if (usedIndexes.Contains(index))
@@ -441,10 +706,16 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             loads[index] = (int)Math.Round(Math.Clamp(sensor.Value.GetValueOrDefault(), 0, 100));
         }
 
-        return loads
-            .OrderBy(pair => pair.Key)
-            .Select(pair => new CoreReading(pair.Key, pair.Value))
-            .ToArray();
+        int[] keys = loads.Keys.ToArray();
+        Array.Sort(keys);
+        CoreReading[] readings = new CoreReading[keys.Length];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            int key = keys[i];
+            readings[i] = new CoreReading(key, loads[key]);
+        }
+
+        return readings;
     }
 
     private static IReadOnlyDictionary<int, float> BuildCoreClockReadings(IReadOnlyList<ISensor> sensors)
@@ -452,7 +723,9 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         Dictionary<int, float> clocks = [];
         HashSet<int> usedIndexes = [];
         int fallbackIndex = 0;
-        foreach (ISensor sensor in SensorsOfType(sensors, SensorType.Clock).Where(IsCpuCoreClockSensor).OrderBy(sensor => sensor.Index).ThenBy(sensor => sensor.Name))
+        List<ISensor> clockSensors = MatchingSensors(sensors, SensorType.Clock, IsCpuCoreClockSensor);
+        clockSensors.Sort(CompareSensor);
+        foreach (ISensor sensor in clockSensors)
         {
             int index = TryGetCoreIndex(sensor.Name) ?? fallbackIndex;
             if (usedIndexes.Contains(index))
@@ -481,12 +754,17 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
             return readings;
         }
 
-        return readings
-            .Select(reading => new CoreReading(
+        CoreReading[] updated = new CoreReading[readings.Count];
+        for (int i = 0; i < updated.Length; i++)
+        {
+            CoreReading reading = readings[i];
+            updated[i] = new CoreReading(
                 reading.Index,
                 reading.LoadPercent,
-                clocks.TryGetValue(reading.Index, out float clockMHz) ? clockMHz : reading.ClockMHz))
-            .ToArray();
+                clocks.TryGetValue(reading.Index, out float clockMHz) ? clockMHz : reading.ClockMHz);
+        }
+
+        return updated;
     }
 
     private static IReadOnlyList<CoreReading> NormalizeCoreReadings(IReadOnlyList<CoreReading> readings, int logicalProcessorCount)
@@ -538,7 +816,8 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         SensorType type,
         Func<ISensor, bool>? filter = null)
     {
-        return BuildMetricReadings(sensors, [type], filter);
+        List<ISensor> matched = MatchingSensors(sensors, type, filter);
+        return ToMetricReadings(matched);
     }
 
     private static IReadOnlyList<MetricReading> BuildMetricReadings(
@@ -546,13 +825,82 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         IReadOnlyCollection<SensorType> types,
         Func<ISensor, bool>? filter = null)
     {
-        return sensors
-            .Where(sensor => types.Contains(sensor.SensorType) && sensor.Value.HasValue)
-            .Where(sensor => filter?.Invoke(sensor) ?? true)
-            .OrderBy(sensor => sensor.Index)
-            .ThenBy(sensor => sensor.Name)
-            .Select(ToMetricReading)
-            .ToArray();
+        List<ISensor> matched = [];
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            ISensor sensor = sensors[i];
+            if (sensor.Value.HasValue
+                && ContainsSensorType(types, sensor.SensorType)
+                && (filter?.Invoke(sensor) ?? true))
+            {
+                matched.Add(sensor);
+            }
+        }
+
+        return ToMetricReadings(matched);
+    }
+
+    private static List<ISensor> MatchingSensors(IReadOnlyList<ISensor> sensors, SensorType type, Func<ISensor, bool>? filter)
+    {
+        List<ISensor> matched = [];
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            ISensor sensor = sensors[i];
+            if (sensor.SensorType == type
+                && sensor.Value.HasValue
+                && (filter?.Invoke(sensor) ?? true))
+            {
+                matched.Add(sensor);
+            }
+        }
+
+        return matched;
+    }
+
+    private static MetricReading[] ToMetricReadings(List<ISensor> sensors)
+    {
+        if (sensors.Count == 0)
+        {
+            return [];
+        }
+
+        sensors.Sort(CompareSensor);
+        MetricReading[] readings = new MetricReading[sensors.Count];
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            readings[i] = ToMetricReading(sensors[i]);
+        }
+
+        return readings;
+    }
+
+    private static bool ContainsSensorType(IReadOnlyCollection<SensorType> types, SensorType type)
+    {
+        foreach (SensorType candidate in types)
+        {
+            if (candidate == type)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int CompareSensor(ISensor left, ISensor right)
+    {
+        int indexComparison = left.Index.CompareTo(right.Index);
+        return indexComparison != 0
+            ? indexComparison
+            : string.Compare(left.Name, right.Name, StringComparison.Ordinal);
+    }
+
+    private static int CompareHardwareSensor(HardwareSensor left, HardwareSensor right)
+    {
+        int hardwareComparison = string.Compare(left.Hardware.Name, right.Hardware.Name, StringComparison.Ordinal);
+        return hardwareComparison != 0
+            ? hardwareComparison
+            : CompareSensor(left.Sensor, right.Sensor);
     }
 
     private static MetricReading ToMetricReading(ISensor sensor)
@@ -568,21 +916,40 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 
     private static ISensor[] ActiveSensors(IHardware hardware)
     {
-        return FlattenHardware(hardware)
-            .SelectMany(item => item.Sensors)
-            .Where(sensor => sensor.Value.HasValue)
-            .ToArray();
+        List<ISensor> sensors = [];
+        AddActiveSensors(hardware, sensors);
+        return sensors.ToArray();
     }
 
-    private static IEnumerable<ISensor> SensorsOfType(IEnumerable<ISensor> sensors, SensorType type)
+    private static void AddActiveSensors(IHardware hardware, List<ISensor> sensors)
     {
-        return sensors.Where(sensor => sensor.SensorType == type && sensor.Value.HasValue);
+        foreach (ISensor sensor in hardware.Sensors)
+        {
+            if (sensor.Value.HasValue)
+            {
+                sensors.Add(sensor);
+            }
+        }
+
+        foreach (IHardware subHardware in hardware.SubHardware)
+        {
+            AddActiveSensors(subHardware, sensors);
+        }
     }
 
     private static ISensor? FindSensor(IEnumerable<ISensor> sensors, SensorType type, string nameContains)
     {
-        return SensorsOfType(sensors, type).FirstOrDefault(sensor =>
-            sensor.Name.Contains(nameContains, StringComparison.OrdinalIgnoreCase));
+        foreach (ISensor sensor in sensors)
+        {
+            if (sensor.SensorType == type
+                && sensor.Value.HasValue
+                && sensor.Name.Contains(nameContains, StringComparison.OrdinalIgnoreCase))
+            {
+                return sensor;
+            }
+        }
+
+        return null;
     }
 
     private static bool IsGpuHardware(IHardware hardware)
@@ -592,9 +959,19 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
 
     private static float ReadCpuClockFromSensors(IReadOnlyList<ISensor> sensors)
     {
-        return Average(SensorsOfType(sensors, SensorType.Clock)
-            .Where(IsCpuCoreClockSensor)
-            .Select(sensor => sensor.Value.GetValueOrDefault()));
+        float total = 0;
+        int count = 0;
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            ISensor sensor = sensors[i];
+            if (sensor.SensorType == SensorType.Clock && sensor.Value.HasValue && IsCpuCoreClockSensor(sensor))
+            {
+                total += sensor.Value.GetValueOrDefault();
+                count++;
+            }
+        }
+
+        return count == 0 ? 0 : total / count;
     }
 
     private static bool IsCoreNamed(ISensor sensor)
@@ -720,10 +1097,20 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
         return $"{value:0.#} {units[unitIndex]}";
     }
 
-    private static float Average(IEnumerable<float> values)
+    private static float AverageCoreLoad(IReadOnlyList<CoreReading> cores)
     {
-        float[] array = values.ToArray();
-        return array.Length == 0 ? 0 : array.Average();
+        if (cores.Count == 0)
+        {
+            return 0;
+        }
+
+        float total = 0;
+        for (int i = 0; i < cores.Count; i++)
+        {
+            total += cores[i].LoadPercent;
+        }
+
+        return total / cores.Count;
     }
 
     private readonly record struct HardwareSensor(IHardware Hardware, ISensor Sensor);
