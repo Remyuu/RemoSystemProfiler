@@ -472,6 +472,8 @@ public sealed partial class MainWindow : Window
             _viewModel.MemoryUsageText = "--";
             _viewModel.MemoryCapacityText = "--";
             _viewModel.MemoryTempText = string.Empty;
+            _viewModel.MemoryTypeText = "--";
+            _viewModel.MemorySpeedText = "--";
             SyncDeviceCollection(_viewModel.MemoryMetrics, Array.Empty<MetricReading>(), MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
             return;
         }
@@ -479,6 +481,8 @@ public sealed partial class MainWindow : Window
         _viewModel.MemoryUsageText = memory.UsageText;
         _viewModel.MemoryTempText = memory.TemperatureText;
         _viewModel.MemoryCapacityText = memory.CapacityText;
+        _viewModel.MemoryTypeText = memory.TypeText;
+        _viewModel.MemorySpeedText = memory.SpeedText;
         SyncDeviceCollection(_viewModel.MemoryMetrics, memory.Metrics, MetricItemViewModel.MetricKey, reading => new MetricItemViewModel(reading));
     }
 
@@ -791,6 +795,7 @@ public sealed partial class MainWindow : Window
         FlyoutSpanishItem.Content = Localization.Resource("Ui_Spanish");
         FlyoutGermanItem.Content = Localization.Resource("Ui_German");
         FlyoutFrenchItem.Content = Localization.Resource("Ui_French");
+        FlyoutOpenDataFolderButton.Content = Localization.Resource("Ui_OpenDataFolder");
 
         FlyoutAboutTitle.Text = Localization.Resource("Ui_About");
         FlyoutAppSubtitleText.Text = Localization.Resource("Ui_AppSubtitle");
@@ -878,6 +883,19 @@ public sealed partial class MainWindow : Window
 
         await AnimateSidebarWidthAsync(SidebarRoot.Bounds.Width, _lastExpandedSidebarWidth).ConfigureAwait(true);
         ApplySidebarMode(false);
+    }
+
+    private void OpenDataFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            DashboardSettingsStore.EnsureDataDirectory();
+            Process.Start(new ProcessStartInfo(DashboardSettingsStore.DataDirectory) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Opening the data folder is a convenience action; monitoring should keep running if Explorer is blocked.
+        }
     }
 
     private void SidebarRoot_SizeChanged(object? sender, SizeChangedEventArgs e)

@@ -397,6 +397,11 @@ public sealed class CpuCoreGrid : Control
     {
         private float[] _samples = new float[ChartHistorySettings.MaxSamples];
         private int _start;
+        private int _samplesVersion;
+        private int _geometryVersion = -1;
+        private Rect _geometryBounds;
+        private UtilizationChartSegment[] _areaSegments = [];
+        private UtilizationChartSegment[] _lineSegments = [];
         private string? _labelTextValue;
         private IBrush? _labelTextBrush;
         private FormattedText? _labelText;
@@ -418,22 +423,64 @@ public sealed class CpuCoreGrid : Control
                 _start = (_start + 1) % _samples.Length;
             }
 
+            _samplesVersion++;
         }
 
         public void InvalidateGeometry()
         {
+            _geometryVersion = -1;
+            _areaSegments = [];
+            _lineSegments = [];
         }
 
         public void DrawAreaSegments(DrawingContext context, Rect bounds, IBrush lowBrush)
         {
-            if (Count <= 1)
+            EnsureGeometryCache(bounds);
+            for (int i = 0; i < _areaSegments.Length; i++)
             {
-                float sample = SampleAt(0);
-                StreamGeometry geometry = BuildAreaSegment(bounds.Left, bounds.Right, bounds.Bottom, Y(sample, bounds), Y(sample, bounds));
-                context.DrawGeometry(UtilizationChartBrushes.CreateAreaBrush(sample, lowBrush), null, geometry);
+                UtilizationChartSegment segment = _areaSegments[i];
+                context.DrawGeometry(UtilizationChartBrushes.GetAreaBrush(segment.LoadBucket, lowBrush), null, segment.Geometry);
+            }
+        }
+
+        public void DrawLineSegments(DrawingContext context, Rect bounds, IBrush lowBrush)
+        {
+            EnsureGeometryCache(bounds);
+            for (int i = 0; i < _lineSegments.Length; i++)
+            {
+                UtilizationChartSegment segment = _lineSegments[i];
+                context.DrawGeometry(null, UtilizationChartBrushes.GetStrokePen(segment.LoadBucket, lowBrush, 2.2), segment.Geometry);
+            }
+        }
+
+        private void EnsureGeometryCache(Rect bounds)
+        {
+            if (_geometryVersion == _samplesVersion && _geometryBounds == bounds)
+            {
                 return;
             }
 
+            _geometryVersion = _samplesVersion;
+            _geometryBounds = bounds;
+            BuildAreaSegments(bounds);
+            BuildLineSegments(bounds);
+        }
+
+        private void BuildAreaSegments(Rect bounds)
+        {
+            if (Count <= 1)
+            {
+                float sample = SampleAt(0);
+                _areaSegments =
+                [
+                    new UtilizationChartSegment(
+                        BuildAreaSegment(bounds.Left, bounds.Right, bounds.Bottom, Y(sample, bounds), Y(sample, bounds)),
+                        UtilizationChartBrushes.LoadBucket(sample))
+                ];
+                return;
+            }
+
+            _areaSegments = new UtilizationChartSegment[Math.Max(0, Count - 1)];
             double step = bounds.Width / (Count - 1);
             for (int i = 1; i < Count; i++)
             {
@@ -441,35 +488,36 @@ public sealed class CpuCoreGrid : Control
                 float current = SampleAt(i);
                 double x0 = bounds.X + (i - 1) * step;
                 double x1 = bounds.X + i * step;
-                StreamGeometry geometry = BuildAreaSegment(x0, x1, bounds.Bottom, Y(previous, bounds), Y(current, bounds));
-                context.DrawGeometry(UtilizationChartBrushes.CreateAreaBrush((previous + current) * 0.5, lowBrush), null, geometry);
+                _areaSegments[i - 1] = new UtilizationChartSegment(
+                    BuildAreaSegment(x0, x1, bounds.Bottom, Y(previous, bounds), Y(current, bounds)),
+                    UtilizationChartBrushes.LoadBucket((previous + current) * 0.5));
             }
         }
 
-        public void DrawLineSegments(DrawingContext context, Rect bounds, IBrush lowBrush)
+        private void BuildLineSegments(Rect bounds)
         {
             if (Count <= 1)
             {
                 float sample = SampleAt(0);
-                StreamGeometry geometry = new();
-                using StreamGeometryContext stream = geometry.Open();
                 double y = Y(sample, bounds);
-                stream.BeginFigure(new Point(bounds.Left, y), false);
-                stream.LineTo(new Point(bounds.Right, y));
-                context.DrawGeometry(null, new Pen(UtilizationChartBrushes.CreateStrokeBrush(sample, lowBrush), 2.2), geometry);
+                _lineSegments =
+                [
+                    new UtilizationChartSegment(
+                        BuildLineSegment(bounds.Left, y, bounds.Right, y),
+                        UtilizationChartBrushes.LoadBucket(sample))
+                ];
                 return;
             }
 
+            _lineSegments = new UtilizationChartSegment[Math.Max(0, Count - 1)];
             double step = bounds.Width / (Count - 1);
             for (int i = 1; i < Count; i++)
             {
                 float previous = SampleAt(i - 1);
                 float current = SampleAt(i);
-                StreamGeometry geometry = new();
-                using StreamGeometryContext stream = geometry.Open();
-                stream.BeginFigure(new Point(bounds.X + (i - 1) * step, Y(previous, bounds)), false);
-                stream.LineTo(new Point(bounds.X + i * step, Y(current, bounds)));
-                context.DrawGeometry(null, new Pen(UtilizationChartBrushes.CreateStrokeBrush((previous + current) * 0.5, lowBrush), 2.2), geometry);
+                _lineSegments[i - 1] = new UtilizationChartSegment(
+                    BuildLineSegment(bounds.X + (i - 1) * step, Y(previous, bounds), bounds.X + i * step, Y(current, bounds)),
+                    UtilizationChartBrushes.LoadBucket((previous + current) * 0.5));
             }
         }
 
@@ -523,6 +571,15 @@ public sealed class CpuCoreGrid : Control
             stream.LineTo(new Point(x1, y1));
             stream.LineTo(new Point(x1, bottom));
             stream.EndFigure(true);
+            return geometry;
+        }
+
+        private static StreamGeometry BuildLineSegment(double x0, double y0, double x1, double y1)
+        {
+            StreamGeometry geometry = new();
+            using StreamGeometryContext stream = geometry.Open();
+            stream.BeginFigure(new Point(x0, y0), false);
+            stream.LineTo(new Point(x1, y1));
             return geometry;
         }
 

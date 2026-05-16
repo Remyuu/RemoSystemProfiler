@@ -21,6 +21,11 @@ public sealed class Sparkline : Control
     private float[] _samples = new float[ChartHistorySettings.MaxSamples];
     private int _start;
     private int _count;
+    private int _samplesVersion;
+    private int _geometryVersion = -1;
+    private Size _geometrySize;
+    private UtilizationChartSegment[] _areaSegments = [];
+    private UtilizationChartSegment[] _lineSegments = [];
     private bool _usesSampleVersion;
 
     static Sparkline()
@@ -82,8 +87,24 @@ public sealed class Sparkline : Control
             return;
         }
 
-        DrawAreaSegments(context, Bounds.Size);
-        DrawLineSegments(context, Bounds.Size);
+        EnsureGeometryCache(Bounds.Size);
+        for (int i = 0; i < _areaSegments.Length; i++)
+        {
+            UtilizationChartSegment segment = _areaSegments[i];
+            context.DrawGeometry(
+                UtilizationChartBrushes.GetAreaBrush(segment.LoadBucket, Stroke),
+                null,
+                segment.Geometry);
+        }
+
+        for (int i = 0; i < _lineSegments.Length; i++)
+        {
+            UtilizationChartSegment segment = _lineSegments[i];
+            context.DrawGeometry(
+                null,
+                UtilizationChartBrushes.GetStrokePen(segment.LoadBucket, Stroke, StrokeThickness),
+                segment.Geometry);
+        }
     }
 
     private void AddSample(double value)
@@ -103,6 +124,7 @@ public sealed class Sparkline : Control
         }
 
         InvalidateVisual();
+        _samplesVersion++;
     }
 
     private void EnsureSampleCapacity(int capacity)
@@ -126,22 +148,34 @@ public sealed class Sparkline : Control
         _count = copyCount;
     }
 
-    private void DrawAreaSegments(DrawingContext context, Size size)
+    private void EnsureGeometryCache(Size size)
+    {
+        if (_geometryVersion == _samplesVersion && _geometrySize == size)
+        {
+            return;
+        }
+
+        _geometryVersion = _samplesVersion;
+        _geometrySize = size;
+        BuildAreaSegments(size);
+        BuildLineSegments(size);
+    }
+
+    private void BuildAreaSegments(Size size)
     {
         if (_count == 1)
         {
             float sample = SampleAt(0);
-            StreamGeometry geometry = new();
-            using StreamGeometryContext stream = geometry.Open();
-            stream.BeginFigure(new Point(0, size.Height), true);
-            stream.LineTo(new Point(0, Y(sample, size.Height)));
-            stream.LineTo(new Point(size.Width, Y(sample, size.Height)));
-            stream.LineTo(new Point(size.Width, size.Height));
-            stream.EndFigure(true);
-            context.DrawGeometry(UtilizationChartBrushes.CreateAreaBrush(sample, Stroke), null, geometry);
+            _areaSegments =
+            [
+                new UtilizationChartSegment(
+                    BuildAreaSegment(0, size.Width, size.Height, Y(sample, size.Height), Y(sample, size.Height)),
+                    UtilizationChartBrushes.LoadBucket(sample))
+            ];
             return;
         }
 
+        _areaSegments = new UtilizationChartSegment[Math.Max(0, _count - 1)];
         double step = size.Width / (_count - 1);
         for (int i = 1; i < _count; i++)
         {
@@ -149,45 +183,58 @@ public sealed class Sparkline : Control
             float current = SampleAt(i);
             double x0 = (i - 1) * step;
             double x1 = i * step;
-            StreamGeometry geometry = new();
-            using StreamGeometryContext stream = geometry.Open();
-            stream.BeginFigure(new Point(x0, size.Height), true);
-            stream.LineTo(new Point(x0, Y(previous, size.Height)));
-            stream.LineTo(new Point(x1, Y(current, size.Height)));
-            stream.LineTo(new Point(x1, size.Height));
-            stream.EndFigure(true);
-            context.DrawGeometry(UtilizationChartBrushes.CreateAreaBrush((previous + current) * 0.5, Stroke), null, geometry);
+            _areaSegments[i - 1] = new UtilizationChartSegment(
+                BuildAreaSegment(x0, x1, size.Height, Y(previous, size.Height), Y(current, size.Height)),
+                UtilizationChartBrushes.LoadBucket((previous + current) * 0.5));
         }
     }
 
-    private void DrawLineSegments(DrawingContext context, Size size)
+    private void BuildLineSegments(Size size)
     {
         if (_count == 1)
         {
             float sample = SampleAt(0);
             double y = Y(sample, size.Height);
-            StreamGeometry geometry = new();
-            using StreamGeometryContext stream = geometry.Open();
-            stream.BeginFigure(new Point(0, y), false);
-            stream.LineTo(new Point(size.Width, y));
-            context.DrawGeometry(null, new Pen(UtilizationChartBrushes.CreateStrokeBrush(sample, Stroke), StrokeThickness), geometry);
+            _lineSegments =
+            [
+                new UtilizationChartSegment(
+                    BuildLineSegment(0, y, size.Width, y),
+                    UtilizationChartBrushes.LoadBucket(sample))
+            ];
             return;
         }
 
+        _lineSegments = new UtilizationChartSegment[Math.Max(0, _count - 1)];
         double step = size.Width / (_count - 1);
         for (int i = 1; i < _count; i++)
         {
             float previous = SampleAt(i - 1);
             float current = SampleAt(i);
-            StreamGeometry geometry = new();
-            using StreamGeometryContext stream = geometry.Open();
-            stream.BeginFigure(new Point((i - 1) * step, Y(previous, size.Height)), false);
-            stream.LineTo(new Point(i * step, Y(current, size.Height)));
-            context.DrawGeometry(
-                null,
-                new Pen(UtilizationChartBrushes.CreateStrokeBrush((previous + current) * 0.5, Stroke), StrokeThickness),
-                geometry);
+            _lineSegments[i - 1] = new UtilizationChartSegment(
+                BuildLineSegment((i - 1) * step, Y(previous, size.Height), i * step, Y(current, size.Height)),
+                UtilizationChartBrushes.LoadBucket((previous + current) * 0.5));
         }
+    }
+
+    private static StreamGeometry BuildAreaSegment(double x0, double x1, double bottom, double y0, double y1)
+    {
+        StreamGeometry geometry = new();
+        using StreamGeometryContext stream = geometry.Open();
+        stream.BeginFigure(new Point(x0, bottom), true);
+        stream.LineTo(new Point(x0, y0));
+        stream.LineTo(new Point(x1, y1));
+        stream.LineTo(new Point(x1, bottom));
+        stream.EndFigure(true);
+        return geometry;
+    }
+
+    private static StreamGeometry BuildLineSegment(double x0, double y0, double x1, double y1)
+    {
+        StreamGeometry geometry = new();
+        using StreamGeometryContext stream = geometry.Open();
+        stream.BeginFigure(new Point(x0, y0), false);
+        stream.LineTo(new Point(x1, y1));
+        return geometry;
     }
 
     private float SampleAt(int index) => _samples[(_start + index) % _samples.Length];
@@ -195,20 +242,61 @@ public sealed class Sparkline : Control
     private static double Y(float value, double height) => height - value / 100d * height;
 }
 
+internal readonly record struct UtilizationChartSegment(StreamGeometry Geometry, int LoadBucket);
+
 internal static class UtilizationChartBrushes
 {
     private static readonly Color FallbackLowColor = Color.Parse("#37B7E8");
     private static readonly Color HotColor = Color.Parse("#F97066");
+    private static readonly Dictionary<BrushKey, IBrush> AreaBrushes = [];
+    private static readonly Dictionary<BrushKey, IBrush> StrokeBrushes = [];
+    private static readonly Dictionary<PenKey, Pen> StrokePens = [];
 
-    public static IBrush CreateAreaBrush(double loadPercent, IBrush? lowBrush)
+    public static int LoadBucket(double loadPercent)
     {
-        Color color = InterpolateLoadColor(loadPercent, ColorFromBrush(lowBrush, FallbackLowColor));
-        return new SolidColorBrush(WithAlpha(color, AreaAlpha(loadPercent)));
+        return (int)Math.Round(Math.Clamp(loadPercent, 0, 100));
     }
 
-    public static IBrush CreateStrokeBrush(double loadPercent, IBrush? lowBrush)
+    public static IBrush GetAreaBrush(int loadBucket, IBrush? lowBrush)
     {
-        return new SolidColorBrush(InterpolateLoadColor(loadPercent, ColorFromBrush(lowBrush, FallbackLowColor)));
+        BrushKey key = new(ColorFromBrush(lowBrush, FallbackLowColor), Math.Clamp(loadBucket, 0, 100));
+        if (!AreaBrushes.TryGetValue(key, out IBrush? brush))
+        {
+            Color color = InterpolateLoadColor(key.LoadBucket, key.LowColor);
+            brush = new SolidColorBrush(WithAlpha(color, AreaAlpha(key.LoadBucket)));
+            AreaBrushes[key] = brush;
+        }
+
+        return brush;
+    }
+
+    public static Pen GetStrokePen(int loadBucket, IBrush? lowBrush, double thickness)
+    {
+        PenKey key = new(ColorFromBrush(lowBrush, FallbackLowColor), Math.Clamp(loadBucket, 0, 100), thickness);
+        if (!StrokePens.TryGetValue(key, out Pen? pen))
+        {
+            pen = new Pen(GetStrokeBrush(key.LowColor, key.LoadBucket), thickness);
+            StrokePens[key] = pen;
+        }
+
+        return pen;
+    }
+
+    private static IBrush GetStrokeBrush(int loadBucket, IBrush? lowBrush)
+    {
+        return GetStrokeBrush(ColorFromBrush(lowBrush, FallbackLowColor), loadBucket);
+    }
+
+    private static IBrush GetStrokeBrush(Color lowColor, int loadBucket)
+    {
+        BrushKey key = new(lowColor, Math.Clamp(loadBucket, 0, 100));
+        if (!StrokeBrushes.TryGetValue(key, out IBrush? brush))
+        {
+            brush = new SolidColorBrush(InterpolateLoadColor(key.LoadBucket, key.LowColor));
+            StrokeBrushes[key] = brush;
+        }
+
+        return brush;
     }
 
     private static Color ColorFromBrush(IBrush? brush, Color fallback)
@@ -234,4 +322,8 @@ internal static class UtilizationChartBrushes
     private static byte Lerp(byte start, byte end, double amount) => (byte)Math.Round(start + ((end - start) * amount));
 
     private static Color WithAlpha(Color color, byte alpha) => Color.FromArgb(alpha, color.R, color.G, color.B);
+
+    private readonly record struct BrushKey(Color LowColor, int LoadBucket);
+
+    private readonly record struct PenKey(Color LowColor, int LoadBucket, double Thickness);
 }

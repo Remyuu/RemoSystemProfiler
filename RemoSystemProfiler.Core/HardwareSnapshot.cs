@@ -74,7 +74,9 @@ public sealed record MemoryDeviceReading(
     string Name,
     IReadOnlyList<MetricReading> UsageSensors,
     IReadOnlyList<MetricReading> TemperatureSensors,
-    IReadOnlyList<MetricReading> DataSensors)
+    IReadOnlyList<MetricReading> DataSensors,
+    string TypeText = "--",
+    string SpeedText = "--")
 {
     public IReadOnlyList<MetricReading> Metrics { get; } = MetricReadingCollection.Combine(UsageSensors, DataSensors, TemperatureSensors);
 

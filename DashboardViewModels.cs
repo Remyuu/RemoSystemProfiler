@@ -194,6 +194,12 @@ public sealed partial class MainWindowViewModel : ObservableDashboardItem
     private string _memoryTempText = "";
 
     [ObservableProperty]
+    private string _memoryTypeText = "--";
+
+    [ObservableProperty]
+    private string _memorySpeedText = "--";
+
+    [ObservableProperty]
     private bool _isStartupOverlayVisible = true;
 
     [ObservableProperty]
@@ -1065,6 +1071,8 @@ public sealed record SensorGroupReading(
 
 public sealed partial class SensorGroupViewModel : ObservableDashboardItem, IDashboardItem<SensorGroupReading, string>
 {
+    private SensorGroupReading? _latestReading;
+
     [ObservableProperty]
     private string _title = string.Empty;
 
@@ -1105,9 +1113,26 @@ public sealed partial class SensorGroupViewModel : ObservableDashboardItem, IDas
 
     public void Update(SensorGroupReading reading)
     {
+        _latestReading = reading;
         Title = reading.Title;
         StatusText = DashboardStatus.SensorGroupStatus(reading.Metrics);
         ApplySummary(reading);
+        if (IsExpanded)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value && _latestReading is { } reading)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    private void SyncMetrics(SensorGroupReading reading)
+    {
         DashboardCollection.SyncItems(
             Metrics,
             reading.Metrics,
@@ -1351,6 +1376,10 @@ public static class ChartHistorySettings
 
 public sealed partial class OverviewItemViewModel : ObservableDashboardItem, IDashboardItem<OverviewReading, string>
 {
+    private const double GaugeSampleThreshold = 0.5;
+    private bool _hasSample;
+    private double _lastSampledGaugeValue;
+
     [ObservableProperty]
     private string _title = string.Empty;
 
@@ -1394,13 +1423,25 @@ public sealed partial class OverviewItemViewModel : ObservableDashboardItem, IDa
         DetailText = reading.DetailText;
         AccentBrush = reading.AccentBrush;
         GaugeValue = reading.GaugeValue;
-        SampleVersion = unchecked(SampleVersion + 1);
+        if (ShouldAdvanceSample(reading.GaugeValue))
+        {
+            _hasSample = true;
+            _lastSampledGaugeValue = reading.GaugeValue;
+            SampleVersion = unchecked(SampleVersion + 1);
+        }
+    }
+
+    private bool ShouldAdvanceSample(double gaugeValue)
+    {
+        return !_hasSample || Math.Abs(gaugeValue - _lastSampledGaugeValue) >= GaugeSampleThreshold;
     }
 }
 
 public sealed partial class CoreItemViewModel : ObservableDashboardItem, IDashboardItem<CoreReading, int>
 {
     private static readonly IBrush[] LoadBrushCache = BuildLoadBrushCache();
+    private bool _hasSample;
+    private int _lastSampledLoadPercent;
 
     [ObservableProperty]
     private string _loadText = "--";
@@ -1427,10 +1468,20 @@ public sealed partial class CoreItemViewModel : ObservableDashboardItem, IDashbo
         LoadText = reading.LoadText;
         LoadBrush = BuildLoadBrush(reading.LoadPercent);
         LoadPercent = reading.LoadPercent;
-        SampleVersion = unchecked(SampleVersion + 1);
+        if (ShouldAdvanceSample(reading.LoadPercent))
+        {
+            _hasSample = true;
+            _lastSampledLoadPercent = reading.LoadPercent;
+            SampleVersion = unchecked(SampleVersion + 1);
+        }
     }
 
     private static IBrush BuildLoadBrush(int loadPercent) => LoadBrushCache[Math.Clamp(loadPercent, 0, LoadBrushCache.Length - 1)];
+
+    private bool ShouldAdvanceSample(int loadPercent)
+    {
+        return !_hasSample || loadPercent != _lastSampledLoadPercent;
+    }
 
     private static IBrush[] BuildLoadBrushCache()
     {
@@ -1457,6 +1508,8 @@ public sealed partial class CoreItemViewModel : ObservableDashboardItem, IDashbo
 
 public sealed partial class GpuDeviceViewModel : ObservableDashboardItem, IDashboardItem<GpuDeviceReading, string>
 {
+    private GpuDeviceReading? _latestReading;
+
     [ObservableProperty]
     private string _name = string.Empty;
 
@@ -1491,6 +1544,7 @@ public sealed partial class GpuDeviceViewModel : ObservableDashboardItem, IDashb
 
     public void Update(GpuDeviceReading reading)
     {
+        _latestReading = reading;
         Name = reading.Name;
         LoadText = reading.LoadText;
         TemperatureText = reading.TemperatureText;
@@ -1500,6 +1554,22 @@ public sealed partial class GpuDeviceViewModel : ObservableDashboardItem, IDashb
             reading.LoadSensors,
             85,
             75);
+        if (IsExpanded)
+        {
+            SyncDetailSensors(reading);
+        }
+    }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value && _latestReading is { } reading)
+        {
+            SyncDetailSensors(reading);
+        }
+    }
+
+    private void SyncDetailSensors(GpuDeviceReading reading)
+    {
         DashboardCollection.SyncItems(
             PowerSensors,
             reading.PowerSensors,
@@ -1520,6 +1590,8 @@ public sealed partial class GpuDeviceViewModel : ObservableDashboardItem, IDashb
 
 public sealed partial class StorageDeviceViewModel : ObservableDashboardItem, IDashboardItem<StorageDeviceReading, string>
 {
+    private StorageDeviceReading? _latestReading;
+
     [ObservableProperty]
     private string _name = string.Empty;
 
@@ -1544,6 +1616,7 @@ public sealed partial class StorageDeviceViewModel : ObservableDashboardItem, ID
 
     public void Update(StorageDeviceReading reading)
     {
+        _latestReading = reading;
         Name = reading.Name;
         UsageText = reading.UsageText;
         StatusText = DashboardStatus.DeviceStatus(
@@ -1551,6 +1624,22 @@ public sealed partial class StorageDeviceViewModel : ObservableDashboardItem, ID
             reading.UsageSensors,
             60,
             50);
+        if (IsExpanded)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value && _latestReading is { } reading)
+        {
+            SyncMetrics(reading);
+        }
+    }
+
+    private void SyncMetrics(StorageDeviceReading reading)
+    {
         DashboardCollection.SyncItems(
             Metrics,
             reading.Metrics,

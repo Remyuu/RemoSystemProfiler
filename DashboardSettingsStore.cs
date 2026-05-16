@@ -13,16 +13,20 @@ internal sealed record DashboardSettings(
 
 internal static class DashboardSettingsStore
 {
+    private const string FileName = "dashboard-settings.json";
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true
     };
 
+    public static string DataDirectory => ApplicationDataStore.RootDirectory;
+
     public static DashboardSettings Load()
     {
         try
         {
-            string path = SettingsPath;
+            string path = ResolveReadPath();
             if (!File.Exists(path))
             {
                 return new DashboardSettings();
@@ -60,5 +64,21 @@ internal static class DashboardSettingsStore
         BenchmarkDisplayName = BenchmarkPayload.NormalizeDisplayName(settings.BenchmarkDisplayName)
     };
 
-    private static string SettingsPath => Path.Combine(AppContext.BaseDirectory, "dashboard-settings.json");
+    public static void EnsureDataDirectory() => ApplicationDataStore.EnsureRootDirectory();
+
+    private static string ResolveReadPath()
+    {
+        string path = SettingsPath;
+        if (File.Exists(path))
+        {
+            return path;
+        }
+
+        string legacyPath = LegacySettingsPath;
+        return File.Exists(legacyPath) ? legacyPath : path;
+    }
+
+    private static string SettingsPath => ApplicationDataStore.GetFilePath(FileName);
+
+    private static string LegacySettingsPath => Path.Combine(AppContext.BaseDirectory, FileName);
 }

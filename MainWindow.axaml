@@ -687,6 +687,12 @@
                                                     <ComboBoxItem x:Name="FlyoutFrenchItem" Content="{DynamicResource Ui_French}" />
                                                 </ComboBox>
                                             </StackPanel>
+                                            <Button
+                                                x:Name="FlyoutOpenDataFolderButton"
+                                                Classes="tool-action"
+                                                HorizontalAlignment="Stretch"
+                                                Click="OpenDataFolder_Click"
+                                                Content="{DynamicResource Ui_OpenDataFolder}" />
                                             <Border Height="1" Background="{DynamicResource PanelStrokeBrush}" />
                                             <local:AnimatedExpander>
                                                 <local:AnimatedExpander.Header>
@@ -702,9 +708,25 @@
                                                             <TextBlock x:Name="FlyoutVersionLabel" Classes="label" Text="{DynamicResource Ui_Version}" />
                                                             <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Text="{Binding VersionText}" />
                                                             <TextBlock x:Name="FlyoutWebsiteLabel" Grid.Row="1" Classes="label" Text="{DynamicResource Ui_Website}" />
-                                                            <Button Grid.Row="1" Grid.Column="1" Classes="link" Click="WebsiteLink_Click" Content="remoooo.com" />
+                                                            <Button
+                                                                Grid.Row="1"
+                                                                Grid.Column="1"
+                                                                Classes="link"
+                                                                HorizontalAlignment="Stretch"
+                                                                HorizontalContentAlignment="Stretch"
+                                                                Click="WebsiteLink_Click">
+                                                                <TextBlock Text="remoooo.com" TextTrimming="CharacterEllipsis" />
+                                                            </Button>
                                                             <TextBlock Grid.Row="2" Classes="label" Text="GitHub" />
-                                                            <Button Grid.Row="2" Grid.Column="1" Classes="link" Click="GithubLink_Click" Content="github.com/Remyuu/RemoSystemProfiler" />
+                                                            <Button
+                                                                Grid.Row="2"
+                                                                Grid.Column="1"
+                                                                Classes="link"
+                                                                HorizontalAlignment="Stretch"
+                                                                HorizontalContentAlignment="Stretch"
+                                                                Click="GithubLink_Click">
+                                                                <TextBlock Text="github.com/Remyuu/RemoSystemProfiler" TextTrimming="CharacterEllipsis" />
+                                                            </Button>
                                                         </Grid>
                                                         <StackPanel Spacing="5">
                                                             <Button
@@ -944,13 +966,17 @@
                                     <TextBlock Classes="emphasis" FontSize="14" Text="{DynamicResource Ui_Memory}" />
                                     <TextBlock Grid.Column="1" Classes="small-value" Text="{Binding MemoryUsageText}" />
                                 </Grid>
-                                <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="5">
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,*" RowSpacing="5">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                         <TextBlock Classes="label" Text="{Binding MemoryCapacityText}" TextTrimming="CharacterEllipsis" />
                                         <TextBlock Grid.Column="1" FontSize="12" Foreground="{StaticResource RedBrush}" Text="{Binding MemoryTempText}" />
                                     </Grid>
+                                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock Classes="small-value" FontSize="12" Text="{Binding MemoryTypeText}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Classes="small-value" FontSize="12" Text="{Binding MemorySpeedText}" />
+                                    </Grid>
                                     <local:ScrollFadeHost
-                                        Grid.Row="1"
+                                        Grid.Row="2"
                                         BottomFade="{DynamicResource PanelFadeBottomBrush}"
                                         TopFade="{DynamicResource PanelFadeTopBrush}">
                                         <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
