@@ -2077,8 +2077,7 @@ public sealed partial class MainWindow : Window
                 return null;
             }
 
-            MetricReading? preferred = voltageSensors.FirstOrDefault(IsPreferredCpuVoltage)
-                ?? voltageSensors.FirstOrDefault(IsUsableVoltage);
+            MetricReading? preferred = voltageSensors.FirstOrDefault(IsPreferredCpuVoltage);
             return preferred?.Value;
         }
 
@@ -2086,11 +2085,11 @@ public sealed partial class MainWindow : Window
         {
             return IsUsableVoltage(sensor)
                 && (sensor.Name.Contains("VCore", StringComparison.OrdinalIgnoreCase)
-                    || sensor.Name.Contains("CPU Core", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("CPU VCore", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("CPU Core Voltage", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("Core Voltage", StringComparison.OrdinalIgnoreCase)
                     || sensor.Name.Contains("Core VID", StringComparison.OrdinalIgnoreCase)
-                    || sensor.Name.Contains("CPU Package", StringComparison.OrdinalIgnoreCase)
-                    || sensor.Name.Equals("CPU", StringComparison.OrdinalIgnoreCase)
-                    || sensor.Name.Equals("Core", StringComparison.OrdinalIgnoreCase));
+                    || sensor.Name.Equals("CPU Core", StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool IsUsableVoltage(MetricReading sensor)
