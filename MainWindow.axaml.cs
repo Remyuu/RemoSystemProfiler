@@ -628,16 +628,21 @@ public sealed partial class MainWindow : Window
             _overviewBuffer.Add(new("memory", Localization.OverviewMemory, memory.UsageText, memory.CapacityText, memory.TemperatureText, memory.UsageGauge, DashboardBrushes.Green));
         }
 
-        for (int i = 0; i < snapshot.Gpus.Count; i++)
-        {
-            GpuDeviceReading gpu = snapshot.Gpus[i];
-            _overviewBuffer.Add(new($"gpu:{gpu.Name}", Localization.OverviewGpu(i), gpu.LoadText, gpu.Name, $"{gpu.PowerText} | {gpu.TemperatureText}", gpu.LoadGauge, DashboardBrushes.Purple));
-        }
-
         for (int i = 0; i < snapshot.StorageDevices.Count; i++)
         {
             StorageDeviceReading storage = snapshot.StorageDevices[i];
             _overviewBuffer.Add(new($"storage:{storage.Name}", Localization.OverviewDisk(i), storage.UsageText, storage.Name, $"{storage.ReadWriteText} | {storage.TemperatureText}", storage.ActivityGauge, DashboardBrushes.Amber));
+        }
+
+        if (snapshot.Network is { } network)
+        {
+            _overviewBuffer.Add(new($"network:{network.InterfaceId}", Localization.OverviewNetwork(network.IsWireless), network.ReceiveText, network.Name, Localization.NetworkTraffic(network.SendText, network.ReceiveText), network.ActivityGauge, DashboardBrushes.Teal));
+        }
+
+        for (int i = 0; i < snapshot.Gpus.Count; i++)
+        {
+            GpuDeviceReading gpu = snapshot.Gpus[i];
+            _overviewBuffer.Add(new($"gpu:{gpu.Name}", Localization.OverviewGpu(i), gpu.LoadText, gpu.Name, $"{gpu.PowerText} | {gpu.TemperatureText}", gpu.LoadGauge, DashboardBrushes.Purple));
         }
 
         SyncDeviceCollection(_viewModel.OverviewItems, _overviewBuffer, reading => reading.Key, reading => new OverviewItemViewModel(reading) { IsCompact = _viewModel.IsSidebarCompact });

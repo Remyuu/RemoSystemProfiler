@@ -902,6 +902,19 @@ public static class Localization
 
     public static string OverviewDisk(int index) => Text($"Disk {index}", $"磁盘 {index}", $"ディスク {index}", $"磁碟 {index}", $"Disco {index}", $"Datenträger {index}", $"Disque {index}");
 
+    public static string OverviewNetwork(bool isWireless) => isWireless
+        ? "WLAN"
+        : Text("Ethernet", "以太网", "イーサネット", "乙太網路", "Ethernet", "Ethernet", "Ethernet");
+
+    public static string NetworkTraffic(string sent, string received) => Text(
+        $"S: {sent} | R: {received}",
+        $"发送: {sent} | 接收: {received}",
+        $"送信: {sent} | 受信: {received}",
+        $"傳送: {sent} | 接收: {received}",
+        $"E: {sent} | R: {received}",
+        $"S: {sent} | E: {received}",
+        $"E: {sent} | R: {received}");
+
     public static string SensorGroupTitle(string key) => key switch
     {
         "temperature" => Text("Temperature", "温度", "温度", "溫度", "Temperatura", "Temperatur", "Température"),
