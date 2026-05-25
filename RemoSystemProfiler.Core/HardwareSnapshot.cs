@@ -7,7 +7,8 @@ public sealed record SystemSnapshot(
     CpuDeviceReading? Cpu,
     MemoryDeviceReading? Memory,
     IReadOnlyList<GpuDeviceReading> Gpus,
-    IReadOnlyList<StorageDeviceReading> StorageDevices)
+    IReadOnlyList<StorageDeviceReading> StorageDevices,
+    NetworkDeviceReading? Network)
 {
     public string SampledAtText => SampledAt.LocalDateTime.ToString("HH:mm:ss");
 }
@@ -204,6 +205,23 @@ public sealed record StorageDeviceReading(
     }
 }
 
+public sealed record NetworkDeviceReading(
+    string InterfaceId,
+    string Name,
+    bool IsWireless,
+    double ReceiveBitsPerSecond,
+    double SendBitsPerSecond,
+    long LinkSpeedBitsPerSecond)
+{
+    public string ReceiveText => MetricFormatter.FormatDataRate(ReceiveBitsPerSecond);
+
+    public string SendText => MetricFormatter.FormatDataRate(SendBitsPerSecond);
+
+    public double ActivityGauge => LinkSpeedBitsPerSecond <= 0
+        ? 0
+        : Math.Clamp(Math.Max(ReceiveBitsPerSecond, SendBitsPerSecond) / LinkSpeedBitsPerSecond * 100d, 0, 100);
+}
+
 public sealed record MetricReading(
     string Name,
     string Kind,
@@ -250,4 +268,15 @@ public static class MetricFormatter
     public static string FormatPower(float value) => $"{value:0.0} W";
 
     public static string FormatDataGigabytes(float value) => $"{value:0.0} GB";
+
+    public static string FormatDataRate(double bitsPerSecond)
+    {
+        bitsPerSecond = Math.Max(0, bitsPerSecond);
+        return bitsPerSecond switch
+        {
+            >= 1_000_000_000d => $"{bitsPerSecond / 1_000_000_000d:0.0} Gbps",
+            >= 1_000_000d => $"{bitsPerSecond / 1_000_000d:0.0} Mbps",
+            _ => $"{bitsPerSecond / 1_000d:0.0} Kbps"
+        };
+    }
 }

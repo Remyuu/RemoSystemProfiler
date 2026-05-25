@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using RemoSystemProfiler.Core;
 using System.Management;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
@@ -28,6 +29,7 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
     private readonly PdhCpuFrequencyReader _cpuFrequencyReader = new();
     private readonly WindowsLogicalProcessorLoadReader _logicalProcessorLoadReader = new();
     private readonly List<IHardware> _hardwareTreeBuffer = new(capacity: 16);
+    private readonly Dictionary<string, NetworkTrafficSample> _networkSamples = [];
 
     private bool _opened;
     private SensorDriverStatus? _cachedPawnIoStatus;
@@ -39,10 +41,15 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
     private StorageDeviceReading[]? _cachedFixedDriveFallback;
     private DateTimeOffset _cachedFixedDriveFallbackAt;
     private DateTimeOffset _lastSlowHardwareUpdateAt;
+    private string? _selectedNetworkInterfaceId;
 
     private sealed record CpuTopology(int PhysicalCores, int LogicalProcessors);
 
     private sealed record MemoryModuleInfo(string TypeText, string SpeedText);
+
+    private sealed record NetworkTrafficSample(long BytesReceived, long BytesSent, DateTimeOffset SampledAt);
+
+    private sealed record NetworkCandidate(NetworkDeviceReading Reading, bool HasDefaultGateway, double TotalBitsPerSecond);
 
     public string Name => "Windows LibreHardwareMonitor";
 
@@ -104,9 +111,10 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
                 BuildCpu(cpuHardware),
                 BuildMemory(hardwareTree, memoryHardware),
                 BuildGpus(gpuHardware),
-                storageHardware.Count == 0 ? GetFixedDriveStorageFallback() : BuildStorageDevices(storageHardware));
+                storageHardware.Count == 0 ? GetFixedDriveStorageFallback() : BuildStorageDevices(storageHardware),
+                BuildNetworkReading());
 
-            if (snapshot.Cpu is null && snapshot.Memory is null && snapshot.Gpus.Count == 0 && snapshot.StorageDevices.Count == 0)
+            if (snapshot.Cpu is null && snapshot.Memory is null && snapshot.Gpus.Count == 0 && snapshot.StorageDevices.Count == 0 && snapshot.Network is null)
             {
                 return HardwareMonitorReadResult.Unavailable("No supported hardware sensors found; try running as administrator", driverStatus);
             }
@@ -684,6 +692,109 @@ public sealed class WindowsHardwareMonitorBackend : IHardwareMonitorBackend
                 new MetricReading("Total", "Data", totalGiB, MetricFormatter.FormatDataGigabytes(totalGiB), 0),
                 new MetricReading("Free", "Data", freeGiB, MetricFormatter.FormatDataGigabytes(freeGiB), 0)
             ]);
+    }
+
+    private NetworkDeviceReading? BuildNetworkReading()
+    {
+        DateTimeOffset sampledAt = DateTimeOffset.UtcNow;
+        List<NetworkCandidate> candidates = [];
+        HashSet<string> currentIds = [];
+
+        foreach (NetworkInterface adapter in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (!IsSupportedNetworkAdapter(adapter))
+            {
+                continue;
+            }
+
+            IPInterfaceStatistics statistics;
+            try
+            {
+                statistics = adapter.GetIPStatistics();
+            }
+            catch (NetworkInformationException)
+            {
+                continue;
+            }
+
+            currentIds.Add(adapter.Id);
+            double receiveBitsPerSecond = 0;
+            double sendBitsPerSecond = 0;
+            if (_networkSamples.TryGetValue(adapter.Id, out NetworkTrafficSample? previous))
+            {
+                double seconds = (sampledAt - previous.SampledAt).TotalSeconds;
+                if (seconds > 0
+                    && statistics.BytesReceived >= previous.BytesReceived
+                    && statistics.BytesSent >= previous.BytesSent)
+                {
+                    receiveBitsPerSecond = (statistics.BytesReceived - previous.BytesReceived) * 8d / seconds;
+                    sendBitsPerSecond = (statistics.BytesSent - previous.BytesSent) * 8d / seconds;
+                }
+            }
+
+            _networkSamples[adapter.Id] = new(statistics.BytesReceived, statistics.BytesSent, sampledAt);
+            NetworkDeviceReading reading = new(
+                adapter.Id,
+                adapter.Name,
+                adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211,
+                receiveBitsPerSecond,
+                sendBitsPerSecond,
+                Math.Max(0, adapter.Speed));
+            candidates.Add(new(reading, HasDefaultGateway(adapter), receiveBitsPerSecond + sendBitsPerSecond));
+        }
+
+        foreach (string id in _networkSamples.Keys.Where(id => !currentIds.Contains(id)).ToArray())
+        {
+            _networkSamples.Remove(id);
+        }
+
+        if (candidates.Count == 0)
+        {
+            _selectedNetworkInterfaceId = null;
+            return null;
+        }
+
+        IReadOnlyList<NetworkCandidate> preferred = candidates.Any(candidate => candidate.HasDefaultGateway)
+            ? candidates.Where(candidate => candidate.HasDefaultGateway).ToArray()
+            : candidates;
+        NetworkCandidate busiest = preferred.OrderByDescending(candidate => candidate.TotalBitsPerSecond).First();
+        NetworkCandidate? selected = preferred.FirstOrDefault(candidate => candidate.Reading.InterfaceId == _selectedNetworkInterfaceId);
+        if (busiest.TotalBitsPerSecond > 0 || selected is null)
+        {
+            selected = busiest;
+        }
+
+        _selectedNetworkInterfaceId = selected.Reading.InterfaceId;
+        return selected.Reading;
+    }
+
+    private static bool IsSupportedNetworkAdapter(NetworkInterface adapter)
+    {
+        if (adapter.OperationalStatus != OperationalStatus.Up
+            || adapter.NetworkInterfaceType is not (
+                NetworkInterfaceType.Ethernet
+                or NetworkInterfaceType.GigabitEthernet
+                or NetworkInterfaceType.FastEthernetFx
+                or NetworkInterfaceType.FastEthernetT
+                or NetworkInterfaceType.Wireless80211))
+        {
+            return false;
+        }
+
+        string identity = $"{adapter.Name} {adapter.Description}";
+        return !ContainsAny(identity, "Virtual", "VPN", "Hyper-V", "VMware", "VirtualBox", "vEthernet", "Loopback", "TAP", "TUN", "WireGuard", "Bluetooth");
+    }
+
+    private static bool HasDefaultGateway(NetworkInterface adapter)
+    {
+        try
+        {
+            return adapter.GetIPProperties().GatewayAddresses.Count > 0;
+        }
+        catch (NetworkInformationException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyList<CoreReading> BuildCoreReadings(IReadOnlyList<ISensor> sensors)
